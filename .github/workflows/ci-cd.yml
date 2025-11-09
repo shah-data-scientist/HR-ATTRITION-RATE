@@ -22,7 +22,9 @@ jobs:
           python-version: '3.13'
 
       - name: Add Poetry to PATH
-        run: echo "$(pipx environment --value PIPIX_BIN_DIR)" >> $GITHUB_PATH
+        run: |
+          echo "/opt/hostedtoolcache/Python/3.13.9/x64/bin" >> $GITHUB_PATH
+          echo "$(pipx environment --value PIPIX_BIN_DIR)" >> $GITHUB_PATH
 
       - name: Debug PATH and pipx bin
         run: |
@@ -60,18 +62,10 @@ jobs:
         with:
           python-version: '3.13'
 
-      - name: Install Poetry
-        run: |
-          pip install pipx
-          pipx ensurepath
-          mkdir -p $HOME/.local/bin
-          pipx install poetry
-          echo "--- Debugging pipx installation ---"
-          pipx list
-          which poetry
-          ls -l $(pipx environment --value PIPIX_BIN_DIR)
       - name: Add Poetry to PATH
-        run: echo "$(pipx environment --value PIPIX_BIN_DIR)" >> $GITHUB_PATH
+        run: |
+          echo "/opt/hostedtoolcache/Python/3.13.9/x64/bin" >> $GITHUB_PATH
+          echo "$(pipx environment --value PIPIX_BIN_DIR)" >> $GITHUB_PATH
 
       - name: Install dependencies
         run: poetry install --no-root
