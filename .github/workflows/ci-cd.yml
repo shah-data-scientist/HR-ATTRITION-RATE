@@ -38,7 +38,9 @@ jobs:
           restore-keys: venv-${{ runner.os }}-
 
       - name: Install deps
-        run: poetry install --no-interaction --no-ansi
+        run: |
+          poetry lock --no-update
+          poetry install --no-interaction --no-ansi
 
       # (Optional) Build a tiny model artifact for API tests
       # - name: Prepare test model artifact
