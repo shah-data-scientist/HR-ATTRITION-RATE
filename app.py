@@ -132,14 +132,26 @@ def get_expected_columns(pipeline):
     # The feature_names_in_ attribute stores the names of features seen during fit
     return list(preprocessor.feature_names_in_)
 
-def get_risk_category(probability):
-    """Categorizes attrition risk based on probability."""
-    if probability < RISK_THRESHOLDS["Low"][1]:
-        return "Low"
-    elif probability < RISK_THRESHOLDS["Medium"][1]:
-        return "Medium"
-    else:
+def get_risk_category(probability, threshold):
+    """
+    Categorizes attrition risk based on the difference between probability and a dynamic threshold,
+    with a minimum absolute probability for "Medium" risk.
+    - High Risk: probability >= threshold + buffer
+    - Low Risk: probability < threshold - buffer
+    - Medium Risk: (threshold - buffer <= probability < threshold + buffer) AND (probability >= min_medium_prob)
+    - Otherwise: Low Risk
+    """
+    buffer = 0.05 # How close to the threshold to be considered "Medium" (e.g., 5 percentage points)
+    min_medium_prob = 0.20 # Minimum absolute probability to be considered "Medium" risk (e.g., 20%)
+
+    if probability >= threshold + buffer: # Clearly above threshold
         return "High"
+    elif probability < threshold - buffer: # Clearly below threshold
+        return "Low"
+    elif probability >= min_medium_prob: # Close to threshold AND above minimum for Medium
+        return "Medium"
+    else: # Close to threshold but below min_medium_prob
+        return "Low" # Default to Low if not High, not clearly Low, and below min_medium_prob
 
 def display_confusion_matrix_and_metrics(y_true, y_proba, threshold, title="Confusion Matrix"):
     """
@@ -394,7 +406,7 @@ if raw_uploaded_data is not None:
         # Prepare data for reports
         report_data = raw_uploaded_data.copy()
         report_data['Attrition_Risk_Percentage'] = prediction_proba
-        report_data['Risk_Attrition'] = report_data['Attrition_Risk_Percentage'].apply(get_risk_category)
+        report_data['Risk_Attrition'] = report_data['Attrition_Risk_Percentage'].apply(lambda x: get_risk_category(x, main_threshold))
         report_data['Prediction'] = ['Leave' if pred == 1 else 'Stay' for pred in predictions]
 
         # --- SHAP Explanations for Reports ---
@@ -503,7 +515,8 @@ if st.session_state.prediction_triggered:
     
     # Encode HTML content to base64
     b64_html = base64.b64encode(html_report_content.encode()).decode()
-    href = f'<a href="data:text/html;base64,{b64_html}" download="employee_attrition_shap_report.html" target="_blank">Open SHAP Visualization Report (HTML)</a>'
+    href = f'<a href="data:text/html;base64,{b64_html}" target="_blank">Open SHAP Visualization Report (HTML)</a>'
     st.markdown(href, unsafe_allow_html=True)
+    st.info("Please click the link above to open the SHAP Visualization Report in a new tab. Browsers typically prevent automatic opening of new tabs for security reasons.")
 
     st.success("Reports generated successfully!")
