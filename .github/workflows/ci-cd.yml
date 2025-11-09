@@ -28,6 +28,9 @@ jobs:
           pipx ensurepath
           pipx install poetry
 
+      - name: Add Poetry to PATH
+        run: echo "$HOME/.local/bin" >> $GITHUB_PATH
+
       - name: Install dependencies
         run: poetry install --no-root
 
@@ -62,6 +65,9 @@ jobs:
           pip install pipx
           pipx ensurepath
           pipx install poetry
+
+      - name: Add Poetry to PATH
+        run: echo "$HOME/.local/bin" >> $GITHUB_PATH
 
       - name: Install dependencies
         run: poetry install --no-root
