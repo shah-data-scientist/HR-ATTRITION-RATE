@@ -1,0 +1,73 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install Poetry
+        run: pip install poetry
+
+      - name: Install dependencies
+        run: poetry install --no-root
+
+      - name: Run Ruff Linter
+        run: poetry run ruff check .
+
+      - name: Run Black Formatter Check
+        run: poetry run black --check .
+
+      - name: Run Pytest
+        run: poetry run pytest
+
+  deploy:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' # Only deploy from the main branch
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install Poetry
+        run: pip install poetry
+
+      - name: Install dependencies
+        run: poetry install --no-root
+
+      - name: Placeholder for Deployment to Hugging Face Spaces
+        run: |
+          echo "Deployment to Hugging Face Spaces would go here."
+          echo "This typically involves:"
+          echo "1. Installing huggingface_hub or other deployment tools."
+          echo "2. Authenticating with Hugging Face (using GitHub Secrets for HUGGINGFACE_TOKEN)."
+          echo "3. Pushing the model, app, or a Docker image to a Hugging Face Space."
+          echo "Example: huggingface-cli login --token ${{ secrets.HUGGINGFACE_TOKEN }}"
+          echo "Example: git config --global user.email 'action@github.com'"
+          echo "Example: git config --global user.name 'GitHub Action'"
+          echo "Example: git clone https://huggingface.co/spaces/<your-username>/<your-space-name>"
+          echo "Example: cp -r your_app_files/* <your-space-name>/"
+          echo "Example: cd <your-space-name> && git add . && git commit -m 'Update via CI/CD' && git push"
+        # Note: Actual deployment steps would require specific Hugging Face Space setup
+        # and secrets, which are beyond the scope of what I can directly configure.
+        # This is a conceptual placeholder.
