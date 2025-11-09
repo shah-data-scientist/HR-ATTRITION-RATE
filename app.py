@@ -1,15 +1,18 @@
 import streamlit as st
 import pandas as pd
+pd.set_option('future.no_silent_downcasting', True) # This was inserted here
+import seaborn as sns # Import seaborn for enhanced plotting
 import joblib
 import shap
 import matplotlib.pyplot as plt
 import numpy as np
 import os
+import sys # Import sys
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay, accuracy_score, precision_score, recall_score, f1_score
 import io
 from datetime import datetime
 import base64 # Import base64 for embedding images
-import seaborn as sns # Import seaborn for enhanced plotting
+import streamlit.components.v1 as components
 
 # --- Configuration ---
 # Define risk categories for Excel report and HTML visualization
@@ -55,10 +58,17 @@ def load_model_and_data():
     y_test_loaded = pd.read_parquet('outputs/y_test.parquet').squeeze()
     return model, X_train_loaded, y_train_loaded, X_test_loaded, y_test_loaded
 
-model, X_train_loaded, y_train_loaded, X_test_loaded, y_test_loaded = load_model_and_data()
+# Function to set up the app's global resources
+def _setup_app():
+    global model, X_train_loaded, y_train_loaded, X_test_loaded, y_test_loaded, train_prediction_proba
+    model, X_train_loaded, y_train_loaded, X_test_loaded, y_test_loaded = load_model_and_data()
+    # Pre-calculate probabilities for training data (for confusion matrix)
+    train_prediction_proba = model.predict_proba(X_train_loaded)[:, 1]
 
-# Pre-calculate probabilities for training data (for confusion matrix)
-train_prediction_proba = model.predict_proba(X_train_loaded)[:, 1]
+# Call setup function only if not in a test environment (or if Streamlit is running)
+# This check is a common pattern to prevent global execution during imports in tests
+if "streamlit" in sys.modules and "pytest" not in sys.modules:
+    _setup_app()
 
 # --- Helper Functions (from train.py) ---
 def _clean_extrait_eval(df):
@@ -101,6 +111,11 @@ def load_and_merge_data(eval_df, sirh_df, sond_df):
     eval_df = _clean_extrait_eval(eval_df)
     sirh_df = _clean_extrait_sirh(sirh_df)
     sond_df = _clean_extrait_sondage(sond_df)
+
+    # Ensure 'id_employee' column exists in all dataframes before merging
+    for df in [eval_df, sirh_df, sond_df]:
+        if 'id_employee' not in df.columns:
+            df['id_employee'] = pd.Series(dtype='Int64')
 
     merged = eval_df.merge(sirh_df, on='id_employee', how='outer', suffixes=('_eval','_sirh'))
     merged = merged.merge(sond_df, on='id_employee', how='outer')
@@ -183,7 +198,8 @@ def display_confusion_matrix_and_metrics(y_true, y_proba, threshold, title="Conf
         # seaborn's annotation placement is generally robust for single values per cell.
         sns.heatmap(cm_normalized, annot=True, fmt=".2%", cmap="Blues", cbar=False, ax=ax,
                     xticklabels=['Stay', 'Leave'], yticklabels=['Stay', 'Leave'],
-                    linewidths=.5, linecolor='black') # Added lines for better cell separation
+                    linewidths=.5, linecolor='black',
+                    annot_kws={"size": 12, "color": "black"}) # Added for single, readable label
         
         ax.set_xlabel("Prediction", fontsize=14) # Increased font size for clarity
         ax.set_ylabel("Truth", fontsize=14) # Increased font size for clarity
@@ -255,6 +271,12 @@ def generate_shap_html_report(employee_data_with_predictions, X_transformed_for_
         fig = plt.figure(figsize=(12, 7)) # Create a new figure for each plot
         shap.waterfall_plot(explanation, show=False)
         ax = plt.gca() # Get the current axes, which shap.waterfall_plot would have created
+
+        # Hide any text labels that look like "f(x)" or "E[f(x)]" to avoid overlap with the axis/title
+        for text in list(ax.texts):
+            txt = text.get_text()
+            if txt and ("f(x)" in txt or "E[f(x)]" in txt or "E(x)" in txt):
+                text.set_visible(False)
         
         # --- Custom SHAP Waterfall Plot for Probability X-axis ---
         # Add a brief note in comments explaining how overlap was prevented for the SHAP X-axis
@@ -295,7 +317,10 @@ def generate_shap_html_report(employee_data_with_predictions, X_transformed_for_
         ax.set_xlabel("Attrition Probability (%)", fontsize=12)
         
         # Add subtitle for original E(x) and f(x) to avoid overlapping the axis
-        ax.set_title(f"SHAP Waterfall Plot (Base Value E(x)={base_value_prob:.1%}, Model Output f(x)={model_output_prob:.1%})", fontsize=10, loc='center', pad=20)
+        ax.set_title(
+            f"SHAP Waterfall — Baseline: {base_value_prob:.1%} · Prediction: {model_output_prob:.1%}",
+            fontsize=11, pad=12
+        )
         
         plt.tight_layout() # Ensure no overlapping text
         
@@ -313,210 +338,217 @@ def generate_shap_html_report(employee_data_with_predictions, X_transformed_for_
     html_content += "</body></html>"
     return html_content
 
-# --- Streamlit App Layout ---
-st.set_page_config(layout="wide")
-st.title("Employee Attrition Risk")
+def main():
+    _setup_app() # Call the setup function to load model and data
 
-# --- Understanding Threshold Impact ---
-st.subheader("Understanding Threshold Impact (examples from training data)")
-st.write("These examples illustrate how different thresholds affect the model's classification performance on the training data.")
+    # --- Streamlit App Layout ---
+    st.set_page_config(layout="wide")
+    st.title("Employee Attrition Risk")
 
-col_t1, col_t2, col_t3 = st.columns(3)
-with col_t1:
-    display_confusion_matrix_and_metrics(y_train_loaded, train_prediction_proba, 0.3, "Threshold 0.30")
-with col_t2:
-    display_confusion_matrix_and_metrics(y_train_loaded, train_prediction_proba, 0.5, "Threshold 0.50 (Default)")
-with col_t3:
-    display_confusion_matrix_and_metrics(y_train_loaded, train_prediction_proba, 0.7, "Threshold 0.70")
+    # --- Understanding Threshold Impact ---
+    st.subheader("Understanding Threshold Impact (examples from training data)")
+    st.write("These examples illustrate how different thresholds affect the model's classification performance on the training data.")
 
-st.markdown("---")
+    col_t1, col_t2, col_t3 = st.columns(3)
+    with col_t1:
+        display_confusion_matrix_and_metrics(y_train_loaded, train_prediction_proba, 0.3, "Threshold 0.30")
+    with col_t2:
+        display_confusion_matrix_and_metrics(y_train_loaded, train_prediction_proba, 0.5, "Threshold 0.50 (Default)")
+    with col_t3:
+        display_confusion_matrix_and_metrics(y_train_loaded, train_prediction_proba, 0.7, "Threshold 0.70")
 
-# --- Threshold Slider ---
-st.subheader("Adjust Prediction Threshold")
-main_threshold = st.slider(
-    "Select Probability Threshold",
-    0.0, 1.0, 0.5, 0.01,
-    help="Adjust this threshold to see how it impacts the model's classification on the training data."
-)
-
-# --- Confusion Matrix (Live Update) ---
-display_confusion_matrix_and_metrics(
-    y_train_loaded, train_prediction_proba, main_threshold,
-    title=f"Live Confusion Matrix on Training Data (Threshold: {main_threshold:.2f})"
-)
-
-st.markdown("---")
-
-# --- File Uploads ---
-st.subheader("Upload Employee Data for Prediction")
-st.write("Upload the three required CSV files to get attrition risk predictions.")
-
-uploaded_files = st.file_uploader(
-    "Choose the three CSV files (`extrait_eval.csv`, `extrait_sirh.csv`, `extrait_sondage.csv`)",
-    type="csv",
-    accept_multiple_files=True,
-    on_change=clear_prediction_results # Clear results when new files are selected
-)
-
-raw_uploaded_data = None
-if len(uploaded_files) == 3:
-    eval_file = None
-    sirh_file = None
-    sondage_file = None
-
-    for f in uploaded_files:
-        if 'eval' in f.name:
-            eval_file = f
-        elif 'sirh' in f.name:
-            sirh_file = f
-        elif 'sondage' in f.name:
-            sondage_file = f
-
-    if eval_file and sirh_file and sondage_file:
-        eval_df = pd.read_csv(eval_file)
-        sirh_df = pd.read_csv(sirh_file)
-        sondage_df = pd.read_csv(sondage_file)
-        raw_uploaded_data = load_and_merge_data(eval_df, sirh_df, sondage_df)
-    else:
-        st.warning("Please make sure to upload the three required files: `extrait_eval.csv`, `extrait_sirh.csv`, and `extrait_sondage.csv`.")
-elif uploaded_files:
-    st.warning("Please upload all three required CSV files.")
-
-# --- Predict Button ---
-if raw_uploaded_data is not None:
-    if st.button('Predict Attrition Risk'):
-        # Get the list of columns the model expects
-        expected_cols = get_expected_columns(model)
-        
-        # Create a new DataFrame with the expected columns
-        data_for_prediction = pd.DataFrame(columns=expected_cols)
-        
-        # Copy data from the uploaded file to the new DataFrame
-        for col in expected_cols:
-            if col in raw_uploaded_data.columns:
-                data_for_prediction[col] = raw_uploaded_data[col]
-        
-        # Clean and engineer features
-        processed_data = clean_and_engineer_features(data_for_prediction)
-        
-        # Make predictions
-        prediction_proba = model.predict_proba(processed_data)[:, 1]
-        predictions = (prediction_proba >= main_threshold).astype(int)
-
-        # Prepare data for reports
-        report_data = raw_uploaded_data.copy()
-        report_data['Attrition_Risk_Percentage'] = prediction_proba
-        report_data['Risk_Attrition'] = report_data['Attrition_Risk_Percentage'].apply(lambda x: get_risk_category(x, main_threshold))
-        report_data['Prediction'] = ['Leave' if pred == 1 else 'Stay' for pred in predictions]
-
-        # --- SHAP Explanations for Reports ---
-        preprocessor = model.named_steps['preprocessor']
-        logreg_model = model.named_steps['model']
-        X_transformed_for_shap = preprocessor.transform(processed_data)
-        
-        try:
-            ohe = preprocessor.named_transformers_['cat']
-            cat_names = ohe.get_feature_names_out(processed_data.select_dtypes(include=['object', 'category', 'string', 'bool']).columns).tolist()
-            num_cols = processed_data.select_dtypes(include=['int64', 'float64']).columns.tolist()
-            all_features = num_cols + cat_names
-        except Exception as e:
-            st.warning(f"Could not get feature names for SHAP plots. Error: {e}")
-            all_features = [f"Feature {i}" for i in range(X_transformed_for_shap.shape[1])]
-
-        explainer = shap.LinearExplainer(logreg_model, X_transformed_for_shap)
-        shap_values = explainer.shap_values(X_transformed_for_shap)
-
-        # Add Top 10 Features and Coefficients to report_data
-        top_features_list = []
-        corresponding_coeffs_list = []
-        features_and_coeffs_tab2 = [] # For Excel Tab 2
-
-        for i in range(len(report_data)):
-            employee_id = report_data.loc[i, 'id_employee']
-            employee_shap_values = shap_values[i]
-            shap_df_employee = pd.DataFrame({'feature': all_features, 'shap_value': employee_shap_values})
-            shap_df_employee['abs_shap'] = shap_df_employee['shap_value'].abs()
-            top_10 = shap_df_employee.sort_values('abs_shap', ascending=False).head(10)
-            
-            top_features_list.append("; ".join(top_10['feature'].tolist()))
-            corresponding_coeffs_list.append("; ".join(top_10['shap_value'].round(4).astype(str).tolist()))
-
-            # Prepare data for Excel Tab 2 (all features)
-            prediction_type_for_employee = report_data.loc[i, 'Prediction']
-            for _, row_shap in shap_df_employee.iterrows():
-                features_and_coeffs_tab2.append({
-                    'Employee_ID': employee_id,
-                    'Feature': row_shap['feature'],
-                    'Coefficient': row_shap['shap_value'],
-                    'Prediction': prediction_type_for_employee # Add prediction type here
-                })
-        
-        report_data['Top_10_Features'] = top_features_list
-        report_data['Corresponding_Coefficients'] = corresponding_coeffs_list
-
-        # Store results in session state
-        st.session_state.prediction_triggered = True
-        st.session_state.report_data = report_data
-        st.session_state.processed_data_for_shap = X_transformed_for_shap
-        st.session_state.explainer = explainer
-        st.session_state.all_features = all_features
-        st.session_state.excel_report_data = pd.DataFrame(features_and_coeffs_tab2)
-    
-# --- Display Results (if triggered) ---
-if st.session_state.prediction_triggered:
     st.markdown("---")
-    st.subheader("Prediction Results and Reports")
 
-    report_data = st.session_state.report_data
-    X_transformed_for_shap = st.session_state.processed_data_for_shap
-    explainer = st.session_state.explainer
-    all_features = st.session_state.all_features
-    excel_tab2_data = st.session_state.excel_report_data
-
-    # --- Generate Excel Report ---
-    excel_buffer = io.BytesIO()
-    with pd.ExcelWriter(excel_buffer, engine='openpyxl') as writer:
-        # Tab 1: Summary
-        tab1_df = report_data[['id_employee', 'Risk_Attrition', 'Attrition_Risk_Percentage', 'Prediction']].copy()
-        tab1_df.to_excel(writer, sheet_name='Summary', index=False)
-
-        # Tab 2: Features
-        # This DataFrame already contains Employee_ID, Feature, Coefficient for ALL features
-        tab2_df = excel_tab2_data.copy() 
-        tab2_df.to_excel(writer, sheet_name='Features', index=False)
-
-        # Tab 3: Metrics
-        summary_metrics_df = pd.DataFrame({
-            'Metric': ['Total Employees Processed', 'Predicted to Leave', 'Predicted to Stay'],
-            'Value': [
-                len(report_data),
-                report_data['Prediction'].value_counts().get('Leave', 0),
-                report_data['Prediction'].value_counts().get('Stay', 0)
-            ]
-        })
-        summary_metrics_df.to_excel(writer, sheet_name='Metrics', index=False)
-    
-    excel_buffer.seek(0)
-    st.download_button(
-        label="Download Excel Report",
-        data=excel_buffer,
-        file_name="employee_attrition_report.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    # --- Threshold Slider ---
+    st.subheader("Adjust Prediction Threshold")
+    main_threshold = st.slider(
+        "Select Probability Threshold",
+        0.0, 1.0, 0.5, 0.01,
+        help="Adjust this threshold to see how it impacts the model's classification on the training data."
     )
 
-    # --- Generate HTML Visualization Report ---
-    # This will be a separate HTML file with embedded SHAP plots
-    html_report_content = generate_shap_html_report(report_data, X_transformed_for_shap, explainer, all_features)
-    
-    # Save HTML to a temporary file and provide a link
-    # Streamlit doesn't directly support opening new tabs from a generated string.
-    # The most reliable way to "open" is to provide a download button, and the browser handles it.
-    # To provide a link that opens in a new tab, we can use base64 encoding for the HTML content.
-    
-    # Encode HTML content to base64
-    b64_html = base64.b64encode(html_report_content.encode()).decode()
-    href = f'<a href="data:text/html;base64,{b64_html}" target="_blank">Open SHAP Visualization Report (HTML)</a>'
-    st.markdown(href, unsafe_allow_html=True)
-    st.info("Please click the link above to open the SHAP Visualization Report in a new tab. Browsers typically prevent automatic opening of new tabs for security reasons.")
+    # --- Confusion Matrix (Live Update) ---
+    display_confusion_matrix_and_metrics(
+        y_train_loaded, train_prediction_proba, main_threshold,
+        title=f"Live Confusion Matrix on Training Data (Threshold: {main_threshold:.2f})"
+    )
 
-    st.success("Reports generated successfully!")
+    st.markdown("---")
+
+    # --- File Uploads ---
+    st.subheader("Upload Employee Data for Prediction")
+    st.write("Upload the three required CSV files to get attrition risk predictions.")
+
+    uploaded_files = st.file_uploader(
+        "Choose the three CSV files (`extrait_eval.csv`, `extrait_sirh.csv`, `extrait_sondage.csv`)",
+        type="csv",
+        accept_multiple_files=True,
+        on_change=clear_prediction_results # Clear results when new files are selected
+    )
+
+    raw_uploaded_data = None
+    if len(uploaded_files) == 3:
+        eval_file = None
+        sirh_file = None
+        sondage_file = None
+
+        for f in uploaded_files:
+            if 'eval' in f.name:
+                eval_file = f
+            elif 'sirh' in f.name:
+                sirh_file = f
+            elif 'sondage' in f.name:
+                sondage_file = f
+
+        if eval_file and sirh_file and sondage_file:
+            eval_df = pd.read_csv(eval_file)
+            sirh_df = pd.read_csv(sirh_file)
+            sondage_df = pd.read_csv(sondage_file)
+            raw_uploaded_data = load_and_merge_data(eval_df, sirh_df, sondage_df)
+        else:
+            st.warning("Please make sure to upload the three required files: `extrait_eval.csv`, `extrait_sirh.csv`, and `extrait_sondage.csv`.")
+    elif uploaded_files:
+        st.warning("Please upload all three required CSV files.")
+
+    # --- Predict Button ---
+    if raw_uploaded_data is not None:
+        if st.button('Predict Attrition Risk'):
+            # Get the list of columns the model expects
+            expected_cols = get_expected_columns(model)
+            
+            # Create a new DataFrame with the expected columns
+            data_for_prediction = pd.DataFrame(columns=expected_cols)
+            
+            # Copy data from the uploaded file to the new DataFrame
+            for col in expected_cols:
+                if col in raw_uploaded_data.columns:
+                    data_for_prediction[col] = raw_uploaded_data[col]
+            
+            # Clean and engineer features
+            processed_data = clean_and_engineer_features(data_for_prediction)
+            
+            # Make predictions
+            prediction_proba = model.predict_proba(processed_data)[:, 1]
+            predictions = (prediction_proba >= main_threshold).astype(int)
+
+            # Prepare data for reports
+            report_data = raw_uploaded_data.copy()
+            report_data['Attrition_Risk_Percentage'] = prediction_proba
+            report_data['Risk_Attrition'] = report_data['Attrition_Risk_Percentage'].apply(lambda x: get_risk_category(x, main_threshold))
+            report_data['Prediction'] = ['Leave' if pred == 1 else 'Stay' for pred in predictions]
+
+            # --- SHAP Explanations for Reports ---
+            preprocessor = model.named_steps['preprocessor']
+            logreg_model = model.named_steps['model']
+            X_transformed_for_shap = preprocessor.transform(processed_data)
+            
+            try:
+                ohe = preprocessor.named_transformers_['cat']
+                cat_names = ohe.get_feature_names_out(processed_data.select_dtypes(include=['object', 'category', 'string', 'bool']).columns).tolist()
+                num_cols = processed_data.select_dtypes(include=['int64', 'float64']).columns.tolist()
+                all_features = num_cols + cat_names
+            except Exception as e:
+                st.warning(f"Could not get feature names for SHAP plots. Error: {e}")
+                all_features = [f"Feature {i}" for i in range(X_transformed_for_shap.shape[1])]
+
+            explainer = shap.LinearExplainer(logreg_model, X_transformed_for_shap)
+            shap_values = explainer.shap_values(X_transformed_for_shap)
+
+            # Add Top 10 Features and Coefficients to report_data
+            top_features_list = []
+            corresponding_coeffs_list = []
+            features_and_coeffs_tab2 = [] # For Excel Tab 2
+
+            for i in range(len(report_data)):
+                employee_id = report_data.loc[i, 'id_employee']
+                employee_shap_values = shap_values[i]
+                shap_df_employee = pd.DataFrame({'feature': all_features, 'shap_value': employee_shap_values})
+                shap_df_employee['abs_shap'] = shap_df_employee['shap_value'].abs()
+                top_10 = shap_df_employee.sort_values('abs_shap', ascending=False).head(10)
+                
+                top_features_list.append("; ".join(top_10['feature'].tolist()))
+                corresponding_coeffs_list.append("; ".join(top_10['shap_value'].round(4).astype(str).tolist()))
+
+                # Prepare data for Excel Tab 2 (all features)
+                prediction_type_for_employee = report_data.loc[i, 'Prediction']
+                for _, row_shap in shap_df_employee.iterrows():
+                    features_and_coeffs_tab2.append({
+                        'Employee_ID': employee_id,
+                        'Feature': row_shap['feature'],
+                        'Coefficient': row_shap['shap_value'],
+                        'Prediction': prediction_type_for_employee # Add prediction type here
+                    })
+            
+            report_data['Top_10_Features'] = top_features_list
+            report_data['Corresponding_Coefficients'] = corresponding_coeffs_list
+
+            # Store results in session state
+            st.session_state.prediction_triggered = True
+            st.session_state.report_data = report_data
+            st.session_state.processed_data_for_shap = X_transformed_for_shap
+            st.session_state.explainer = explainer
+            st.session_state.all_features = all_features
+            st.session_state.excel_report_data = pd.DataFrame(features_and_coeffs_tab2)
+        
+    # --- Display Results (if triggered) ---
+    if st.session_state.prediction_triggered:
+        st.markdown("---")
+        st.subheader("Prediction Results and Reports")
+
+        report_data = st.session_state.report_data
+        X_transformed_for_shap = st.session_state.processed_data_for_shap
+        explainer = st.session_state.explainer
+        all_features = st.session_state.all_features
+        excel_tab2_data = st.session_state.excel_report_data
+
+        # --- Generate Excel Report ---
+        excel_buffer = io.BytesIO()
+        with pd.ExcelWriter(excel_buffer, engine='openpyxl') as writer:
+            # Tab 1: Summary (no employee name, no extra columns)
+            tab1_df = report_data[['id_employee', 'Risk_Attrition', 'Attrition_Risk_Percentage']].copy()
+            tab1_df.rename(columns={'id_employee':'Employee_ID'}, inplace=True)
+            tab1_df.to_excel(writer, sheet_name='Summary', index=False)
+
+            # Tab 2: Features (all features with coefficients; no employee name)
+            tab2_df = excel_tab2_data.copy()
+            # Ensure column names are exactly as required
+            tab2_df.rename(columns={'Employee_ID': 'Employee_ID', 'Feature': 'Feature', 'Coefficient': 'Coefficient'}, inplace=True)
+            tab2_df[['Employee_ID','Feature','Coefficient']].to_excel(writer, sheet_name='Features', index=False)
+
+            # Tab 3: Metrics (optional)
+            summary_metrics_df = pd.DataFrame({
+                'Metric': ['Total Employees Processed', 'Predicted to Leave', 'Predicted to Stay'],
+                'Value': [
+                    len(report_data),
+                    report_data['Prediction'].value_counts().get('Leave', 0),
+                    report_data['Prediction'].value_counts().get('Stay', 0)
+                ]
+            })
+            summary_metrics_df.to_excel(writer, sheet_name='Metrics', index=False)
+        
+        excel_buffer.seek(0)
+        st.download_button(
+            label="Download Excel Report",
+            data=excel_buffer,
+            file_name="employee_attrition_report.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+
+        # --- Generate HTML Visualization Report ---
+        html_report_content = generate_shap_html_report(
+            report_data, X_transformed_for_shap, explainer, all_features
+        )
+
+        st.subheader("Employee Attrition SHAP Report")
+        # Render inline in the same browser/tab
+        components.html(html_report_content, height=900, scrolling=True)
+
+        # Optional: also provide a link to open in a new tab (no download)
+        b64_html = base64.b64encode(html_report_content.encode()).decode()
+        href = f'<a href="data:text/html;base64,{b64_html}" target="_blank">Open SHAP Report in a new tab</a>'
+        st.markdown(href, unsafe_allow_html=True)
+
+        st.success("Reports generated successfully!")
+
+if __name__ == "__main__":
+    main()
