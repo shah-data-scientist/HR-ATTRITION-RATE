@@ -220,11 +220,13 @@ def generate_shap_html_report(employee_data_with_predictions, X_transformed_for_
         employee_id = row.get('id_employee', f'Employee {i+1}')
         risk_category = row['Risk_Attrition']
         attrition_prob = row['Attrition_Risk_Percentage']
+        prediction_type = row['Prediction'] # Get the prediction type (Leaver/Stayer)
 
         html_content += f"""
         <div class="employee-card">
             <h2>Employee ID: {employee_id}</h2>
             <p>Predicted Attrition Risk: <span class="risk-label risk-{risk_category.lower()}">{risk_category}</span> ({attrition_prob:.2%})</p>
+            <p>Prediction Type: <strong>{prediction_type}</strong></p>
         """
         
         # Generate SHAP plot for this employee
@@ -428,11 +430,13 @@ if raw_uploaded_data is not None:
             corresponding_coeffs_list.append("; ".join(top_10['shap_value'].round(4).astype(str).tolist()))
 
             # Prepare data for Excel Tab 2 (all features)
+            prediction_type_for_employee = report_data.loc[i, 'Prediction']
             for _, row_shap in shap_df_employee.iterrows():
                 features_and_coeffs_tab2.append({
                     'Employee_ID': employee_id,
                     'Feature': row_shap['feature'],
-                    'Coefficient': row_shap['shap_value']
+                    'Coefficient': row_shap['shap_value'],
+                    'Prediction': prediction_type_for_employee # Add prediction type here
                 })
         
         report_data['Top_10_Features'] = top_features_list
@@ -461,7 +465,7 @@ if st.session_state.prediction_triggered:
     excel_buffer = io.BytesIO()
     with pd.ExcelWriter(excel_buffer, engine='openpyxl') as writer:
         # Tab 1: Summary
-        tab1_df = report_data[['id_employee', 'Risk_Attrition', 'Attrition_Risk_Percentage']].copy()
+        tab1_df = report_data[['id_employee', 'Risk_Attrition', 'Attrition_Risk_Percentage', 'Prediction']].copy()
         tab1_df.to_excel(writer, sheet_name='Summary', index=False)
 
         # Tab 2: Features
