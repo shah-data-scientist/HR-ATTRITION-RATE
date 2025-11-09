@@ -16,20 +16,15 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Python 3.13
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.13'
-          cache: 'poetry' # Add caching for Poetry dependencies
-
-      - name: Install Poetry
-        run: |
-          pip install pipx
-          pipx ensurepath
-          pipx install poetry
-
       - name: Add Poetry to PATH
         run: echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Debug PATH and pipx bin
+        run: |
+          echo "PATH is: $PATH"
+          echo "---"
+          echo "Contents of $HOME/.local/bin:"
+          ls -l $HOME/.local/bin
 
       - name: Install dependencies
         run: poetry install --no-root
