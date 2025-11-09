@@ -64,6 +64,7 @@ jobs:
         run: |
           pip install pipx
           pipx ensurepath
+          mkdir -p $HOME/.local/bin
           pipx install poetry
           echo "--- Debugging pipx installation ---"
           pipx list
