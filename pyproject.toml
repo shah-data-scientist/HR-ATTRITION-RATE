@@ -8,6 +8,14 @@ authors = [
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
+    "streamlit",
+    "scikit-learn",
+    "imbalanced-learn",
+    "shap",
+    "pandas",
+    "numpy",
+    "matplotlib",
+    "openpyxl",
 ]
 
 [tool.poetry]
