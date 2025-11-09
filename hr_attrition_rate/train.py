@@ -8,7 +8,11 @@ import joblib
 from datetime import datetime
 from sklearn.compose import ColumnTransformer
 from sklearn.preprocessing import StandardScaler, OneHotEncoder
-from sklearn.model_selection import train_test_split, StratifiedKFold, RandomizedSearchCV
+from sklearn.model_selection import (
+    train_test_split,
+    StratifiedKFold,
+    RandomizedSearchCV,
+)
 from sklearn.linear_model import LogisticRegression
 from imblearn.pipeline import Pipeline
 from imblearn.over_sampling import SMOTE
@@ -24,69 +28,104 @@ FILE_SIRH = os.path.join(DATA_PATH, "extrait_sirh.csv")
 FILE_SONDAGE = os.path.join(DATA_PATH, "extrait_sondage.csv")
 os.makedirs(OUTPUT_path, exist_ok=True)
 
+
 # --- Load & Prepare Data ---
 def _clean_extrait_eval(df):
     df = df.copy()
-    if 'augmentation_salaire_precedente' in df.columns:
-        df['augmentation_salaire_precedente'] = (
-            df['augmentation_salaire_precedente'].astype(str)
-            .str.replace('%','', regex=False).str.replace(',','.', regex=False).str.strip()
+    if "augmentation_salaire_precedente" in df.columns:
+        df["augmentation_salaire_precedente"] = (
+            df["augmentation_salaire_precedente"]
+            .astype(str)
+            .str.replace("%", "", regex=False)
+            .str.replace(",", ".", regex=False)
+            .str.strip()
         )
-        df['augmentation_salaire_precedente'] = pd.to_numeric(df['augmentation_salaire_precedente'], errors='coerce')/100.0
-    for col in ['heures_supplementaires','heure_supplementaires','heures_supplémentaires']:
+        df["augmentation_salaire_precedente"] = (
+            pd.to_numeric(df["augmentation_salaire_precedente"], errors="coerce")
+            / 100.0
+        )
+    for col in [
+        "heures_supplementaires",
+        "heure_supplementaires",
+        "heures_supplémentaires",
+    ]:
         if col in df.columns:
-            df[col] = df[col].replace({'Oui':1,'Non':0,'oui':1,'non':0, True:1, False:0}).astype('Int64')
-            if col != 'heures_supplementaires':
-                df.rename(columns={col:'heures_supplementaires'}, inplace=True)
-    if 'eval_number' in df.columns:
-        df['id_employee'] = df['eval_number'].astype(str).str.replace('E_','', regex=False)
-        df['id_employee'] = pd.to_numeric(df['id_employee'], errors='coerce').astype('Int64')
-        df.drop(columns=['eval_number'], inplace=True, errors='ignore')
+            df[col] = (
+                df[col]
+                .replace({"Oui": 1, "Non": 0, "oui": 1, "non": 0, True: 1, False: 0})
+                .astype("Int64")
+            )
+            if col != "heures_supplementaires":
+                df.rename(columns={col: "heures_supplementaires"}, inplace=True)
+    if "eval_number" in df.columns:
+        df["id_employee"] = (
+            df["eval_number"].astype(str).str.replace("E_", "", regex=False)
+        )
+        df["id_employee"] = pd.to_numeric(df["id_employee"], errors="coerce").astype(
+            "Int64"
+        )
+        df.drop(columns=["eval_number"], inplace=True, errors="ignore")
     return df
+
 
 def _clean_extrait_sirh(df):
     df = df.copy()
-    if 'genre' in df.columns:
-        df['genre'] = df['genre'].replace({'M':1,'F':0,'m':1,'f':0}).astype('Int64')
-    for col in ['nombre_heures_travailless', '...']:
+    if "genre" in df.columns:
+        df["genre"] = (
+            df["genre"].replace({"M": 1, "F": 0, "m": 1, "f": 0}).astype("Int64")
+        )
+    for col in ["nombre_heures_travailless", "..."]:
         if col in df.columns:
             df.drop(columns=[col], inplace=True)
     return df
 
+
 def _clean_extrait_sondage(df):
     df = df.copy()
-    if 'code_sondage' in df.columns:
-        df.rename(columns={'code_sondage':'id_employee'}, inplace=True)
-    if 'id_employee' in df.columns:
-        df['id_employee'] = pd.to_numeric(df['id_employee'], errors='coerce').astype('Int64')
+    if "code_sondage" in df.columns:
+        df.rename(columns={"code_sondage": "id_employee"}, inplace=True)
+    if "id_employee" in df.columns:
+        df["id_employee"] = pd.to_numeric(df["id_employee"], errors="coerce").astype(
+            "Int64"
+        )
     return df
+
 
 def load_and_merge_data(eval_path, sirh_path, sond_path):
     eval_df = _clean_extrait_eval(pd.read_csv(eval_path))
     sirh_df = _clean_extrait_sirh(pd.read_csv(sirh_path))
     sond_df = _clean_extrait_sondage(pd.read_csv(sond_path))
 
-    merged = eval_df.merge(sirh_df, on='id_employee', how='outer', suffixes=('_eval','_sirh'))
-    merged = merged.merge(sond_df, on='id_employee', how='outer')
-    if '...' in merged.columns:
-        merged.drop(columns=['...'], inplace=True, errors='ignore')
+    merged = eval_df.merge(
+        sirh_df, on="id_employee", how="outer", suffixes=("_eval", "_sirh")
+    )
+    merged = merged.merge(sond_df, on="id_employee", how="outer")
+    if "..." in merged.columns:
+        merged.drop(columns=["..."], inplace=True, errors="ignore")
     merged.drop_duplicates(inplace=True)
     print("Shape after merge:", merged.shape)
     return merged
+
 
 consolidated_modelisation = load_and_merge_data(FILE_EVAL, FILE_SIRH, FILE_SONDAGE)
 
 # --- Feature Engineering & Preprocessing ---
 df = consolidated_modelisation.copy()
 
-if {"note_evaluation_actuelle","note_evaluation_precedente"}.issubset(df.columns):
-    df["improvement_evaluation"] = df["note_evaluation_actuelle"] - df["note_evaluation_precedente"]
+if {"note_evaluation_actuelle", "note_evaluation_precedente"}.issubset(df.columns):
+    df["improvement_evaluation"] = (
+        df["note_evaluation_actuelle"] - df["note_evaluation_precedente"]
+    )
 
-sat_cols = ["satisfaction_employee_nature_travail","satisfaction_employee_equipe","satisfaction_employee_equilibre_pro_perso"]
+sat_cols = [
+    "satisfaction_employee_nature_travail",
+    "satisfaction_employee_equipe",
+    "satisfaction_employee_equilibre_pro_perso",
+]
 if set(sat_cols).issubset(df.columns):
     df["total_satisfaction"] = df[sat_cols[0]] * df[sat_cols[1]] * df[sat_cols[2]]
 
-if {"annees_dans_le_poste_actuel","annees_dans_l_entreprise"}.issubset(df.columns):
+if {"annees_dans_le_poste_actuel", "annees_dans_l_entreprise"}.issubset(df.columns):
     denom = df["annees_dans_l_entreprise"].replace(0, np.nan)
     df["work_mobility"] = (df["annees_dans_le_poste_actuel"] / denom).fillna(0)
 
@@ -96,17 +135,23 @@ if target_col in df.columns:
         df[target_col]
         .astype(str)
         .str.strip()
-        .replace({'Oui': 1, 'Non': 0, 'oui': 1, 'non': 0, 'OUI': 1, 'NON': 0})
+        .replace({"Oui": 1, "Non": 0, "oui": 1, "non": 0, "OUI": 1, "NON": 0})
     )
-    df[target_col] = pd.to_numeric(df[target_col], errors='coerce').fillna(0).astype(int)
+    df[target_col] = (
+        pd.to_numeric(df[target_col], errors="coerce").fillna(0).astype(int)
+    )
 else:
     raise ValueError(f"Target column '{target_col}' not found.")
 
 X = df.drop(columns=[target_col])
 y = df[target_col].astype(int)
 
-num_cols = X.select_dtypes(include=["int64","float64","Int64","Float64"]).columns.tolist()
-cat_cols = X.select_dtypes(include=["object","category","string","bool"]).columns.tolist()
+num_cols = X.select_dtypes(
+    include=["int64", "float64", "Int64", "Float64"]
+).columns.tolist()
+cat_cols = X.select_dtypes(
+    include=["object", "category", "string", "bool"]
+).columns.tolist()
 
 try:
     ohe = OneHotEncoder(handle_unknown="ignore", sparse_output=False)
@@ -114,11 +159,8 @@ except TypeError:
     ohe = OneHotEncoder(handle_unknown="ignore", sparse=False)
 
 preprocessor = ColumnTransformer(
-    transformers=[
-        ("num", StandardScaler(), num_cols),
-        ("cat", ohe, cat_cols)
-    ],
-    remainder="drop"
+    transformers=[("num", StandardScaler(), num_cols), ("cat", ohe, cat_cols)],
+    remainder="drop",
 )
 
 # --- Modeling ---
@@ -126,24 +168,40 @@ X_train, X_test, y_train, y_test = train_test_split(
     X, y, test_size=0.25, random_state=42, stratify=y
 )
 
-logreg_en_pipe = Pipeline(steps=[
-    ("preprocessor", preprocessor),
-    ("smote", SMOTE(random_state=42, k_neighbors=5)),
-    ("model", LogisticRegression(solver="saga", max_iter=5000, penalty="elasticnet"))
-])
+logreg_en_pipe = Pipeline(
+    steps=[
+        ("preprocessor", preprocessor),
+        ("smote", SMOTE(random_state=42, k_neighbors=5)),
+        (
+            "model",
+            LogisticRegression(solver="saga", max_iter=5000, penalty="elasticnet"),
+        ),
+    ]
+)
 
 param_distributions = {
-    "model__C": loguniform(1e-3, 1e+2),
-    "model__l1_ratio": uniform(0,1),
+    "model__C": loguniform(1e-3, 1e2),
+    "model__l1_ratio": uniform(0, 1),
     "model__class_weight": [None, "balanced"],
-    "smote__k_neighbors": [3,5]
+    "smote__k_neighbors": [3, 5],
 }
 
 cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
 search = RandomizedSearchCV(
-    estimator=logreg_en_pipe, param_distributions=param_distributions, n_iter=20,
-    scoring={"recall":"recall","precision":"precision","pr_auc":"average_precision"},
-    refit="recall", cv=cv, random_state=42, n_jobs=-1, return_train_score=True, verbose=0
+    estimator=logreg_en_pipe,
+    param_distributions=param_distributions,
+    n_iter=20,
+    scoring={
+        "recall": "recall",
+        "precision": "precision",
+        "pr_auc": "average_precision",
+    },
+    refit="recall",
+    cv=cv,
+    random_state=42,
+    n_jobs=-1,
+    return_train_score=True,
+    verbose=0,
 )
 search.fit(X_train, y_train)
 best_pipe = search.best_estimator_
@@ -157,7 +215,7 @@ os.makedirs(SNAPSHOT_DIR, exist_ok=True)
 snapshot_id = datetime.now().strftime("%Y%m%d_%H%M%S") + "_p4_attrition"
 snap_path_X = os.path.join(SNAPSHOT_DIR, f"{snapshot_id}_X_train.parquet")
 snap_path_y = os.path.join(SNAPSHOT_DIR, f"{snapshot_id}_y_train.parquet")
-model_path  = os.path.join(OUTPUT_path, "employee_attrition_pipeline.pkl")
+model_path = os.path.join(OUTPUT_path, "employee_attrition_pipeline.pkl")
 manifest_path = os.path.join(SNAPSHOT_DIR, f"{snapshot_id}_manifest.json")
 
 X_train.to_parquet(snap_path_X, index=False)
@@ -166,7 +224,9 @@ y_train.to_frame(name=target_col).to_parquet(snap_path_y, index=False)
 joblib.dump(best_pipe, model_path)
 
 schema = {col: str(dtype) for col, dtype in X_train.dtypes.items()}
-data_hash = hashlib.md5(pd.util.hash_pandas_object(X_train, index=True).values).hexdigest()
+data_hash = hashlib.md5(
+    pd.util.hash_pandas_object(X_train, index=True).values
+).hexdigest()
 
 manifest = {
     "snapshot_id": snapshot_id,
@@ -175,8 +235,10 @@ manifest = {
     "target": target_col,
     "schema": schema,
     "hash_md5": data_hash,
-    "best_params": {k: (v.item() if hasattr(v, 'item') else v) for k, v in best_params.items()},
-    "model_artifact": model_path.replace("\\", "/")
+    "best_params": {
+        k: (v.item() if hasattr(v, "item") else v) for k, v in best_params.items()
+    },
+    "model_artifact": model_path.replace("\\", "/"),
 }
 with open(manifest_path, "w", encoding="utf-8") as f:
     json.dump(manifest, f, indent=2)

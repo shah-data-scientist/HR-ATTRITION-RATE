@@ -1,6 +1,27 @@
+[tool.poetry]
+packages = [{include = "hr_attrition_rate"}]
+
+[tool.poetry.group.dev.dependencies]
+pytest = {version = ">=8.2,<9.0", python = ">=3.9"}
+pytest-cov = {version = ">=7.0.0,<8.0.0", python = ">=3.9"}
+pytest-asyncio = {version = ">=1.2.0,<2.0.0", python = ">=3.9"}
+ruff = {version = "==0.14.4", python = ">=3.7"}
+black = {version = "==25.9.0", python = ">=3.9"}
+pre-commit = {version = ">=3.0.0,<4.0.0", python = ">=3.9"}
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
 [project]
+name = "hr-attrition-rate"
+version = "0.1.0"
+description = ""
+authors = [
+    {name = "Shahul SHAIK", email = "shah.data.scientist@gmail.com"}
+]
 readme = "README.md"
-requires-python = ">=3.13"
+requires-python = ">=3.11"
 dependencies = [
     "streamlit",
     "scikit-learn",
@@ -10,28 +31,14 @@ dependencies = [
     "numpy",
     "matplotlib",
     "openpyxl",
-    "fastapi (>=0.121.1,<0.122.0)",
-    "uvicorn (>=0.38.0,<0.39.0)",
-    "pydantic (>=2.12.4,<3.0.0)",
-    "httpx (>=0.28.1,<0.29.0)",
+    "fastapi>=0.121.1,<0.122.0",
+    "uvicorn>=0.38.0,<0.39.0",
+    "pydantic>=2.12.4,<3.0.0",
+    "httpx>=0.28.1,<0.29.0",
 ]
 
-[tool.poetry]
-name = "hr-attrition-rate"
-version = "0.1.0"
-description = ""
-authors = ["Shahul SHAIK <shah.data.scientist@gmail.com>"]
-
-[build-system]
-requires = ["poetry-core>=2.0.0,<3.0.0"]
-build-backend = "poetry.core.masonry.api"
-[tool.poetry.group.dev.dependencies]
-pytest = {version = ">=8.2,<9.0", python = ">=3.9"}
-pytest-cov = {version = ">=7.0.0,<8.0.0", python = ">=3.9"}
-pytest-asyncio = {version = ">=1.2.0,<2.0.0", python = ">=3.9"}
-ruff = {version = "==0.14.4", python = ">=3.7"}
-black = {version = "==25.9.0", python = ">=3.9"}
-pre-commit = {version = ">=3.0.0,<4.0.0", python = ">=3.9"}
+[project.scripts]
+hr-attrition-rate = "hr_attrition_rate.main:app"
 
 [tool.pytest.ini_options]
 python_paths = ["api"]
