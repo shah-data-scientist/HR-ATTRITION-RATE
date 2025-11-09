@@ -1,4 +1,3 @@
-
 import os
 import json
 import hashlib
@@ -183,7 +182,10 @@ with open(manifest_path, "w", encoding="utf-8") as f:
     json.dump(manifest, f, indent=2)
 
 print("Saved snapshot + model + manifest.")
-print(snap_path_X); print(snap_path_y); print(model_path); print(manifest_path)
+print(snap_path_X)
+print(snap_path_y)
+print(model_path)
+print(manifest_path)
 
 # Save the test set for app evaluation
 X_test_path = os.path.join(OUTPUT_path, "X_test.parquet")
@@ -191,7 +193,8 @@ y_test_path = os.path.join(OUTPUT_path, "y_test.parquet")
 X_test.to_parquet(X_test_path, index=False)
 y_test.to_frame(name=target_col).to_parquet(y_test_path, index=False)
 print("Saved test set for app evaluation.")
-print(X_test_path); print(y_test_path)
+print(X_test_path)
+print(y_test_path)
 
 # Save the train set for app evaluation
 X_train_path = os.path.join(OUTPUT_path, "X_train.parquet")
@@ -199,4 +202,5 @@ y_train_path = os.path.join(OUTPUT_path, "y_train.parquet")
 X_train.to_parquet(X_train_path, index=False)
 y_train.to_frame(name=target_col).to_parquet(y_train_path, index=False)
 print("Saved train set for app evaluation.")
-print(X_train_path); print(y_train_path)
+print(X_train_path)
+print(y_train_path)

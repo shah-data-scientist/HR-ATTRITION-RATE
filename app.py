@@ -2,7 +2,6 @@
 # This is a test comment to trigger CI/CD pipeline
 import streamlit as st
 import pandas as pd
-pd.set_option('future.no_silent_downcasting', True) # This was inserted here
 import seaborn as sns # Import seaborn for enhanced plotting
 import joblib
 import shap
@@ -15,6 +14,8 @@ import io
 from datetime import datetime
 import base64 # Import base64 for embedding images
 import streamlit.components.v1 as components
+
+pd.set_option('future.no_silent_downcasting', True) # This was inserted here
 
 def _sigmoid(z: float) -> float:
     return 1.0 / (1.0 + np.exp(-z))
