@@ -1,3 +1,4 @@
+# This is a test comment to trigger CI/CD pipeline
 import streamlit as st
 import pandas as pd
 pd.set_option('future.no_silent_downcasting', True) # This was inserted here
