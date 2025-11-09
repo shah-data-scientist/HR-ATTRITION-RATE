@@ -65,6 +65,11 @@ jobs:
           pip install pipx
           pipx ensurepath
           pipx install poetry
+          echo "--- Debugging pipx installation ---"
+          pipx list
+          which poetry
+          ls -l $(pipx environment --value PIPIX_BIN_DIR)
+          echo "--- End debugging pipx installation ---"
 
       - name: Add Poetry to PATH
         run: echo "$HOME/.local/bin" >> $GITHUB_PATH
