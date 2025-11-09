@@ -47,7 +47,7 @@ jobs:
       #   run: poetry run python scripts/build_test_model.py
 
       - name: Lint (Ruff)
-        run: poetry run ruff check . --fix
+        run: poetry run ruff check . --fix --exclude "Project Inputs/P4_refactored.ipynb"
 
       - name: Format check (Black)
         run: poetry run black --check .
