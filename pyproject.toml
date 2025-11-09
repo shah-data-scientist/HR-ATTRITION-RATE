@@ -16,6 +16,10 @@ dependencies = [
     "numpy",
     "matplotlib",
     "openpyxl",
+    "fastapi (>=0.121.1,<0.122.0)",
+    "uvicorn (>=0.38.0,<0.39.0)",
+    "pydantic (>=2.12.4,<3.0.0)",
+    "httpx (>=0.28.1,<0.29.0)",
 ]
 
 [tool.poetry]
@@ -26,6 +30,10 @@ requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
 [dependency-groups]
 dev = [
-    "pytest (>=9.0.0,<10.0.0)",
-    "pytest-cov (>=7.0.0,<8.0.0)"
+    "pytest (>=8.2,<9.0)",
+    "pytest-cov (>=7.0.0,<8.0.0)",
+    "pytest-asyncio (>=1.2.0,<2.0.0)"
 ]
+
+[tool.pytest.ini_options]
+python_paths = ["api"]

@@ -14,6 +14,67 @@ from datetime import datetime
 import base64 # Import base64 for embedding images
 import streamlit.components.v1 as components
 
+def _sigmoid(z: float) -> float:
+    return 1.0 / (1.0 + np.exp(-z))
+
+def _plot_probability_waterfall_topk(
+    feature_names, shap_values_row, base_log_odds, employee_prob, avg_prob, topk=10
+):
+    """
+    Custom probability-space waterfall for TOP-K features.
+    Bars show how each (log-odds) SHAP step changes probability (in %-points).
+    Adds two vertical lines:
+      - Employee probability
+      - Average (baseline) probability
+    """
+    # pick top-k by absolute SHAP magnitude (log-odds space)
+    idx = np.argsort(np.abs(shap_values_row))[-topk:][::-1]
+    feats = [feature_names[i] for i in idx]
+    deltas = shap_values_row[idx]  # in log-odds
+
+    # build probability deltas sequentially
+    curr_logit = base_log_odds
+    starts_pp = []
+    widths_pp = []
+    colors = []
+    for d in deltas:
+        p0 = _sigmoid(curr_logit) * 100.0
+        p1 = _sigmoid(curr_logit + d) * 100.0
+        starts_pp.append(min(p0, p1))
+        widths_pp.append(abs(p1 - p0))
+        colors.append("tab:red" if (p1 - p0) > 0 else "tab:blue")
+        curr_logit += d
+
+    fig, ax = plt.subplots(figsize=(7, 4))
+    y = np.arange(len(feats))
+
+    # bars (probability deltas)
+    ax.barh(y, widths_pp, left=starts_pp, color=colors, edgecolor="black", alpha=0.9, height=0.6)
+
+    # y labels = feature names
+    ax.set_yticks(y)
+    ax.set_yticklabels(feats, fontsize=10)
+
+    # x axis in percent
+    ax.set_xlabel("Attrition Probability (%)", fontsize=12)
+    ax.set_xlim(0, 100)
+
+    # single clean title
+    ax.set_title("Attrition Probability", fontsize=14, pad=8)
+
+    # vertical lines: average & this employee
+    ax.axvline(avg_prob * 100.0, color="gray", linestyle="--", linewidth=1.5, label=f"Average: {avg_prob*100:.0f}%")
+    ax.axvline(employee_prob * 100.0, color="black", linestyle="-.", linewidth=1.8, label=f"This employee: {employee_prob*100:.0f}%")
+
+    # legend (no duplicates)
+    handles, labels = ax.get_legend_handles_labels()
+    by_label = dict(zip(labels, handles))
+    ax.legend(by_label.values(), by_label.keys(), loc="lower right", fontsize=10, frameon=True)
+
+    ax.grid(axis="x", linestyle=":", alpha=0.4)
+    plt.tight_layout()
+    return fig
+
 # --- Configuration ---
 # Define risk categories for Excel report and HTML visualization
 RISK_THRESHOLDS = {
@@ -217,11 +278,13 @@ def display_confusion_matrix_and_metrics(y_true, y_proba, threshold, title="Conf
 
 def generate_shap_html_report(employee_data_with_predictions, X_transformed_for_shap, explainer, all_features):
     """
-    Generates an HTML report with SHAP explanations for each employee.
-    - X-axis is "Attrition Probability (%)".
-    - Ensures tick labels and axis title are readable and non-overlapping.
+    Generates an HTML report with a custom TOP-10 probability-space SHAP 'waterfall'-style plot.
+    - Title: 'Attrition Probability' (no SHAP/Waterfall baseline title)
+    - Two vertical lines: average probability (baseline) & this employee's probability
+    - No E[f(x)] footer, no duplicate % labels
+    - X-axis in %
     """
-    html_content = """
+    html_content = f"""
     <!DOCTYPE html>
     <html>
     <head>
@@ -230,111 +293,70 @@ def generate_shap_html_report(employee_data_with_predictions, X_transformed_for_
             body {{ font-family: sans-serif; margin: 20px; }}
             h1 {{ color: #333; }}
             h2 {{ color: #555; border-bottom: 1px solid #ccc; padding-bottom: 5px; }}
-            .employee-card {{ border: 1px solid #eee; border-radius: 8px; padding: 15px; margin-bottom: 20px; box-shadow: 2px 2px 8px rgba(0,0,0,0.1); }}
-            .risk-label {{ font-weight: bold; padding: 5px 10px; border-radius: 5px; display: inline-block; }}
+            .employee-card {{ border: 1px solid #eee; border-radius: 8px; padding: 15px; margin-bottom: 22px; box-shadow: 2px 2px 8px rgba(0,0,0,0.08); }}
+            .risk-label {{ font-weight: bold; padding: 4px 8px; border-radius: 5px; display: inline-block; }}
             .risk-low {{ background-color: #d4edda; color: #155724; }}
             .risk-medium {{ background-color: #fff3cd; color: #856404; }}
             .risk-high {{ background-color: #f8d7da; color: #721c24; }}
             .shap-plot {{ margin-top: 10px; }}
+            .meta {{ color: #666; font-size: 0.95rem; }}
         </style>
     </head>
     <body>
         <h1>Employee Attrition SHAP Explanation Report</h1>
-        <p>Report generated on: {report_date}</p>
-        <p>This report provides SHAP (SHapley Additive exPlanations) values for each employee, indicating how much each feature contributes to the model's prediction of attrition risk.</p>
-    """.format(report_date=datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+        <p class="meta">Report generated on: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}</p>
+        <p class="meta">Bars show how each top contributor moved the probability up (red) or down (blue) from the average.</p>
+    """
 
-    for i, (index, row) in enumerate(employee_data_with_predictions.iterrows()):
+    base_log_odds = explainer.expected_value
+    avg_prob = _sigmoid(base_log_odds)  # 0-1
+    print(f"DEBUG: base_log_odds (explainer.expected_value): {base_log_odds}")
+    print(f"DEBUG: avg_prob (sigmoid of base_log_odds): {avg_prob}")
+
+    # compute SHAP values once for all rows (if not precomputed)
+    all_shap = explainer.shap_values(X_transformed_for_shap)  # shape: (n, n_features)
+
+    for i, (_, row) in enumerate(employee_data_with_predictions.iterrows()):
         employee_id = row.get('id_employee', f'Employee {i+1}')
-        risk_category = row['Risk_Attrition']
-        attrition_prob = row['Attrition_Risk_Percentage']
-        prediction_type = row['Prediction'] # Get the prediction type (Leaver/Stayer)
+        risk_category = row['Risk_Attrition']              # already thresholded elsewhere
+        attrition_prob = row['Attrition_Risk_Percentage']  # 0-1
+        prediction_type = row['Prediction']                 # 'Leave'/'Stay'
 
+        # SHAP for this employee (log-odds)
+        shap_values_row = all_shap[i]
+        # employee prob from SHAP (recompute to avoid any mismatch)
+        employee_prob = _sigmoid(base_log_odds + np.sum(shap_values_row))
+
+        # build custom probability-space TOP-10 plot
+        fig = _plot_probability_waterfall_topk(
+            feature_names=all_features,
+            shap_values_row=shap_values_row,
+            base_log_odds=base_log_odds,
+            employee_prob=employee_prob,
+            avg_prob=avg_prob,
+            topk=10
+        )
+
+        buf = io.BytesIO()
+        fig.savefig(buf, format='png', bbox_inches='tight', dpi=100)
+        plt.close(fig)
+        img_str = base64.b64encode(buf.getvalue()).decode('utf-8')
+
+        # card (shows single, non-duplicated %; risk band derived from your threshold function)
         html_content += f"""
         <div class="employee-card">
             <h2>Employee ID: {employee_id}</h2>
-            <p>Predicted Attrition Risk: <span class="risk-label risk-{risk_category.lower()}">{risk_category}</span> ({attrition_prob:.2%})</p>
-            <p>Prediction Type: <strong>{prediction_type}</strong></p>
-        """
-        
-        # Generate SHAP plot for this employee
-        shap_values = explainer.shap_values(X_transformed_for_shap[i:i+1])
-        
-        # Create a SHAP Explanation object for the current employee
-        explanation = shap.Explanation(values=shap_values[0], 
-                                      base_values=explainer.expected_value, # Keep original for shap.waterfall_plot
-                                      data=X_transformed_for_shap[i], 
-                                      feature_names=all_features)
-        
-        # Plotting the waterfall plot
-        # shap.waterfall_plot creates its own figure. We need to capture it and its axes.
-        fig = plt.figure(figsize=(12, 7)) # Create a new figure for each plot
-        shap.waterfall_plot(explanation, show=False)
-        ax = plt.gca() # Get the current axes, which shap.waterfall_plot would have created
-
-        # Hide any text labels that look like "f(x)" or "E[f(x)]" to avoid overlap with the axis/title
-        for text in list(ax.texts):
-            txt = text.get_text()
-            if txt and ("f(x)" in txt or "E[f(x)]" in txt or "E(x)" in txt):
-                text.set_visible(False)
-        
-        # --- Custom SHAP Waterfall Plot for Probability X-axis ---
-        # Add a brief note in comments explaining how overlap was prevented for the SHAP X-axis
-        # Overlap is prevented by converting log-odds to probability percentages for tick labels,
-        # setting a clear x-axis label, and moving E(x)/f(x) to a subtitle.
-        # plt.tight_layout() also helps adjust spacing.
-        
-        # Get base value and f(x) in log-odds space
-        base_value_log_odds = explainer.expected_value
-        # Sum of SHAP values for this instance
-        sum_shap_values_log_odds = np.sum(shap_values[0])
-        # Model output (f(x)) in log-odds space
-        model_output_log_odds = base_value_log_odds + sum_shap_values_log_odds
-
-        # Convert to probability space
-        base_value_prob = 1 / (1 + np.exp(-base_value_log_odds))
-        model_output_prob = 1 / (1 + np.exp(-model_output_log_odds))
-        
-        # Get current x-axis limits and ticks (these are in log-odds)
-        xmin, xmax = ax.get_xlim()
-        xticks = ax.get_xticks()
-        
-        # Convert log-odds ticks to probabilities
-        # Filter out ticks that result in extreme probabilities (0 or 1) to avoid inf/nan in log-odds conversion
-        xtick_probs = []
-        xtick_labels_formatted = []
-        for x in xticks:
-            prob = 1 / (1 + np.exp(-x))
-            if 0 < prob < 1: # Ensure probability is not exactly 0 or 1
-                xtick_probs.append(prob * 100)
-                xtick_labels_formatted.append(f"{prob * 100:.0f}%")
-            else: # For extreme values, just use the raw probability or a placeholder
-                xtick_probs.append(prob * 100)
-                xtick_labels_formatted.append(f"{prob * 100:.0f}%") # Still format as percentage
-        
-        ax.set_xticks(xticks) # Keep original tick positions
-        ax.set_xticklabels(xtick_labels_formatted, fontsize=10) # Apply formatted labels
-        ax.set_xlabel("Attrition Probability (%)", fontsize=12)
-        
-        # Add subtitle for original E(x) and f(x) to avoid overlapping the axis
-        ax.set_title(
-            f"SHAP Waterfall — Baseline: {base_value_prob:.1%} · Prediction: {model_output_prob:.1%}",
-            fontsize=11, pad=12
-        )
-        
-        plt.tight_layout() # Ensure no overlapping text
-        
-        buf = io.BytesIO()
-        fig.savefig(buf, format='png', bbox_inches='tight') # Use bbox_inches='tight' to prevent labels from being cut off
-        plt.close(fig) # Close the figure to free memory
-        img_str = base64.b64encode(buf.getvalue()).decode('utf-8')
-        
-        html_content += f"""
+            <p>
+                Predicted Attrition Risk:
+                <span class="risk-label risk-{risk_category.lower()}">{risk_category}</span>
+                ({attrition_prob:.1%}) · Prediction: <strong>{prediction_type}</strong>
+            </p>
             <div class="shap-plot">
-                <img src="data:image/png;base64,{img_str}" alt="SHAP Waterfall Plot for Employee {employee_id}">
+                <img src="data:image/png;base64,{img_str}" alt="Top-10 SHAP probability waterfall for Employee {employee_id}">
             </div>
         </div>
         """
+
     html_content += "</body></html>"
     return html_content
 
@@ -505,7 +527,7 @@ def main():
         excel_buffer = io.BytesIO()
         with pd.ExcelWriter(excel_buffer, engine='openpyxl') as writer:
             # Tab 1: Summary (no employee name, no extra columns)
-            tab1_df = report_data[['id_employee', 'Risk_Attrition', 'Attrition_Risk_Percentage']].copy()
+            tab1_df = report_data[['id_employee', 'Risk_Attrition', 'Attrition_Risk_Percentage', 'Prediction']].copy()
             tab1_df.rename(columns={'id_employee':'Employee_ID'}, inplace=True)
             tab1_df.to_excel(writer, sheet_name='Summary', index=False)
 
@@ -513,7 +535,7 @@ def main():
             tab2_df = excel_tab2_data.copy()
             # Ensure column names are exactly as required
             tab2_df.rename(columns={'Employee_ID': 'Employee_ID', 'Feature': 'Feature', 'Coefficient': 'Coefficient'}, inplace=True)
-            tab2_df[['Employee_ID','Feature','Coefficient']].to_excel(writer, sheet_name='Features', index=False)
+            tab2_df[['Employee_ID','Feature','Coefficient', 'Prediction']].to_excel(writer, sheet_name='Features', index=False)
 
             # Tab 3: Metrics (optional)
             summary_metrics_df = pd.DataFrame({

@@ -265,86 +265,82 @@ def test_display_confusion_matrix_and_metrics(
     assert mock_st_write.call_count >= 4 # For threshold, accuracy, precision, recall, f1
 
 # Test generate_shap_html_report
-@patch('app.plt.figure')
-@patch('app.shap.waterfall_plot')
-@patch('app.plt.gca') # Keep this patch to ensure plt.gca returns our mock_ax
-@patch('app.plt.savefig')
-@patch('app.plt.close')
-@patch('app.base64.b64encode')
-@patch('app.datetime')
-def test_generate_shap_html_report(
-    mock_datetime, mock_b64encode, mock_plt_close, mock_plt_savefig,
-    mock_plt_gca, mock_shap_waterfall_plot, mock_plt_figure, mock_model_pipeline):
+    @patch('app.plt.subplots') # Patch plt.subplots instead of plt.figure and plt.gca
+    @patch('app.shap.waterfall_plot')
+    @patch('app.plt.savefig')
+    @patch('app.plt.close')
+    @patch('app.base64.b64encode')
+    @patch('app.datetime')
+    def test_generate_shap_html_report(
+        mock_datetime, mock_b64encode, mock_plt_close, mock_plt_savefig,
+        mock_shap_waterfall_plot, mock_plt_subplots, mock_model_pipeline): # Updated arguments
 
-    # Mock datetime.now().strftime
-    mock_datetime.now.return_value.strftime.return_value = "2025-11-10 10:00:00"
+        # Mock datetime.now().strftime
+        mock_datetime.now.return_value.strftime.return_value = "2025-11-10 10:00:00"
 
-    # Mock base64 encoding
-    mock_b64encode.return_value.decode.return_value = "mock_base64_image_string"
+        # Mock base64 encoding
+        mock_b64encode.return_value.decode.return_value = "mock_base64_image_string"
 
-    # Mock matplotlib figure and axes
-    mock_fig = MagicMock()
-    mock_ax = MagicMock()
-    mock_ax.axvline = MagicMock() # Explicitly mock axvline on mock_ax
-    mock_plt_figure.return_value = mock_fig
-    mock_plt_gca.return_value = mock_ax # Ensure plt.gca returns our mock_ax
-    mock_ax.get_xlim.return_value = (-2, 2) # Example log-odds limits
-    mock_ax.set_xticks.return_value = None
-    mock_ax.set_xticklabels.return_value = None
-    mock_ax.set_xlabel.return_value = None
-    mock_ax.set_title.return_value = None
-    mock_ax.legend.return_value = None
+        # Mock matplotlib figure and axes returned by plt.subplots
+        mock_fig = MagicMock()
+        mock_ax = MagicMock()
+        mock_ax.axvline = MagicMock() # Explicitly mock axvline on mock_ax
+        mock_ax.get_legend_handles_labels.return_value = ([], []) # Mock to prevent ValueError
+        mock_ax.legend = MagicMock() # Mock the legend call itself
+        mock_ax.get_xlim.return_value = (-2, 2) # Example log-odds limits
+        mock_ax.set_xticks.return_value = None
+        mock_ax.set_xticklabels.return_value = None
+        mock_ax.set_xlabel.return_value = None
+        mock_ax.set_title.return_value = None
+        mock_ax.grid.return_value = None # Mock grid call
+        mock_ax.set_yticks.return_value = None # Mock set_yticks call
+        mock_ax.set_yticklabels.return_value = None # Mock set_yticklabels call
+        mock_plt_subplots.return_value = (mock_fig, mock_ax) # plt.subplots returns (fig, ax)
 
-    # Mock explainer and shap_values
-    mock_explainer = MagicMock()
-    mock_explainer.expected_value = 0.5 # Example log-odds expected value (scalar)
-    mock_shap_values = [np.array([0.1, -0.2, 0.3])] # Example SHAP values
-    mock_explainer.shap_values.return_value = mock_shap_values # Mock shap_values method
-    
-    # Mock the sum of shap_values to be a scalar
-    # In the actual code, np.sum(shap_values[0]) would be a scalar
-    # So, we need to ensure our mock reflects that.
-    # The calculation of model_output_prob uses explainer.expected_value + np.sum(shap_values[0])
-    # We need to ensure explainer.expected_value is a scalar and shap_values[0] is an array
-    # so that np.sum works as expected.
-    # The error was likely due to explainer.expected_value being a mock object itself,
-    # and not a simple float.
-    
-    # Let's ensure the mock_explainer.expected_value is a simple float
-    mock_explainer.expected_value = 0.5 # A scalar float
-    
-    # The shap.Explanation constructor also needs explainer.expected_value
-    # and shap_values[0] (which is an array)
-    
-    # Mock the Explanation object creation
-    with patch('app.shap.Explanation') as mock_shap_explanation:
-        mock_shap_explanation.return_value = MagicMock()
+        # Mock plt.tight_layout
+        with patch('app.plt.tight_layout') as mock_tight_layout:
+            mock_tight_layout.return_value = None
 
-        employee_data_with_predictions = pd.DataFrame({
-            'id_employee': [101],
-            'Attrition_Risk_Percentage': [0.75],
-            'Risk_Attrition': ['High'],
-            'Prediction': ['Leave']
-        })
-        X_transformed_for_shap = np.array([[0.1, 0.2, 0.3]])
-        all_features = ['feat1', 'feat2', 'feat3']
+            # Mock explainer and shap_values
+            mock_explainer = MagicMock()
+            mock_explainer.expected_value = 0.5 # Example log-odds expected value (scalar)
+            mock_shap_values = [np.array([0.1, -0.2, 0.3])] # Example SHAP values
+            mock_explainer.shap_values.return_value = mock_shap_values # Mock shap_values method
+            
+            # Let's ensure the mock_explainer.expected_value is a simple float
+            mock_explainer.expected_value = 0.5 # A scalar float
+            
+            # Mock the Explanation object creation
+            with patch('app.shap.Explanation') as mock_shap_explanation:
+                mock_shap_explanation.return_value = MagicMock()
 
-        html_report = generate_shap_html_report(
-            employee_data_with_predictions, X_transformed_for_shap, mock_explainer, all_features)
+                employee_data_with_predictions = pd.DataFrame({
+                    'id_employee': [101],
+                    'Attrition_Risk_Percentage': [0.75],
+                    'Risk_Attrition': ['High'],
+                    'Prediction': ['Leave']
+                })
+                X_transformed_for_shap = np.array([[0.1, 0.2, 0.3]])
+                all_features = ['feat1', 'feat2', 'feat3']
 
-        assert "<h1>Employee Attrition SHAP Explanation Report</h1>" in html_report
-        assert "Employee ID: 101" in html_report
-        assert "Predicted Attrition Risk: <span class=\"risk-label risk-high\">High</span> (75.00%)" in html_report
-        assert "mock_base64_image_string" in html_report
+                html_report = generate_shap_html_report(
+                    employee_data_with_predictions, X_transformed_for_shap, mock_explainer, all_features)
 
-        mock_shap_waterfall_plot.assert_called_once()
-        mock_fig.savefig.assert_called_once()
-        mock_plt_close.assert_called_once()
-        mock_ax.set_xticks.assert_called_once()
-        mock_ax.set_xticklabels.assert_called_once()
-        mock_ax.set_xlabel.assert_called_once()
-        # assert mock_ax.axvline.call_count == 2 # For baseline and predicted prob
-                    # mock_ax.legend.assert_called_once()
+                assert "<h1>Employee Attrition SHAP Explanation Report</h1>" in html_report
+                assert "Employee ID: 101" in html_report
+                assert "Predicted Attrition Risk: <span class=\"risk-label risk-high\">High</span> (75.0%)" in html_report
+                assert "mock_base64_image_string" in html_report
+
+                mock_shap_waterfall_plot.assert_not_called() # We are no longer calling shap.waterfall_plot
+                mock_plt_subplots.assert_called_once() # Ensure our custom plot function is called
+                mock_fig.savefig.assert_called_once()
+                mock_plt_close.assert_called_once()
+                mock_ax.set_xticks.assert_called_once()
+                mock_ax.set_xticklabels.assert_called_once()
+                mock_ax.set_xlabel.assert_called_once()
+                mock_ax.set_title.assert_called_once()
+                mock_ax.axvline.call_count == 2 # For baseline and predicted prob
+                mock_ax.legend.assert_called_once()
 # --- Additional Error Scenarios for Cleaning Functions ---
 def test_clean_extrait_eval_empty_df():
     df = pd.DataFrame()
