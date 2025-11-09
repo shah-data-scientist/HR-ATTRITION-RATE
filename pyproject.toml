@@ -1,10 +1,4 @@
 [project]
-name = "hr-attrition-rate"
-version = "0.1.0"
-description = ""
-authors = [
-    {name = "Shahul SHAIK",email = "shah.data.scientist@gmail.com"}
-]
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
@@ -23,6 +17,12 @@ dependencies = [
 ]
 
 [tool.poetry]
+name = "hr-attrition-rate"
+version = "0.1.0"
+description = ""
+authors = [
+    {name = "Shahul SHAIK",email = "shah.data.scientist@gmail.com"}
+]
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
