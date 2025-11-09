@@ -1,88 +1,71 @@
-name: CI/CD Pipeline
-# This is a trivial comment to force GitHub to re-parse the workflow file.
+# .github/workflows/ci.yml
+name: CI
 
 on:
   push:
-    branches:
-      - main
+    branches: [ main ]
   pull_request:
-    branches:
-      - main
+    branches: [ main ]
 
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Python 3.13
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.13'
-
-      - name: Add Poetry to PATH
-        run: |
-          echo "/opt/hostedtoolcache/Python/3.13.9/x64/bin" >> $GITHUB_PATH
-          echo "$(pipx environment --value PIPIX_BIN_DIR)" >> $GITHUB_PATH
-
-      - name: Debug PATH and pipx bin
-        run: |
-          echo "PATH is: $PATH"
-          echo "---"
-          echo "Contents of $HOME/.local/bin:"
-          ls -l $HOME/.local/bin
-
-      - name: Install dependencies
-        run: poetry install --no-root
-
-      - name: Activate Poetry virtual environment
-        run: source $(poetry env info --path)/bin/activate
-
-      - name: Run Ruff Linter
-        run: ruff check . # No need for poetry run if env is activated
-
-      - name: Run Black Formatter Check
-        run: black --check . # No need for poetry run if env is activated
-
-      - name: Run Pytest
-        run: pytest # No need for poetry run if env is activated
-
-  deploy:
-    needs: build-and-test
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' # Only deploy from the main branch
+    timeout-minutes: 15
 
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Python 3.13
+      - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.13'
+          python-version: '3.11'
 
-      - name: Add Poetry to PATH
+      # Official Poetry installer action (no pipx, no PATH hacks)
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+        with:
+          version: 1.8.3
+          virtualenvs-create: true
+          virtualenvs-in-project: true
+          installer-parallel: true
+
+      - name: Cache virtualenv
+        uses: actions/cache@v4
+        with:
+          path: .venv
+          key: venv-${{ runner.os }}-${{ hashFiles('**/poetry.lock') }}
+          restore-keys: venv-${{ runner.os }}-
+
+      - name: Install deps
+        run: poetry install --no-interaction --no-ansi
+
+      # (Optional) Build a tiny model artifact for API tests
+      # - name: Prepare test model artifact
+      #   run: poetry run python scripts/build_test_model.py
+
+      - name: Lint (Ruff)
+        run: poetry run ruff check .
+
+      - name: Format check (Black)
+        run: poetry run black --check .
+
+      - name: Run tests
+        env:
+          # MODEL_PATH: artifacts/model.joblib  # uncomment if tests expect it
+          PYTHONWARNINGS: default
         run: |
-          echo "/opt/hostedtoolcache/Python/3.13.9/x64/bin" >> $GITHUB_PATH
-          echo "$(pipx environment --value PIPIX_BIN_DIR)" >> $GITHUB_PATH
+          poetry run pytest -v --maxfail=1 --disable-warnings \
+            --cov=api --cov-report=xml --cov-report=term
 
-      - name: Install dependencies
-        run: poetry install --no-root
-
-      - name: Placeholder for Deployment to Hugging Face Spaces
-        run: |
-          echo "Deployment to Hugging Face Spaces would go here."
-          echo "This typically involves:"
-          echo "1. Installing huggingface_hub or other deployment tools."
-          echo "2. Authenticating with Hugging Face (using GitHub Secrets for HUGGINGFACE_TOKEN)."
-          echo "3. Pushing the model, app, or a Docker image to a Hugging Face Space."
-          echo "Example: huggingface-cli login --token ${{ secrets.HUGGINGFACE_TOKEN }}"
-          echo "Example: git config --global user.email 'action@github.com'"
-          echo "Example: git config --global user.name 'GitHub Action'"
-          echo "Example: git clone https://huggingface.co/spaces/<your-username>/<your-space-name>"
-          echo "Example: cp -r your_app_files/* <your-space-name>/"
-          echo "Example: cd <your-space-name> && git add . && git commit -m 'Update via CI/CD' && git push"
-        # Note: Actual deployment steps would require specific Hugging Face Space setup
-        # and secrets, which are beyond the scope of what I can directly configure.
-        # This is a conceptual placeholder.
+  # Example deploy job (runs only when tests pass on main)
+  # deploy:
+  #   needs: build-and-test
+  #   if: github.ref == 'refs/heads/main'
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - uses: actions/setup-python@v5
+  #       with: { python-version: '3.11' }
+  #     - run: pip install huggingface_hub
+  #     - run: python scripts/deploy_to_hf.py  # your script
