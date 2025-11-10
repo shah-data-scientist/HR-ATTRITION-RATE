@@ -1,20 +1,20 @@
-import pytest
-from unittest.mock import MagicMock, patch, ANY
+import os
+import sys
+from unittest.mock import ANY, MagicMock, patch
+
 import numpy as np
 import pandas as pd
-import sys
-import os
 
 # Add the project root to the sys.path to allow importing app
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from app import (
-    _sigmoid,
-    _logit,  # Added _logit
-    get_expected_columns,
-    clear_prediction_results,
-    _get_risk_category_from_log_odds,  # Added _get_risk_category_from_log_odds
     LOG_ODDS_RISK_THRESHOLDS,  # Added LOG_ODDS_RISK_THRESHOLDS
+    _get_risk_category_from_log_odds,  # Added _get_risk_category_from_log_odds
+    _logit,  # Added _logit
+    _sigmoid,
+    clear_prediction_results,
+    get_expected_columns,
 )
 
 

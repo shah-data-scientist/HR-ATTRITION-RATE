@@ -1,13 +1,13 @@
-from pydantic import BaseModel, Field, ConfigDict
-from typing import Optional, List
+
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class EmployeeFeatures(BaseModel):
-    id_employee: Optional[int] = Field(
+    id_employee: int | None = Field(
         None, description="Unique identifier for the employee"
     )
     age: int = Field(..., ge=18, le=65, description="Age of the employee")
-    genre: Optional[int] = Field(
+    genre: int | None = Field(
         None, description="Gender (0 for Female, 1 for Male)"
     )  # Can be 0 or 1
     revenu_mensuel: float = Field(..., ge=0, description="Monthly income")
@@ -50,7 +50,7 @@ class EmployeeFeatures(BaseModel):
     domaine_etude: str = Field(
         ..., description="Field of study (e.g., 'Sciences', 'Marketing', 'Technique')"
     )
-    ayant_enfants: Optional[int] = Field(
+    ayant_enfants: int | None = Field(
         None, description="Has children (0 for No, 1 for Yes)"
     )  # Can be 0 or 1
     frequence_deplacement: str = Field(
@@ -89,7 +89,7 @@ class EmployeeFeatures(BaseModel):
     note_evaluation_actuelle: float = Field(
         ..., ge=0.0, le=5.0, description="Current evaluation score"
     )
-    heures_supplementaires: Optional[int] = Field(
+    heures_supplementaires: int | None = Field(
         None, description="Overtime (0 for No, 1 for Yes)"
     )  # Can be 0 or 1
     augementation_salaire_precedente: float = Field(
@@ -148,18 +148,18 @@ class PredictionOutput(BaseModel):
         ..., description="Categorized risk level (e.g., 'Low', 'Medium', 'High')"
     )
     message: str = Field(..., description="A descriptive message about the prediction")
-    trace_id: Optional[int] = Field(
+    trace_id: int | None = Field(
         None, description="ID for prediction traceability record"
     )
 
 
 class BatchPredictionInput(BaseModel):
-    employees: List[EmployeeFeatures] = Field(
+    employees: list[EmployeeFeatures] = Field(
         ..., description="List of employee feature sets for batch prediction"
     )
 
 
 class BatchPredictionOutput(BaseModel):
-    predictions: List[PredictionOutput] = Field(
+    predictions: list[PredictionOutput] = Field(
         ..., description="List of predictions for each employee in the batch"
     )

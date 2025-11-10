@@ -1,8 +1,19 @@
-import pandas as pd
+from typing import Any
+
 import numpy as np
+import pandas as pd
 
 
-def _clean_extrait_eval(df):
+def _clean_extrait_eval(df: pd.DataFrame) -> pd.DataFrame:
+    """Clean the 'extrait_eval' DataFrame.
+
+    Args:
+        df (pd.DataFrame): The input DataFrame containing evaluation data.
+
+    Returns:
+        pd.DataFrame: The cleaned DataFrame.
+
+    """
     df = df.copy()
     if "augmentation_salaire_precedente" in df.columns:
         df["augmentation_salaire_precedente"] = (
@@ -40,7 +51,16 @@ def _clean_extrait_eval(df):
     return df
 
 
-def _clean_extrait_sirh(df):
+def _clean_extrait_sirh(df: pd.DataFrame) -> pd.DataFrame:
+    """Clean the 'extrait_sirh' DataFrame.
+
+    Args:
+        df (pd.DataFrame): The input DataFrame containing SIRH data.
+
+    Returns:
+        pd.DataFrame: The cleaned DataFrame.
+
+    """
     df = df.copy()
     if "genre" in df.columns:
         df["genre"] = (
@@ -52,7 +72,16 @@ def _clean_extrait_sirh(df):
     return df
 
 
-def _clean_extrait_sondage(df):
+def _clean_extrait_sondage(df: pd.DataFrame) -> pd.DataFrame:
+    """Clean the 'extrait_sondage' DataFrame.
+
+    Args:
+        df (pd.DataFrame): The input DataFrame containing survey data.
+
+    Returns:
+        pd.DataFrame: The cleaned DataFrame.
+
+    """
     df = df.copy()
     if "code_sondage" in df.columns:
         df.rename(columns={"code_sondage": "id_employee"}, inplace=True)
@@ -63,7 +92,20 @@ def _clean_extrait_sondage(df):
     return df
 
 
-def load_and_merge_data(eval_df, sirh_df, sond_df):
+def load_and_merge_data(
+    eval_df: pd.DataFrame, sirh_df: pd.DataFrame, sond_df: pd.DataFrame
+) -> pd.DataFrame:
+    """Load and merge data from evaluation, SIRH, and survey DataFrames.
+
+    Args:
+        eval_df (pd.DataFrame): DataFrame containing evaluation data.
+        sirh_df (pd.DataFrame): DataFrame containing SIRH data.
+        sond_df (pd.DataFrame): DataFrame containing survey data.
+
+    Returns:
+        pd.DataFrame: The merged and cleaned DataFrame.
+
+    """
     eval_df = _clean_extrait_eval(eval_df)
     sirh_df = _clean_extrait_sirh(sirh_df)
     sond_df = _clean_extrait_sondage(sond_df)
@@ -106,8 +148,16 @@ def load_and_merge_data(eval_df, sirh_df, sond_df):
     return merged
 
 
-def clean_and_engineer_features(df):
-    """Applies the same cleaning and feature engineering steps as in the notebook."""
+def clean_and_engineer_features(df: pd.DataFrame) -> pd.DataFrame:
+    """Apply the same cleaning and feature engineering steps as in the notebook.
+
+    Args:
+        df (pd.DataFrame): The input DataFrame.
+
+    Returns:
+        pd.DataFrame: The DataFrame with engineered features.
+
+    """
     df = df.copy()
     # Feature Engineering steps
     if {"note_evaluation_actuelle", "note_evaluation_precedente"}.issubset(df.columns):
@@ -130,8 +180,16 @@ def clean_and_engineer_features(df):
     return df
 
 
-def get_expected_columns(pipeline):
-    """Gets the list of columns the model was trained on."""
+def get_expected_columns(pipeline: Any) -> list[str]:
+    """Get the list of columns the model was trained on.
+
+    Args:
+        pipeline (Any): The scikit-learn pipeline object.
+
+    Returns:
+        List[str]: A list of column names.
+
+    """
     preprocessor = pipeline.named_steps["preprocessor"]
     # The feature_names_in_ attribute stores the names of features seen during fit
     return list(preprocessor.feature_names_in_)

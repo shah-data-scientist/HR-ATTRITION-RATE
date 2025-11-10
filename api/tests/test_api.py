@@ -1,27 +1,23 @@
+import os
+import sys
+from unittest.mock import MagicMock, patch  # Import patch and MagicMock
+
 import pytest
+from fastapi.testclient import TestClient  # Import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy.ext.declarative import declarative_base
-from unittest.mock import patch, MagicMock  # Import patch and MagicMock
-
-from fastapi.testclient import TestClient  # Import TestClient
-
-import sys
-import os
 
 # Add the project root to sys.path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 
+import numpy as np
+import pandas as pd
+
 from api.app.main import (
     app,
-    model,
-    expected_model_columns,
-    get_expected_columns_from_pipeline,
-    get_db, # Import get_db
+    get_db,  # Import get_db
 )
-from api.app.schemas import EmployeeFeatures, BatchPredictionInput, PredictionOutput
-import pandas as pd
-import numpy as np
+from api.app.schemas import BatchPredictionInput, EmployeeFeatures
 
 # Database setup for testing
 SQLALCHEMY_DATABASE_URL = "sqlite:///./test.db" # Use a file-based SQLite for easier inspection if needed, or :memory: for purely in-memory
@@ -33,7 +29,8 @@ engine = create_engine(
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 # We need to import all models to create the tables
-from database.models import Base, Employee, ModelInput, ModelOutput, PredictionTraceability
+from database.models import Base
+
 
 @pytest.fixture(scope="function")
 def db_session():
@@ -364,15 +361,16 @@ async def test_lifespan_model_loaded_successfully(
     mock_get_expected_columns.return_value = ["col1", "col2"]
 
     # Create a new FastAPI app instance for this test
-    from api.app.main import lifespan
     from fastapi import FastAPI
+
+    from api.app.main import lifespan
     test_app = FastAPI(lifespan=lifespan)
 
     async with lifespan(test_app):
         # The model and expected_model_columns are global in main.py
         # We need to re-import them *after* the lifespan context has run
         # to get their updated values.
-        from api.app.main import model, expected_model_columns
+        from api.app.main import expected_model_columns, model
 
         assert model is not None
         assert expected_model_columns == ["col1", "col2"]
@@ -387,8 +385,9 @@ async def test_lifespan_model_not_found(mock_path_exists):
     mock_path_exists.return_value = False
 
     # Create a new FastAPI app instance for this test
-    from api.app.main import lifespan
     from fastapi import FastAPI
+
+    from api.app.main import lifespan
     test_app = FastAPI(lifespan=lifespan)
 
     with pytest.raises(RuntimeError, match="Model file not found"):

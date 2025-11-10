@@ -1,15 +1,17 @@
 import os
+import sys
+from datetime import datetime
+
 import pandas as pd
 from sqlalchemy.orm import Session
-from datetime import datetime
-import sys
 
 # Add the project root to sys.path to allow importing modules from the root
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 
-from .database import Base, engine, SessionLocal
-from .models import Employee, ModelInput, ModelOutput, PredictionTraceability
 from utils import load_and_merge_data  # Import the merged data loading function
+
+from .database import Base, SessionLocal, engine
+from .models import Employee
 
 
 def init_db():

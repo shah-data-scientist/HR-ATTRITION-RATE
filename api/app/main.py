@@ -1,23 +1,20 @@
-import os
-from fastapi import FastAPI, HTTPException, status, Depends
-from typing import List, Dict, Any, Optional
-import joblib
-import pandas as pd
-import numpy as np
 import json  # For JSON column
-from datetime import datetime  # For timestamps
 import logging  # Add logging import
+import os
+from contextlib import asynccontextmanager
+from datetime import datetime  # For timestamps
 
+import joblib
+import numpy as np
+import pandas as pd
+from fastapi import Depends, FastAPI, HTTPException, status
 from sqlalchemy.orm import Session  # Explicitly import Session for type hinting
 
 from api.app.schemas import (
-    EmployeeFeatures,
-    PredictionOutput,
     BatchPredictionInput,
     BatchPredictionOutput,
+    PredictionOutput,
 )
-
-from contextlib import asynccontextmanager
 
 # Database imports
 from database.database import get_db
@@ -272,8 +269,7 @@ def get_expected_columns_from_pipeline(pipeline):
 
 
 def get_risk_category(probability: float, threshold: float = 0.5) -> str:
-    """
-    Categorizes attrition risk based on the difference between probability and a dynamic threshold,
+    """Categorizes attrition risk based on the difference between probability and a dynamic threshold,
     with a minimum absolute probability for "Medium" risk.
     - High Risk: probability >= threshold + buffer
     - Low Risk: probability < threshold - buffer
@@ -287,20 +283,19 @@ def get_risk_category(probability: float, threshold: float = 0.5) -> str:
 
     if probability >= threshold + buffer:  # Clearly above threshold
         return "High"
-    elif probability < threshold - buffer:  # Clearly below threshold
+    if probability < threshold - buffer:  # Clearly below threshold
         return "Low"
-    elif (
+    if (
         probability >= min_medium_prob
     ):  # Close to threshold AND above minimum for Medium
         return "Medium"
-    else:  # Close to threshold but below min_medium_prob
-        return "Low"  # Default to Low if not High, not clearly Low, and below min_medium_prob
+    # Close to threshold but below min_medium_prob
+    return "Low"  # Default to Low if not High, not clearly Low, and below min_medium_prob
 
 
-@app.get("/", summary="Root endpoint", response_model=Dict[str, str])
+@app.get("/", summary="Root endpoint", response_model=dict[str, str])
 async def read_root():
-    """
-    Provides basic information about the API.
+    """Provides basic information about the API.
     """
     return {
         "message": "Welcome to the Employee Attrition Prediction API!",
@@ -317,8 +312,7 @@ async def read_root():
 async def predict_attrition(
     batch_input: BatchPredictionInput, db: Session = Depends(get_db)
 ):
-    """
-    Predicts the attrition risk for a list of employees based on their features.
+    """Predicts the attrition risk for a list of employees based on their features.
     All model inputs, outputs, and prediction traceability are recorded in the database.
     """
     if model is None:
@@ -327,7 +321,7 @@ async def predict_attrition(
             detail="Model not loaded yet.",
         )
 
-    predictions_output: List[PredictionOutput] = []
+    predictions_output: list[PredictionOutput] = []
 
     # Convert list of Pydantic models to a list of dictionaries
     employees_data_list = [employee.model_dump() for employee in batch_input.employees]

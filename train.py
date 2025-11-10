@@ -1,36 +1,46 @@
-import os
-import json
 import hashlib
+import json
 import warnings
-import pandas as pd
-import numpy as np
+from datetime import UTC, datetime
+from pathlib import Path
+
 import joblib
-from datetime import datetime
-from sklearn.compose import ColumnTransformer
-from sklearn.preprocessing import StandardScaler, OneHotEncoder
-from sklearn.model_selection import (
-    train_test_split,
-    StratifiedKFold,
-    RandomizedSearchCV,
-)
-from sklearn.linear_model import LogisticRegression
-from imblearn.pipeline import Pipeline
+import numpy as np
+import pandas as pd
 from imblearn.over_sampling import SMOTE
+from imblearn.pipeline import Pipeline
 from scipy.stats import loguniform, uniform
+from sklearn.compose import ColumnTransformer
+from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import (
+    RandomizedSearchCV,
+    StratifiedKFold,
+    train_test_split,
+)
+from sklearn.preprocessing import OneHotEncoder, StandardScaler
 
 warnings.filterwarnings("ignore")
 
 # --- Global configuration ---
-DATA_PATH = "data"
-OUTPUT_path = "outputs"
-FILE_EVAL = os.path.join(DATA_PATH, "extrait_eval.csv")
-FILE_SIRH = os.path.join(DATA_PATH, "extrait_sirh.csv")
-FILE_SONDAGE = os.path.join(DATA_PATH, "extrait_sondage.csv")
-os.makedirs(OUTPUT_path, exist_ok=True)
+DATA_DIR = Path("data")
+OUTPUT_DIR = Path("outputs")
+FILE_EVAL = DATA_DIR / "extrait_eval.csv"
+FILE_SIRH = DATA_DIR / "extrait_sirh.csv"
+FILE_SONDAGE = DATA_DIR / "extrait_sondage.csv"
+OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 
 # --- Load & Prepare Data ---
-def _clean_extrait_eval(df):
+def _clean_extrait_eval(df: pd.DataFrame) -> pd.DataFrame:
+    """Clean the 'extrait_eval' DataFrame.
+
+    Args:
+        df (pd.DataFrame): The input DataFrame containing evaluation data.
+
+    Returns:
+        pd.DataFrame: The cleaned DataFrame.
+
+    """
     df = df.copy()
     if "augmentation_salaire_precedente" in df.columns:
         df["augmentation_salaire_precedente"] = (
@@ -68,7 +78,21 @@ def _clean_extrait_eval(df):
     return df
 
 
-def _clean_extrait_sirh(df):
+def _clean_extrait_sirh(df: pd.DataFrame) -> pd.DataFrame:
+    """Clean the 'extrait_sirh' DataFrame.
+
+    Args:
+        df (pd.DataFrame): The input DataFrame containing SIRH data.
+
+
+
+
+
+    Returns:
+        pd.DataFrame: The cleaned DataFrame.
+
+
+    """
     df = df.copy()
     if "genre" in df.columns:
         df["genre"] = (
@@ -80,7 +104,21 @@ def _clean_extrait_sirh(df):
     return df
 
 
-def _clean_extrait_sondage(df):
+def _clean_extrait_sondage(df: pd.DataFrame) -> pd.DataFrame:
+    """Clean the 'extrait_sondage' DataFrame.
+
+    Args:
+        df (pd.DataFrame): The input DataFrame containing survey data.
+
+
+
+
+
+    Returns:
+        pd.DataFrame: The cleaned DataFrame.
+
+
+    """
     df = df.copy()
     if "code_sondage" in df.columns:
         df.rename(columns={"code_sondage": "id_employee"}, inplace=True)
@@ -91,7 +129,33 @@ def _clean_extrait_sondage(df):
     return df
 
 
-def load_and_merge_data(eval_path, sirh_path, sond_path):
+def load_and_merge_data(
+
+
+    eval_path: Path, sirh_path: Path, sond_path: Path
+
+
+) -> pd.DataFrame:
+    """Load and merge data from evaluation, SIRH, and survey CSV files.
+
+    Args:
+        eval_path (Path): Path to the evaluation CSV file.
+
+
+        sirh_path (Path): Path to the SIRH CSV file.
+
+
+        sond_path (Path): Path to the survey CSV file.
+
+
+
+
+
+    Returns:
+        pd.DataFrame: The merged and cleaned DataFrame.
+
+
+    """
     eval_df = _clean_extrait_eval(pd.read_csv(eval_path))
     sirh_df = _clean_extrait_sirh(pd.read_csv(sirh_path))
     sond_df = _clean_extrait_sondage(pd.read_csv(sond_path))
@@ -209,16 +273,16 @@ best_params = search.best_params_
 print("Best params:", best_params)
 
 # --- Outputs ---
-SNAPSHOT_DIR = os.path.join(OUTPUT_path, "snapshots")
-os.makedirs(SNAPSHOT_DIR, exist_ok=True)
+SNAPSHOT_DIR = OUTPUT_DIR / "snapshots"
+SNAPSHOT_DIR.mkdir(parents=True, exist_ok=True)
 
-snapshot_id = datetime.now().strftime("%Y%m%d_%H%M%S") + "_p4_attrition"
-snap_path_X = os.path.join(SNAPSHOT_DIR, f"{snapshot_id}_X_train.parquet")
-snap_path_y = os.path.join(SNAPSHOT_DIR, f"{snapshot_id}_y_train.parquet")
-model_path = os.path.join(OUTPUT_path, "employee_attrition_pipeline.pkl")
-manifest_path = os.path.join(SNAPSHOT_DIR, f"{snapshot_id}_manifest.json")
+snapshot_id = datetime.now(UTC).strftime("%Y%m%d_%H%M%S") + "_p4_attrition"
+snap_path_x = SNAPSHOT_DIR / f"{snapshot_id}_X_train.parquet"
+snap_path_y = SNAPSHOT_DIR / f"{snapshot_id}_y_train.parquet"
+model_path = OUTPUT_DIR / "employee_attrition_pipeline.pkl"
+manifest_path = SNAPSHOT_DIR / f"{snapshot_id}_manifest.json"
 
-X_train.to_parquet(snap_path_X, index=False)
+X_train.to_parquet(snap_path_x, index=False)
 y_train.to_frame(name=target_col).to_parquet(snap_path_y, index=False)
 
 joblib.dump(best_pipe, model_path)
@@ -238,31 +302,31 @@ manifest = {
     "best_params": {
         k: (v.item() if hasattr(v, "item") else v) for k, v in best_params.items()
     },
-    "model_artifact": model_path.replace("\\", "/"),
+    "model_artifact": str(model_path),
 }
-with open(manifest_path, "w", encoding="utf-8") as f:
+with manifest_path.open("w", encoding="utf-8") as f:
     json.dump(manifest, f, indent=2)
 
 print("Saved snapshot + model + manifest.")
-print(snap_path_X)
+print(snap_path_x)
 print(snap_path_y)
 print(model_path)
 print(manifest_path)
 
 # Save the test set for app evaluation
-X_test_path = os.path.join(OUTPUT_path, "X_test.parquet")
-y_test_path = os.path.join(OUTPUT_path, "y_test.parquet")
-X_test.to_parquet(X_test_path, index=False)
+x_test_path = OUTPUT_DIR / "X_test.parquet"
+y_test_path = OUTPUT_DIR / "y_test.parquet"
+X_test.to_parquet(x_test_path, index=False)
 y_test.to_frame(name=target_col).to_parquet(y_test_path, index=False)
 print("Saved test set for app evaluation.")
-print(X_test_path)
+print(x_test_path)
 print(y_test_path)
 
 # Save the train set for app evaluation
-X_train_path = os.path.join(OUTPUT_path, "X_train.parquet")
-y_train_path = os.path.join(OUTPUT_path, "y_train.parquet")
-X_train.to_parquet(X_train_path, index=False)
+x_train_path = OUTPUT_DIR / "X_train.parquet"
+y_train_path = OUTPUT_DIR / "y_train.parquet"
+X_train.to_parquet(x_train_path, index=False)
 y_train.to_frame(name=target_col).to_parquet(y_train_path, index=False)
 print("Saved train set for app evaluation.")
-print(X_train_path)
+print(x_train_path)
 print(y_train_path)

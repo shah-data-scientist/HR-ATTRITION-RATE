@@ -37,8 +37,27 @@ build-backend = "poetry.core.masonry.api"
 pytest = ">=8.2,<9.0"
 pytest-cov = ">=7.0.0,<8.0.0"
 pytest-asyncio = ">=1.2.0,<2.0.0"
+ruff = "^0.14.4"
+mypy = "^1.18.2"
 
 [tool.pytest.ini_options]
+
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+select = ["E", "F", "W", "I", "N", "D", "UP", "ANN", "ASYNC", "B", "C4", "DTZ", "ERA", "FA", "ISC", "ICN", "PIE", "PT", "RSE", "RET", "SIM", "TID", "ARG", "PERF", "PTH", "PL"]
+ignore = ["D100", "D104", "D105", "D107", "ANN101", "ANN002", "ANN003", "ANN201", "ANN204", "ANN401"] # Ignore missing docstrings and some type hints for now
+
+[tool.ruff.per-file-ignores]
+"__init__.py" = ["F401"] # Ignore unused imports in __init__.py
+"tests/test_streamlit_app.py" = ["ANN401", "RET503"] # Allow dynamically typed expressions in test mocks and ignore false positive RET503
+"utils.py" = ["ANN401"] # Allow dynamically typed expressions in utility functions
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+ignore_missing_imports = true
+exclude = ["venv/", ".venv/", "tests/", "htmlcov/", "__pycache__/", "outputs/", "data/", "Project Inputs/"]
 
 
 

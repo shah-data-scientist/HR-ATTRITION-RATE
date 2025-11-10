@@ -1,7 +1,7 @@
-import joblib
-import pandas as pd
-import sys
 import os
+import sys
+
+import joblib
 
 # Add the project root to the sys.path to allow importing app
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))

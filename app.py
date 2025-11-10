@@ -1,26 +1,27 @@
-import streamlit as st
+import matplotlib
+matplotlib.use('Agg') # Use non-interactive backend for matplotlib
 import pandas as pd
+import streamlit as st
 
 pd.set_option("future.no_silent_downcasting", True)  # This was inserted here
-import seaborn as sns  # Import seaborn for enhanced plotting
+import base64  # Import base64 for embedding images
+import io
+import sys  # Import sys
+from datetime import UTC, datetime
+
 import joblib
-import shap
 import matplotlib.pyplot as plt
 import numpy as np
-import os
-import sys  # Import sys
+import seaborn as sns  # Import seaborn for enhanced plotting
+import shap
+import streamlit.components.v1 as components
 from sklearn.metrics import (
-    confusion_matrix,
-    ConfusionMatrixDisplay,
     accuracy_score,
+    confusion_matrix,
+    f1_score,
     precision_score,
     recall_score,
-    f1_score,
 )
-import io
-from datetime import datetime
-import base64  # Import base64 for embedding images
-import streamlit.components.v1 as components
 
 # Explicitly disable math text rendering for matplotlib
 plt.rcParams["text.usetex"] = False
@@ -223,23 +224,20 @@ def get_expected_columns(pipeline):
 
 
 def _get_risk_category_from_log_odds(log_odds: float) -> str:
-    """
-    Categorizes attrition risk based on log-odds (f(x)) using predefined thresholds.
+    """Categorizes attrition risk based on log-odds (f(x)) using predefined thresholds.
     """
     low_threshold = LOG_ODDS_RISK_THRESHOLDS["Low"][1]  # Upper bound of Low
     high_threshold = LOG_ODDS_RISK_THRESHOLDS["High"][0]  # Lower bound of High
 
     if log_odds < low_threshold:
         return "Low"
-    elif log_odds >= high_threshold:
+    if log_odds >= high_threshold:
         return "High"
-    else:
-        return "Medium"
+    return "Medium"
 
 
 def get_risk_category(probability, threshold):
-    """
-    Categorizes attrition risk based on the difference between probability and a dynamic threshold,
+    """Categorizes attrition risk based on the difference between probability and a dynamic threshold,
     with a minimum absolute probability for "Medium" risk.
     - High Risk: probability >= threshold + buffer
     - Low Risk: probability < threshold - buffer
@@ -253,21 +251,20 @@ def get_risk_category(probability, threshold):
 
     if probability >= threshold + buffer:  # Clearly above threshold
         return "High"
-    elif probability < threshold - buffer:  # Clearly below threshold
+    if probability < threshold - buffer:  # Clearly below threshold
         return "Low"
-    elif (
+    if (
         probability >= min_medium_prob
     ):  # Close to threshold AND above minimum for Medium
         return "Medium"
-    else:  # Close to threshold but below min_medium_prob
-        return "Low"  # Default to Low if not High, not clearly Low, and below min_medium_prob
+    # Close to threshold but below min_medium_prob
+    return "Low"  # Default to Low if not High, not clearly Low, and below min_medium_prob
 
 
 def display_confusion_matrix_and_metrics(
     y_true, y_proba, threshold, title="Confusion Matrix"
 ):
-    """
-    Displays confusion matrix with row-normalized percentages and classification metrics.
+    """Displays confusion matrix with row-normalized percentages and classification metrics.
     - Shows ONLY percentages (row-normalized).
     - No overlapping text: renders a single value per cell (2 decimal %).
     - Axis labels: Y-axis: “Truth”, X-axis: “Prediction”.
@@ -332,8 +329,7 @@ def display_confusion_matrix_and_metrics(
 def generate_shap_html_report(
     employee_data_with_predictions, X_transformed_for_shap, explainer, all_features
 ):
-    """
-    Generates an HTML report with a classic SHAP waterfall plot.
+    """Generates an HTML report with a classic SHAP waterfall plot.
     Displays Employee ID, Attrition Risk Percentage, and Prediction Type prominently at the top.
     """
     html_content = f"""
@@ -344,20 +340,23 @@ def generate_shap_html_report(
         <style>
             body {{ font-family: sans-serif; margin: 20px; }}
             h1 {{ color: #333; }}
-            .employee-header {{ background-color: #f0f2f6; padding: 10px 15px; border-radius: 5px; margin-bottom: 15px; }}
+            .employee-header {{ background-color: #f0f2f6; padding: 10px 15px;
+            border-radius: 5px; margin-bottom: 15px; }}
             .employee-header h2 {{ margin-top: 0; margin-bottom: 5px; color: #0056b3; }}
             .employee-header p {{ margin: 0; font-size: 0.95rem; }}
-            .risk-label {{ font-weight: bold; padding: 4px 8px; border-radius: 5px; display: inline-block; }}
+            .risk-label {{ font-weight: bold; padding: 4px 8px; border-radius: 5px;
+            display: inline-block; }}
             .risk-low {{ background-color: #d4edda; color: #155724; }}
             .risk-medium {{ background-color: #fff3cd; color: #856404; }}
             .risk-high {{ background-color: #f8d7da; color: #721c24; }}
-            .shap-plot {{ margin-top: 10px; border: 1px solid #eee; padding: 10px; border-radius: 5px; }}
+            .shap-plot {{ margin-top: 10px; border: 1px solid #eee; padding: 10px;
+            border-radius: 5px; }}
             .meta {{ color: #666; font-size: 0.95rem; }}
         </style>
     </head>
     <body>
         <h1>Employee Attrition SHAP Explanation Report</h1>
-        <p class="meta">Report generated on: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}</p>
+        <p class="meta">Report generated on: {datetime.now(UTC).strftime("%Y-%m-%d %H:%M:%S")}</p>
     """
 
     # compute SHAP values once for all rows (if not precomputed)
@@ -375,6 +374,7 @@ def generate_shap_html_report(
         shap_values_row = all_shap_values[i]
 
         # Generate classic waterfall plot
+        print("DEBUG: Calling shap.plots.waterfall")
         shap.plots.waterfall(
             shap.Explanation(
                 values=shap_values_row,
@@ -408,7 +408,8 @@ def generate_shap_html_report(
                 </p>
             </div>
             <div class="shap-plot">
-                <img src="data:image/png;base64,{img_str}" alt="SHAP Waterfall Plot for Employee {employee_id}">
+                <img src="data:image/png;base64,{img_str}"
+                alt="SHAP Waterfall Plot for Employee {employee_id}">
             </div>
         </div>
         """
@@ -417,16 +418,12 @@ def generate_shap_html_report(
     return html_content
 
 
-def main():
-    _setup_app() # Ensure global variables are initialized
-    # --- Streamlit App Layout ---
-    st.set_page_config(layout="wide")
-    st.title("Employee Attrition Risk")
-
-    # --- Understanding Threshold Impact ---
+def _display_threshold_impact():
+    """Display confusion matrices for different thresholds on training data."""
     st.subheader("Understanding Threshold Impact (examples from training data)")
     st.write(
-        "These examples illustrate how different thresholds affect the model's classification performance on the training data."
+        "These examples illustrate how different thresholds affect the model's "
+        "classification performance on the training data."
     )
 
     col_t1, col_t2, col_t3 = st.columns(3)
@@ -442,8 +439,17 @@ def main():
         display_confusion_matrix_and_metrics(
             y_train_loaded, train_prediction_proba, 0.7, "Threshold 0.70"
         )
-
     st.markdown("---")
+
+
+def main():
+    """Main function to run the Streamlit application."""
+    _setup_app()  # Ensure global variables are initialized
+    # --- Streamlit App Layout ---
+    st.set_page_config(layout="wide")
+    st.title("Employee Attrition Risk")
+
+    _display_threshold_impact()
 
     # --- Threshold Slider ---
     st.subheader("Adjust Prediction Threshold")
@@ -453,7 +459,8 @@ def main():
         1.0,
         0.5,
         0.01,
-        help="Adjust this threshold to see how it impacts the model's classification on the training data.",
+        help="Adjust this threshold to see how it impacts the model's "
+        "classification on the training data.",
     )
 
     # --- Confusion Matrix (Live Update) ---
@@ -466,149 +473,7 @@ def main():
 
     st.markdown("---")
 
-    # --- File Uploads ---
-    st.subheader("Upload Employee Data for Prediction")
-    st.write("Upload the three required CSV files to get attrition risk predictions.")
-
-    uploaded_files = st.file_uploader(
-        "Choose the three CSV files (`extrait_eval.csv`, `extrait_sirh.csv`, `extrait_sondage.csv`)",
-        type="csv",
-        accept_multiple_files=True,
-        on_change=clear_prediction_results,  # Clear results when new files are selected
-    )
-
-    raw_uploaded_data = None
-    if len(uploaded_files) == 3:
-        eval_file = None
-        sirh_file = None
-        sondage_file = None
-
-        for f in uploaded_files:
-            if "eval" in f.name:
-                eval_file = f
-            elif "sirh" in f.name:
-                sirh_file = f
-            elif "sondage" in f.name:
-                sondage_file = f
-
-        if eval_file and sirh_file and sondage_file:
-            eval_df = pd.read_csv(eval_file)
-            sirh_df = pd.read_csv(sirh_file)
-            sondage_df = pd.read_csv(sondage_file)
-            raw_uploaded_data = load_and_merge_data(eval_df, sirh_df, sondage_df)
-        else:
-            st.warning(
-                "Please make sure to upload the three required files: `extrait_eval.csv`, `extrait_sirh.csv`, and `extrait_sondage.csv`."
-            )
-    elif uploaded_files:
-        st.warning("Please upload all three required CSV files.")
-
-    # --- Predict Button ---
-    if raw_uploaded_data is not None:
-        if st.button("Predict Attrition Risk"):
-            # Get the list of columns the model expects
-            expected_cols = get_expected_columns(model)
-
-            # Create a new DataFrame with the expected columns
-            data_for_prediction = pd.DataFrame(columns=expected_cols)
-
-            # Copy data from the uploaded file to the new DataFrame
-            for col in expected_cols:
-                if col in raw_uploaded_data.columns:
-                    data_for_prediction[col] = raw_uploaded_data[col]
-
-            # Clean and engineer features
-            processed_data = clean_and_engineer_features(data_for_prediction)
-
-            # Make predictions
-            prediction_proba = model.predict_proba(processed_data)[:, 1]
-            predictions = (prediction_proba >= main_threshold).astype(int)
-
-            # Prepare data for reports
-            report_data = raw_uploaded_data.copy()
-            report_data["Attrition_Risk_Percentage"] = prediction_proba
-
-            # Calculate log-odds (f(x))
-            # Ensure prediction_proba is not 0 or 1 to avoid log(0) or log(inf)
-            log_odds = np.clip(prediction_proba, 1e-10, 1 - 1e-10)
-            report_data["Log_Odds"] = np.log(log_odds / (1 - log_odds))
-
-            # Use log-odds for risk categorization
-            report_data["Risk_Attrition"] = report_data["Log_Odds"].apply(
-                _get_risk_category_from_log_odds
-            )
-            report_data["Prediction"] = [
-                "Leave" if pred == 1 else "Stay" for pred in predictions
-            ]
-
-            # --- SHAP Explanations for Reports ---
-            preprocessor = model.named_steps["preprocessor"]
-            logreg_model = model.named_steps["model"]
-            X_transformed_for_shap = preprocessor.transform(processed_data)
-
-            try:
-                ohe = preprocessor.named_transformers_["cat"]
-                cat_names = ohe.get_feature_names_out(
-                    processed_data.select_dtypes(
-                        include=["object", "category", "string", "bool"]
-                    ).columns
-                ).tolist()
-                num_cols = processed_data.select_dtypes(
-                    include=["int64", "float64"]
-                ).columns.tolist()
-                all_features = num_cols + cat_names
-            except Exception as e:
-                st.warning(f"Could not get feature names for SHAP plots. Error: {e}")
-                all_features = [
-                    f"Feature {i}" for i in range(X_transformed_for_shap.shape[1])
-                ]
-
-            explainer = shap.LinearExplainer(logreg_model, X_transformed_for_shap)
-            shap_values = explainer.shap_values(X_transformed_for_shap)
-
-            # Add Top 10 Features and Coefficients to report_data
-            top_features_list = []
-            corresponding_coeffs_list = []
-            features_and_coeffs_tab2 = []  # For Excel Tab 2
-
-            for i in range(len(report_data)):
-                employee_id = report_data.loc[i, "id_employee"]
-                employee_shap_values = shap_values[i]
-                shap_df_employee = pd.DataFrame(
-                    {"feature": all_features, "shap_value": employee_shap_values}
-                )
-                shap_df_employee["abs_shap"] = shap_df_employee["shap_value"].abs()
-                top_10 = shap_df_employee.sort_values("abs_shap", ascending=False).head(
-                    10
-                )
-
-                top_features_list.append("; ".join(top_10["feature"].tolist()))
-                corresponding_coeffs_list.append(
-                    "; ".join(top_10["shap_value"].round(4).astype(str).tolist())
-                )
-
-                # Prepare data for Excel Tab 2 (all features)
-                prediction_type_for_employee = report_data.loc[i, "Prediction"]
-                for _, row_shap in shap_df_employee.iterrows():
-                    features_and_coeffs_tab2.append(
-                        {
-                            "Employee_ID": employee_id,
-                            "Feature": row_shap["feature"],
-                            "Coefficient": row_shap["shap_value"],
-                            "Prediction": prediction_type_for_employee,  # Add prediction type here
-                        }
-                    )
-
-            report_data["Top_10_Features"] = top_features_list
-            report_data["Corresponding_Coefficients"] = corresponding_coeffs_list
-
-            # Store results in session state
-            st.session_state.prediction_triggered = True
-            st.session_state.report_data = report_data
-            st.session_state.processed_data_for_shap = X_transformed_for_shap
-            st.session_state.explainer = explainer
-            st.session_state.all_features = all_features
-            st.session_state.excel_report_data = pd.DataFrame(features_and_coeffs_tab2)
+    # _handle_file_uploads_and_predict(main_threshold)
 
     # --- Display Results (if triggered) ---
     if st.session_state.prediction_triggered:
@@ -616,7 +481,7 @@ def main():
         st.subheader("Prediction Results and Reports")
 
         report_data = st.session_state.report_data
-        X_transformed_for_shap = st.session_state.processed_data_for_shap
+        x_transformed_for_shap = st.session_state.processed_data_for_shap
         explainer = st.session_state.explainer
         all_features = st.session_state.all_features
         excel_tab2_data = st.session_state.excel_report_data
@@ -678,7 +543,7 @@ def main():
 
         # --- Generate HTML Visualization Report ---
         html_report_content = generate_shap_html_report(
-            report_data, X_transformed_for_shap, explainer, all_features
+            report_data, x_transformed_for_shap, explainer, all_features
         )
 
         st.subheader("Employee Attrition SHAP Report")
@@ -687,7 +552,10 @@ def main():
 
         # Optional: also provide a link to open in a new tab (no download)
         b64_html = base64.b64encode(html_report_content.encode()).decode()
-        href = f'<a href="data:text/html;base64,{b64_html}" target="_blank">Open SHAP Report in a new tab</a>'
+        href = (
+            f'<a href="data:text/html;base64,{b64_html}" target="_blank">'
+            "Open SHAP Report in a new tab</a>"
+        )
         st.markdown(href, unsafe_allow_html=True)
 
         st.success("Reports generated successfully!")
