@@ -5,6 +5,7 @@ from typing import List, Dict, Any, Optional
 import joblib
 import pandas as pd
 import numpy as np
+import sys # Import sys
 
 from api.app.schemas import EmployeeFeatures, PredictionOutput, BatchPredictionInput, BatchPredictionOutput
 
@@ -174,9 +175,20 @@ async def predict_attrition(batch_input: BatchPredictionInput):
     # Convert to DataFrame
     input_df = pd.DataFrame(employees_data)
 
-    # Ensure 'id_employee' is present for merging, even if it's just a placeholder
+    # Ensure 'id_employee' is present and filled with integers
     if 'id_employee' not in input_df.columns:
-        input_df['id_employee'] = range(len(input_df)) # Assign temporary IDs
+        input_df['id_employee'] = range(len(input_df)) # Assign temporary IDs if column is entirely missing
+    else:
+        # Replace any None values in 'id_employee' with temporary IDs
+        # This handles cases where id_employee is Optional and not provided for some entries
+        missing_id_mask = input_df['id_employee'].isna()
+        if missing_id_mask.any():
+            # Generate new temporary IDs for only the missing ones
+            max_id = input_df['id_employee'].max()
+            start_id = int(max_id) + 1 if not input_df['id_employee'].empty and pd.notna(max_id) else 0
+            new_ids = range(start_id, start_id + missing_id_mask.sum())
+            input_df.loc[missing_id_mask, 'id_employee'] = list(new_ids)
+    input_df['id_employee'] = input_df['id_employee'].astype(int) # Ensure it's integer type
     
     # Apply feature engineering
     processed_data = clean_and_engineer_features(input_df.copy())
@@ -202,13 +214,16 @@ async def predict_attrition(batch_input: BatchPredictionInput):
             pred_label = "Leave" if predictions[i] == 1 else "Stay"
             risk_cat = get_risk_category(prob, threshold=0.5) # Using default threshold 0.5 for API
 
+            # Use the id_employee from the processed input_df, which will have the temporary ID if original was None
+            employee_id_for_output = input_df.loc[i, 'id_employee']
+
             predictions_output.append(
                 PredictionOutput(
-                    id_employee=employee_data.id_employee,
+                    id_employee=employee_id_for_output,
                     prediction=pred_label,
                     probability=float(prob),
                     risk_category=risk_cat,
-                    message=f"Employee {employee_data.id_employee} is predicted to {pred_label} with {prob:.2%} attrition risk (Risk: {risk_cat})."
+                    message=f"Employee {employee_id_for_output} is predicted to {pred_label} with {prob:.2%} attrition risk (Risk: {risk_cat})."
                 )
             )
     except Exception as e:

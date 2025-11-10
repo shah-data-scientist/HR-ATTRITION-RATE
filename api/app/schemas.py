@@ -2,9 +2,7 @@ from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional, List
 
 class EmployeeFeatures(BaseModel):
-    # Features from the original datasets, before feature engineering
-    # Assuming types based on common HR datasets and previous app.py logic
-    id_employee: int = Field(..., description="Unique identifier for the employee")
+    id_employee: Optional[int] = Field(None, description="Unique identifier for the employee")
     age: int = Field(..., ge=18, le=65, description="Age of the employee")
     genre: Optional[int] = Field(None, description="Gender (0 for Female, 1 for Male)") # Can be 0 or 1
     revenu_mensuel: float = Field(..., ge=0, description="Monthly income")
