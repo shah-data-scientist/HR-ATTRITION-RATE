@@ -1,0 +1,38 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.pyc
+*.pyd
+*.pyo
+*.so
+
+# Environments
+.venv
+venv/
+env/
+.env
+
+# Editor-specific files
+.vscode/
+.idea/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+
+# Jupyter Notebook / IPython
+.ipynb_checkpoints
+*.ipynb
+
+# Logs
+*.log
+*.temp
+*.tmp
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+
+# Poetry
+poetry.lock
