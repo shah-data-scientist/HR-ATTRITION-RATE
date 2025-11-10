@@ -1,5 +1,4 @@
 [tool.poetry]
-package-mode = false
 packages = [{include = "hr_attrition_rate"}]
 
 [tool.poetry.group.dev.dependencies]
