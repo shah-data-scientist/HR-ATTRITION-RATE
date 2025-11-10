@@ -6,7 +6,7 @@ authors = [
     {name = "Shahul SHAIK",email = "shah.data.scientist@gmail.com"}
 ]
 readme = "README.md"
-requires-python = ">=3.13"
+requires-python = ">=3.12"
 dependencies = [
     "streamlit",
     "scikit-learn",

@@ -13,5 +13,25 @@ services:
     volumes:
       - db_data:/var/lib/postgresql/data
 
+  fastapi_app:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql://user:password@db:5432/hr_attrition_db
+    depends_on:
+      - db
+
+  streamlit_app:
+    build:
+      context: .
+      dockerfile: Dockerfile.streamlit
+    ports:
+      - "8501:8501"
+    depends_on:
+      - db # Streamlit app doesn't directly use DB, but good to ensure DB is up first if it were to.
+
 volumes:
   db_data:
