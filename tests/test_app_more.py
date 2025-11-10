@@ -10,14 +10,38 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 
 from app import (
     _sigmoid,
+    _logit, # Added _logit
     get_expected_columns,
     clear_prediction_results,
+    _get_risk_category_from_log_odds, # Added _get_risk_category_from_log_odds
+    LOG_ODDS_RISK_THRESHOLDS # Added LOG_ODDS_RISK_THRESHOLDS
 )
 
 def test_sigmoid():
     assert _sigmoid(0) == 0.5
     assert np.isclose(_sigmoid(10), 0.99995460)
     assert np.isclose(_sigmoid(-10), 0.00004539)
+
+def test_logit():
+    assert _logit(0.5) == 0
+    assert np.isclose(_logit(0.3), -0.8472978603875038)
+    assert np.isclose(_logit(0.7), 0.8472978603875038)
+    assert _logit(0) == -np.inf
+    assert _logit(1) == np.inf
+
+def test_get_risk_category_from_log_odds():
+    # Test cases based on LOG_ODDS_RISK_THRESHOLDS
+    low_threshold = LOG_ODDS_RISK_THRESHOLDS["Low"][1] # approx -0.847
+    high_threshold = LOG_ODDS_RISK_THRESHOLDS["High"][0] # approx 0.847
+
+    assert _get_risk_category_from_log_odds(low_threshold - 0.1) == "Low" # Below low threshold
+    assert _get_risk_category_from_log_odds(low_threshold) == "Medium" # At low threshold
+    assert _get_risk_category_from_log_odds(low_threshold + 0.1) == "Medium" # Between thresholds
+    assert _get_risk_category_from_log_odds(high_threshold - 0.1) == "Medium" # Between thresholds
+    assert _get_risk_category_from_log_odds(high_threshold) == "High" # At high threshold
+    assert _get_risk_category_from_log_odds(high_threshold + 0.1) == "High" # Above high threshold
+    assert _get_risk_category_from_log_odds(-np.inf) == "Low"
+    assert _get_risk_category_from_log_odds(np.inf) == "High"
 
 def test_get_expected_columns():
     mock_pipeline = MagicMock()
@@ -42,11 +66,13 @@ def test_clear_prediction_results(mock_st):
 @patch('app.base64.b64encode')
 @patch('app.io.BytesIO')
 @patch('app.plt.close')
+@patch('matplotlib.pyplot.gcf') # Patch matplotlib.pyplot.gcf
+@patch('PIL.Image.Image.save') # Re-add patch for PIL.Image.Image.save
 @patch('shap.plots.waterfall') # Patch shap.plots.waterfall
 @patch('app.shap.LinearExplainer') # Patch app.shap.LinearExplainer
 @patch('shap.Explanation') # Patch shap.Explanation
 def test_generate_shap_html_report(
-    mock_shap_explanation, mock_shap_explainer, mock_shap_plots_waterfall, mock_plt_close,
+    mock_shap_explanation, mock_shap_explainer, mock_shap_plots_waterfall, mock_pil_image_save, mock_plt_gcf, mock_plt_close,
     mock_bytes_io, mock_b64encode, mock_datetime):
 
     # Mock datetime.now().strftime
@@ -62,6 +88,7 @@ def test_generate_shap_html_report(
     # Mock shap.plots.waterfall to return a mock figure
     mock_fig = MagicMock()
     mock_shap_plots_waterfall.return_value = mock_fig
+    mock_plt_gcf.return_value = mock_fig # Ensure plt.gcf returns our mock figure
 
     # Mock explainer and shap_values
     mock_explainer_instance = MagicMock()
@@ -102,7 +129,7 @@ def test_generate_shap_html_report(
         data=ANY, # Use ANY for NumPy array
         feature_names=all_features
     )
-    mock_shap_plots_waterfall.assert_called_once_with(mock_explanation_instance, show=False)
+    mock_shap_plots_waterfall.assert_called_once_with(mock_explanation_instance, max_display=10, show=False)
     mock_fig.savefig.assert_called_once_with(mock_bytes_io_instance, format='png', bbox_inches='tight', dpi=100)
     mock_plt_close.assert_called_once_with(mock_fig)
     mock_b64encode.assert_called_once()

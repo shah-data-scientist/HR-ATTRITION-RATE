@@ -14,17 +14,38 @@ from datetime import datetime
 import base64 # Import base64 for embedding images
 import streamlit.components.v1 as components
 
+# Explicitly disable math text rendering for matplotlib
+plt.rcParams['text.usetex'] = False
+plt.rcParams['mathtext.default'] = 'regular'
+
 def _sigmoid(z: float) -> float:
     return 1.0 / (1.0 + np.exp(-z))
 
+def _logit(p: float) -> float:
+    """Inverse of sigmoid function."""
+    if p <= 0:
+        return -np.inf
+    if p >= 1:
+        return np.inf
+    return np.log(p / (1 - p))
 
 
 # --- Configuration ---
-# Define risk categories for Excel report and HTML visualization
+# Define risk categories for Excel report and HTML visualization (probability-based, for confusion matrix)
 RISK_THRESHOLDS = {
     "Low": (0.0, 0.3),
     "Medium": (0.3, 0.7),
     "High": (0.7, 1.0)
+}
+
+# Define risk categories for log-odds (f(x))
+# Corresponding log-odds for probabilities 0.3 and 0.7
+# logit(0.3) approx -0.847
+# logit(0.7) approx 0.847
+LOG_ODDS_RISK_THRESHOLDS = {
+    "Low": (-np.inf, _logit(0.3)), # f(x) < -0.847
+    "Medium": (_logit(0.3), _logit(0.7)), # -0.847 <= f(x) < 0.847
+    "High": (_logit(0.7), np.inf) # f(x) >= 0.847
 }
 
 # --- Session State Initialization ---
@@ -151,6 +172,20 @@ def get_expected_columns(pipeline):
     preprocessor = pipeline.named_steps['preprocessor']
     # The feature_names_in_ attribute stores the names of features seen during fit
     return list(preprocessor.feature_names_in_)
+
+def _get_risk_category_from_log_odds(log_odds: float) -> str:
+    """
+    Categorizes attrition risk based on log-odds (f(x)) using predefined thresholds.
+    """
+    low_threshold = LOG_ODDS_RISK_THRESHOLDS["Low"][1] # Upper bound of Low
+    high_threshold = LOG_ODDS_RISK_THRESHOLDS["High"][0] # Lower bound of High
+
+    if log_odds < low_threshold:
+        return "Low"
+    elif log_odds >= high_threshold:
+        return "High"
+    else:
+        return "Medium"
 
 def get_risk_category(probability, threshold):
     """
@@ -396,7 +431,14 @@ def main():
             # Prepare data for reports
             report_data = raw_uploaded_data.copy()
             report_data['Attrition_Risk_Percentage'] = prediction_proba
-            report_data['Risk_Attrition'] = report_data['Attrition_Risk_Percentage'].apply(lambda x: get_risk_category(x, main_threshold))
+            
+            # Calculate log-odds (f(x))
+            # Ensure prediction_proba is not 0 or 1 to avoid log(0) or log(inf)
+            log_odds = np.clip(prediction_proba, 1e-10, 1 - 1e-10)
+            report_data['Log_Odds'] = np.log(log_odds / (1 - log_odds))
+
+            # Use log-odds for risk categorization
+            report_data['Risk_Attrition'] = report_data['Log_Odds'].apply(_get_risk_category_from_log_odds)
             report_data['Prediction'] = ['Leave' if pred == 1 else 'Stay' for pred in predictions]
 
             # --- SHAP Explanations for Reports ---
