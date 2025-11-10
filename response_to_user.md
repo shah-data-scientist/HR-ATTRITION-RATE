@@ -1,0 +1,1 @@
+I have updated `app.py` to set `max_display=10` for the SHAP waterfall plots, as you requested. This will ensure only the top 10 features are displayed.

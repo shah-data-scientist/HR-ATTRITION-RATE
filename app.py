@@ -17,63 +17,7 @@ import streamlit.components.v1 as components
 def _sigmoid(z: float) -> float:
     return 1.0 / (1.0 + np.exp(-z))
 
-def _plot_probability_waterfall_topk(
-    feature_names, shap_values_row, base_log_odds, employee_prob, avg_prob, topk=10
-):
-    """
-    Custom probability-space waterfall for TOP-K features.
-    Bars show how each (log-odds) SHAP step changes probability (in %-points).
-    Adds two vertical lines:
-      - Employee probability
-      - Average (baseline) probability
-    """
-    # pick top-k by absolute SHAP magnitude (log-odds space)
-    idx = np.argsort(np.abs(shap_values_row))[-topk:][::-1]
-    feats = [feature_names[i] for i in idx]
-    deltas = shap_values_row[idx]  # in log-odds
 
-    # build probability deltas sequentially
-    curr_logit = base_log_odds
-    starts_pp = []
-    widths_pp = []
-    colors = []
-    for d in deltas:
-        p0 = _sigmoid(curr_logit) * 100.0
-        p1 = _sigmoid(curr_logit + d) * 100.0
-        starts_pp.append(min(p0, p1))
-        widths_pp.append(abs(p1 - p0))
-        colors.append("tab:red" if (p1 - p0) > 0 else "tab:blue")
-        curr_logit += d
-
-    fig, ax = plt.subplots(figsize=(7, 4))
-    y = np.arange(len(feats))
-
-    # bars (probability deltas)
-    ax.barh(y, widths_pp, left=starts_pp, color=colors, edgecolor="black", alpha=0.9, height=0.6)
-
-    # y labels = feature names
-    ax.set_yticks(y)
-    ax.set_yticklabels(feats, fontsize=10)
-
-    # x axis in percent
-    ax.set_xlabel("Attrition Probability (%)", fontsize=12)
-    ax.set_xlim(0, 100)
-
-    # single clean title
-    ax.set_title("Attrition Probability", fontsize=14, pad=8)
-
-    # vertical lines: average & this employee
-    ax.axvline(avg_prob * 100.0, color="gray", linestyle="--", linewidth=1.5, label=f"Average: {avg_prob*100:.0f}%")
-    ax.axvline(employee_prob * 100.0, color="black", linestyle="-.", linewidth=1.8, label=f"This employee: {employee_prob*100:.0f}%")
-
-    # legend (no duplicates)
-    handles, labels = ax.get_legend_handles_labels()
-    by_label = dict(zip(labels, handles))
-    ax.legend(by_label.values(), by_label.keys(), loc="lower right", fontsize=10, frameon=True)
-
-    ax.grid(axis="x", linestyle=":", alpha=0.4)
-    plt.tight_layout()
-    return fig
 
 # --- Configuration ---
 # Define risk categories for Excel report and HTML visualization
@@ -269,6 +213,7 @@ def display_confusion_matrix_and_metrics(y_true, y_proba, threshold, title="Conf
         plt.xticks(rotation=45, ha='right') # Rotate x-axis labels for better fit
         plt.tight_layout() # Ensure no overlapping text or elements
         st.pyplot(fig)
+        plt.close(fig) # Explicitly close the figure to prevent overlap
     with col2:
         st.write(f"**Threshold: {threshold:.2f}**")
         st.write(f"Accuracy: {accuracy_score(y_true, predictions):.2f}")
@@ -278,11 +223,8 @@ def display_confusion_matrix_and_metrics(y_true, y_proba, threshold, title="Conf
 
 def generate_shap_html_report(employee_data_with_predictions, X_transformed_for_shap, explainer, all_features):
     """
-    Generates an HTML report with a custom TOP-10 probability-space SHAP 'waterfall'-style plot.
-    - Title: 'Attrition Probability' (no SHAP/Waterfall baseline title)
-    - Two vertical lines: average probability (baseline) & this employee's probability
-    - No E[f(x)] footer, no duplicate % labels
-    - X-axis in %
+    Generates an HTML report with a classic SHAP waterfall plot.
+    Displays Employee ID, Attrition Risk Percentage, and Prediction Type prominently at the top.
     """
     html_content = f"""
     <!DOCTYPE html>
@@ -292,67 +234,65 @@ def generate_shap_html_report(employee_data_with_predictions, X_transformed_for_
         <style>
             body {{ font-family: sans-serif; margin: 20px; }}
             h1 {{ color: #333; }}
-            h2 {{ color: #555; border-bottom: 1px solid #ccc; padding-bottom: 5px; }}
-            .employee-card {{ border: 1px solid #eee; border-radius: 8px; padding: 15px; margin-bottom: 22px; box-shadow: 2px 2px 8px rgba(0,0,0,0.08); }}
+            .employee-header {{ background-color: #f0f2f6; padding: 10px 15px; border-radius: 5px; margin-bottom: 15px; }}
+            .employee-header h2 {{ margin-top: 0; margin-bottom: 5px; color: #0056b3; }}
+            .employee-header p {{ margin: 0; font-size: 0.95rem; }}
             .risk-label {{ font-weight: bold; padding: 4px 8px; border-radius: 5px; display: inline-block; }}
             .risk-low {{ background-color: #d4edda; color: #155724; }}
             .risk-medium {{ background-color: #fff3cd; color: #856404; }}
             .risk-high {{ background-color: #f8d7da; color: #721c24; }}
-            .shap-plot {{ margin-top: 10px; }}
+            .shap-plot {{ margin-top: 10px; border: 1px solid #eee; padding: 10px; border-radius: 5px; }}
             .meta {{ color: #666; font-size: 0.95rem; }}
         </style>
     </head>
     <body>
         <h1>Employee Attrition SHAP Explanation Report</h1>
         <p class="meta">Report generated on: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}</p>
-        <p class="meta">Bars show how each top contributor moved the probability up (red) or down (blue) from the average.</p>
     """
 
-    base_log_odds = explainer.expected_value
-    avg_prob = _sigmoid(base_log_odds)  # 0-1
-    print(f"DEBUG: base_log_odds (explainer.expected_value): {base_log_odds}")
-    print(f"DEBUG: avg_prob (sigmoid of base_log_odds): {avg_prob}")
-
     # compute SHAP values once for all rows (if not precomputed)
-    all_shap = explainer.shap_values(X_transformed_for_shap)  # shape: (n, n_features)
+    all_shap_values = explainer.shap_values(X_transformed_for_shap)  # shape: (n, n_features)
 
     for i, (_, row) in enumerate(employee_data_with_predictions.iterrows()):
         employee_id = row.get('id_employee', f'Employee {i+1}')
-        risk_category = row['Risk_Attrition']              # already thresholded elsewhere
-        attrition_prob = row['Attrition_Risk_Percentage']  # 0-1
-        prediction_type = row['Prediction']                 # 'Leave'/'Stay'
+        risk_category = row['Risk_Attrition']
+        attrition_prob = row['Attrition_Risk_Percentage']
+        prediction_type = row['Prediction']
 
-        # SHAP for this employee (log-odds)
-        shap_values_row = all_shap[i]
-        # employee prob from SHAP (recompute to avoid any mismatch)
-        employee_prob = _sigmoid(base_log_odds + np.sum(shap_values_row))
-
-        # build custom probability-space TOP-10 plot
-        fig = _plot_probability_waterfall_topk(
-            feature_names=all_features,
-            shap_values_row=shap_values_row,
-            base_log_odds=base_log_odds,
-            employee_prob=employee_prob,
-            avg_prob=avg_prob,
-            topk=10
+        # SHAP values for this employee
+        shap_values_row = all_shap_values[i]
+        
+        # Generate classic waterfall plot
+        shap.plots.waterfall(
+            shap.Explanation(
+                values=shap_values_row,
+                base_values=explainer.expected_value,
+                data=X_transformed_for_shap[i],
+                feature_names=all_features
+            ),
+            max_display=10, # Display top 10 features
+            show=False # Prevent plot from displaying immediately
         )
+        fig = plt.gcf() # Get the current figure after shap.plots.waterfall has created it
+        fig.set_size_inches(8, 6) # Set a reasonable figure size for the HTML report (increased height)
 
         buf = io.BytesIO()
         fig.savefig(buf, format='png', bbox_inches='tight', dpi=100)
         plt.close(fig)
         img_str = base64.b64encode(buf.getvalue()).decode('utf-8')
 
-        # card (shows single, non-duplicated %; risk band derived from your threshold function)
         html_content += f"""
         <div class="employee-card">
-            <h2>Employee ID: {employee_id}</h2>
-            <p>
-                Predicted Attrition Risk:
-                <span class="risk-label risk-{risk_category.lower()}">{risk_category}</span>
-                ({attrition_prob:.1%}) · Prediction: <strong>{prediction_type}</strong>
-            </p>
+            <div class="employee-header">
+                <h2>Employee ID: {employee_id}</h2>
+                <p>
+                    Predicted Attrition Risk:
+                    <span class="risk-label risk-{risk_category.lower()}">{risk_category}</span>
+                    ({attrition_prob:.1%}) · Prediction: <strong>{prediction_type}</strong>
+                </p>
+            </div>
             <div class="shap-plot">
-                <img src="data:image/png;base64,{img_str}" alt="Top-10 SHAP probability waterfall for Employee {employee_id}">
+                <img src="data:image/png;base64,{img_str}" alt="SHAP Waterfall Plot for Employee {employee_id}">
             </div>
         </div>
         """
