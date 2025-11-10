@@ -1,0 +1,5 @@
+The Streamlit application tests are failing due to issues with mocking Streamlit's global state and session state. Specifically:
+1.  `st.set_page_config()` is not registered as called, despite `main()` executing.
+2.  `st.session_state` is mocked as a dictionary, but `app.py` accesses it via dot notation, causing `AttributeError`.
+3.  Global variables like `app.train_prediction_proba` are mocked as NumPy arrays in tests, but `app.py` functions still receive `MagicMock` objects, leading to `TypeError` in comparisons.
+The core problem is ensuring `app.py` correctly interacts with the mocked Streamlit environment and its global variables during testing.
