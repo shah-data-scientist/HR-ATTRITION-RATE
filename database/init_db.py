@@ -1,12 +1,14 @@
 import os
 import sys
 from datetime import datetime
+from pathlib import Path
 
 import pandas as pd
 from sqlalchemy.orm import Session
 
 # Add the project root to sys.path to allow importing modules from the root
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
+# Add the project root to sys.path to allow importing modules from the root
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from utils import load_and_merge_data  # Import the merged data loading function
 
@@ -15,6 +17,7 @@ from .models import Employee
 
 
 def init_db():
+    """Initialize the database and load initial employee data if the table is empty."""
     # Create all tables defined in Base
     print("Creating database tables...")
     Base.metadata.create_all(bind=engine)
@@ -27,10 +30,10 @@ def init_db():
         if db.query(Employee).count() == 0:
             print("Loading initial employee data...")
             # Define paths to your CSV files
-            data_dir = os.path.join(os.path.dirname(__file__), "..", "data")
-            eval_file = os.path.join(data_dir, "extrait_eval.csv")
-            sirh_file = os.path.join(data_dir, "extrait_sirh.csv")
-            sondage_file = os.path.join(data_dir, "extrait_sondage.csv")
+            data_dir = Path(__file__).parent.parent / "data"
+            eval_file = data_dir / "extrait_eval.csv"
+            sirh_file = data_dir / "extrait_sirh.csv"
+            sondage_file = data_dir / "extrait_sondage.csv"
 
             # Load raw dataframes
             eval_df = pd.read_csv(eval_file)
@@ -42,14 +45,12 @@ def init_db():
 
             # Prepare data for insertion
             employees_to_add = []
-            for index, row in merged_df.iterrows():
+            for _index, row in merged_df.iterrows():
                 # Dynamically create a dictionary for employee attributes
                 employee_data = {
                     col: row[col] if pd.notna(row[col]) else None
                     for col in row.index
-                    if col != "id_employee"
-                    and col
-                    != "a_quitte_l_entreprise"  # Exclude id_employee and target variable
+                    if col not in ["id_employee", "a_quitte_l_entreprise"]
                 }
                 # Ensure id_employee is an integer
                 employee_id = (
@@ -60,7 +61,7 @@ def init_db():
                 employee = Employee(
                     id_employee=employee_id,
                     **employee_data,
-                    date_ingestion=datetime.now(),
+                    date_ingestion=datetime.now(UTC),
                 )
                 employees_to_add.append(employee)
 
