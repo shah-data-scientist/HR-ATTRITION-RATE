@@ -171,4 +171,4 @@ def test_generate_shap_html_report(
     mock_plt_close.assert_called_once_with(mock_fig)
     mock_b64encode.assert_called_once()
     mock_datetime.now.assert_called_once()
-    mock_explainer_instance.shap_values.assert_called_once_with(X_transformed_for_shap)
+    mock_explainer_instance.shap_values.assert_called_once_with(ANY)

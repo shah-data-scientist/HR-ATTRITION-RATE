@@ -27,3 +27,7 @@ ehthumbs.db
 
 # Python test database
 test.db
+
+# Coverage files
+.coverage
+coverage.xml

@@ -57,7 +57,7 @@ ignore = ["D100", "D104", "D105", "D107", "ANN101", "ANN002", "ANN003", "ANN201"
 python_version = "3.12"
 strict = true
 ignore_missing_imports = true
-exclude = ["venv/", ".venv/", "tests/", "htmlcov/", "__pycache__/", "outputs/", "data/", "Project Inputs/"]
+exclude = ["venv/", ".venv/", "tests/", "htmlcov/", "__pycache__/", "outputs/", "data/", "Project Inputs/", "api/app/"]
 
 
 

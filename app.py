@@ -1,4 +1,5 @@
 import matplotlib
+
 matplotlib.use('Agg') # Use non-interactive backend for matplotlib
 import pandas as pd
 import streamlit as st
@@ -22,10 +23,7 @@ from sklearn.metrics import (
     precision_score,
     recall_score,
 )
-
-# Explicitly disable math text rendering for matplotlib
-plt.rcParams["text.usetex"] = False
-plt.rcParams["mathtext.default"] = "regular"
+from sklearn.pipeline import Pipeline
 
 
 def _sigmoid(z: float) -> float:
@@ -42,7 +40,7 @@ def _logit(p: float) -> float:
 
 
 # --- Configuration ---
-# Define risk categories for Excel report and HTML visualization (probability-based, for confusion matrix)
+# Define risk categories for Excel/HTML reports (probability-based, for confusion matrix)
 RISK_THRESHOLDS = {"Low": (0.0, 0.3), "Medium": (0.3, 0.7), "High": (0.7, 1.0)}
 
 # Define risk categories for log-odds (f(x))
@@ -54,6 +52,8 @@ LOG_ODDS_RISK_THRESHOLDS = {
     "Medium": (_logit(0.3), _logit(0.7)),  # -0.847 <= f(x) < 0.847
     "High": (_logit(0.7), np.inf),  # f(x) >= 0.847
 }
+
+REQUIRED_FILES = ["extrait_eval.csv", "extrait_sirh.csv", "extrait_sondage.csv"]
 
 # --- Session State Initialization ---
 if "prediction_triggered" not in st.session_state:
@@ -72,7 +72,145 @@ if "all_features" not in st.session_state:
     st.session_state.all_features = None
 
 
-def clear_prediction_results():
+def _handle_file_uploads_and_predict(main_threshold: float) -> None:
+    st.subheader("Upload Employee Data for Prediction")
+    uploaded_files = st.file_uploader(
+        "Upload three CSV files: `extrait_eval.csv`, "
+        "`extrait_sirh.csv`, `extrait_sondage.csv`",
+        type=["csv"],
+        accept_multiple_files=True,
+    )
+
+    if uploaded_files:
+        if len(uploaded_files) != len(REQUIRED_FILES):
+            st.warning("Please upload all three required CSV files.")
+            return
+
+        uploaded_file_names = [file.name for file in uploaded_files]
+        if not all(name in uploaded_file_names for name in REQUIRED_FILES):
+            st.warning(
+                "Please make sure to upload the three required files: "
+                "`extrait_eval.csv`, `extrait_sirh.csv`, and `extrait_sondage.csv`."
+            )
+            return
+
+        file_map = {file.name: file for file in uploaded_files}
+        eval_file = file_map.get("extrait_eval.csv")
+        sirh_file = file_map.get("extrait_sirh.csv")
+        sondage_file = file_map.get("extrait_sondage.csv")
+
+        predict_button = st.button("Predict Attrition")
+
+        if predict_button:
+            _process_predictions_and_reports(
+                eval_file, sirh_file, sondage_file, main_threshold
+            )
+        else:
+            st.info("Please upload the CSV files to get started.")
+
+
+def _process_predictions_and_reports(
+    eval_file: io.BytesIO,
+    sirh_file: io.BytesIO,
+    sondage_file: io.BytesIO,
+    main_threshold: float,
+) -> None:
+    """Process uploaded files, make predictions, and generate reports."""
+    # Read and merge uploaded files
+    eval_df = pd.read_csv(eval_file)
+    sirh_df = pd.read_csv(sirh_file)
+    sondage_df = pd.read_csv(sondage_file)
+
+    merged_df = load_and_merge_data(eval_df, sirh_df, sondage_df)
+    processed_df = clean_and_engineer_features(merged_df.copy())
+
+    # Ensure all expected columns are present; fill missing with 0.
+    expected_cols = get_expected_columns(st.session_state.model)
+    missing_cols = set(expected_cols) - set(processed_df.columns)
+    for c in missing_cols:
+        processed_df[c] = 0  # Or other appropriate default value
+
+    # Align columns and order
+    processed_df_aligned = processed_df[expected_cols]
+
+    # Transform data for SHAP
+    x_transformed_for_shap = st.session_state.model.named_steps["preprocessor"].transform(
+        processed_df_aligned
+    )
+
+    # Store processed data for SHAP
+    st.session_state.processed_data_for_shap = x_transformed_for_shap
+
+    # Ensure x_transformed_for_shap is a DataFrame for consistent indexing
+    if not isinstance(x_transformed_for_shap, pd.DataFrame):
+        x_transformed_for_shap = pd.DataFrame(
+            x_transformed_for_shap, columns=st.session_state.all_features
+        )
+
+    # Make predictions
+    predictions_proba = st.session_state.model.predict_proba(x_transformed_for_shap)[:, 1]
+    predictions_class = (predictions_proba >= main_threshold).astype(int)
+
+    # Generate SHAP explainer and values
+    explainer = shap.TreeExplainer(st.session_state.model.named_steps["model"])
+    st.session_state.explainer = explainer
+    st.session_state.all_features = st.session_state.model.named_steps[
+        "preprocessor"
+    ].get_feature_names_out()
+
+    # Create report data
+    report_data = merged_df[["id_employee"]].copy()
+    report_data["Attrition_Risk_Percentage"] = predictions_proba
+    report_data["Prediction"] = np.where(predictions_class == 1, "Leave", "Stay")
+    report_data["Risk_Attrition"] = report_data["Attrition_Risk_Percentage"].apply(
+        lambda x: get_risk_category(x, main_threshold)
+    )
+
+    st.session_state.report_data = report_data
+
+    # Generate SHAP HTML content
+    shap_html_content = generate_shap_html_report(
+        report_data,
+        x_transformed_for_shap,
+        explainer,
+        st.session_state.all_features,
+    )
+    st.session_state.shap_html_content = shap_html_content
+
+    # Prepare data for Excel Tab 2 (Features)
+    excel_tab2_data = []
+    for idx, employee_id in enumerate(report_data["id_employee"]):
+        shap_values_row = explainer.shap_values(x_transformed_for_shap.iloc[idx])
+        # Ensure shap_values_row is 1-dimensional
+        if isinstance(shap_values_row, np.ndarray) and shap_values_row.ndim > 1:
+            shap_values_row = shap_values_row.flatten()
+        elif (
+            isinstance(shap_values_row, list)
+            and len(shap_values_row) == 1
+            and isinstance(shap_values_row[0], np.ndarray)
+        ):
+            shap_values_row = shap_values_row[0].flatten()
+
+        # Create a DataFrame for SHAP values and features for this employee
+        employee_shap_df = pd.DataFrame(
+            {
+                "Feature": st.session_state.all_features,
+                "Coefficient": shap_values_row,
+            }
+        )
+        employee_shap_df["Employee_ID"] = employee_id
+        employee_shap_df["Prediction"] = report_data.loc[
+            report_data["id_employee"] == employee_id, "Prediction"
+        ].iloc[0]
+        excel_tab2_data.append(employee_shap_df)
+
+    st.session_state.excel_report_data = pd.concat(excel_tab2_data)
+
+    st.session_state.prediction_triggered = True
+
+
+def clear_prediction_results() -> None:
+    """Clear all prediction results and reset session state."""
     st.session_state.prediction_triggered = False
     st.session_state.report_data = None
     st.session_state.shap_html_content = None
@@ -85,23 +223,30 @@ def clear_prediction_results():
 # --- Load Model and Data ---
 @st.cache_resource
 def load_model_and_data():
-    """Loads the trained model and test/train data."""
+    """Load the trained model and test/train data."""
     model = joblib.load("outputs/employee_attrition_pipeline.pkl")
-    X_train_loaded = pd.read_parquet("outputs/X_train.parquet")
+    x_train_loaded = pd.read_parquet("outputs/X_train.parquet")
     y_train_loaded = pd.read_parquet("outputs/y_train.parquet").squeeze()
-    X_test_loaded = pd.read_parquet("outputs/X_test.parquet")
+    x_test_loaded = pd.read_parquet("outputs/X_test.parquet")
     y_test_loaded = pd.read_parquet("outputs/y_test.parquet").squeeze()
-    return model, X_train_loaded, y_train_loaded, X_test_loaded, y_test_loaded
+    return model, x_train_loaded, y_train_loaded, x_test_loaded, y_test_loaded
 
 
 # Function to set up the app's global resources
-def _setup_app():
-    global model, X_train_loaded, y_train_loaded, X_test_loaded, y_test_loaded, train_prediction_proba
-    model, X_train_loaded, y_train_loaded, X_test_loaded, y_test_loaded = (
-        load_model_and_data()
-    )
-    # Pre-calculate probabilities for training data (for confusion matrix)
-    train_prediction_proba = model.predict_proba(X_train_loaded)[:, 1]
+def _setup_app() -> None:
+    if "model" not in st.session_state:
+        (
+            st.session_state.model,
+            st.session_state.x_train_loaded,
+            st.session_state.y_train_loaded,
+            st.session_state.x_test_loaded,
+            st.session_state.y_test_loaded,
+        ) = load_model_and_data()
+    if "train_prediction_proba" not in st.session_state:
+        # Pre-calculate probabilities for training data (for confusion matrix)
+        st.session_state.train_prediction_proba = st.session_state.model.predict_proba(
+            st.session_state.x_train_loaded
+        )[:, 1]
 
 
 # Call setup function only if not in a test environment (or if Streamlit is running)
@@ -111,7 +256,7 @@ if "streamlit" in sys.modules and "pytest" not in sys.modules:
 
 
 # --- Helper Functions (from train.py) ---
-def _clean_extrait_eval(df):
+def _clean_extrait_eval(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
     if "augmentation_salaire_precedente" in df.columns:
         df["augmentation_salaire_precedente"] = (
@@ -149,7 +294,7 @@ def _clean_extrait_eval(df):
     return df
 
 
-def _clean_extrait_sirh(df):
+def _clean_extrait_sirh(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
     if "genre" in df.columns:
         df["genre"] = (
@@ -161,7 +306,7 @@ def _clean_extrait_sirh(df):
     return df
 
 
-def _clean_extrait_sondage(df):
+def _clean_extrait_sondage(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
     if "code_sondage" in df.columns:
         df.rename(columns={"code_sondage": "id_employee"}, inplace=True)
@@ -172,7 +317,10 @@ def _clean_extrait_sondage(df):
     return df
 
 
-def load_and_merge_data(eval_df, sirh_df, sond_df):
+def load_and_merge_data(
+    eval_df: pd.DataFrame, sirh_df: pd.DataFrame, sond_df: pd.DataFrame
+) -> pd.DataFrame:
+    """Load and merge employee data from evaluation, SIRH, and survey dataframes."""
     eval_df = _clean_extrait_eval(eval_df)
     sirh_df = _clean_extrait_sirh(sirh_df)
     sond_df = _clean_extrait_sondage(sond_df)
@@ -192,8 +340,8 @@ def load_and_merge_data(eval_df, sirh_df, sond_df):
     return merged
 
 
-def clean_and_engineer_features(df):
-    """Applies the same cleaning and feature engineering steps as in the notebook."""
+def clean_and_engineer_features(df: pd.DataFrame) -> pd.DataFrame:
+    """Apply the same cleaning and feature engineering steps as in the notebook."""
     df = df.copy()
     # Feature Engineering steps
     if {"note_evaluation_actuelle", "note_evaluation_precedente"}.issubset(df.columns):
@@ -216,16 +364,18 @@ def clean_and_engineer_features(df):
     return df
 
 
-def get_expected_columns(pipeline):
-    """Gets the list of columns the model was trained on."""
+from sklearn.pipeline import Pipeline
+
+
+def get_expected_columns(pipeline: Pipeline) -> list[str]:
+    """Get the list of columns the model was trained on."""
     preprocessor = pipeline.named_steps["preprocessor"]
     # The feature_names_in_ attribute stores the names of features seen during fit
     return list(preprocessor.feature_names_in_)
 
 
 def _get_risk_category_from_log_odds(log_odds: float) -> str:
-    """Categorizes attrition risk based on log-odds (f(x)) using predefined thresholds.
-    """
+    """Categorize attrition risk based on log-odds (f(x)) using predefined thresholds."""
     low_threshold = LOG_ODDS_RISK_THRESHOLDS["Low"][1]  # Upper bound of Low
     high_threshold = LOG_ODDS_RISK_THRESHOLDS["High"][0]  # Lower bound of High
 
@@ -236,15 +386,17 @@ def _get_risk_category_from_log_odds(log_odds: float) -> str:
     return "Medium"
 
 
-def get_risk_category(probability, threshold):
-    """Categorizes attrition risk based on the difference between probability and a dynamic threshold,
-    with a minimum absolute probability for "Medium" risk.
+def get_risk_category(probability: float, threshold: float) -> str:
+    """Categorize attrition risk based on probability and a dynamic threshold.
+
+    With a minimum absolute probability for "Medium" risk:
     - High Risk: probability >= threshold + buffer
     - Low Risk: probability < threshold - buffer
-    - Medium Risk: (threshold - buffer <= probability < threshold + buffer) AND (probability >= min_medium_prob)
+    - Medium Risk: (threshold - buffer <= probability < threshold + buffer)
+      AND (probability >= min_medium_prob)
     - Otherwise: Low Risk
     """
-    buffer = 0.05  # How close to the threshold to be considered "Medium" (e.g., 5 percentage points)
+    buffer = 0.05  # How close to threshold for "Medium" (e.g., 5 percentage points)
     min_medium_prob = (
         0.20  # Minimum absolute probability to be considered "Medium" risk (e.g., 20%)
     )
@@ -258,17 +410,17 @@ def get_risk_category(probability, threshold):
     ):  # Close to threshold AND above minimum for Medium
         return "Medium"
     # Close to threshold but below min_medium_prob
-    return "Low"  # Default to Low if not High, not clearly Low, and below min_medium_prob
+    return "Low"  # Default if not High, not clearly Low, and below min_medium_prob
 
 
 def display_confusion_matrix_and_metrics(
-    y_true, y_proba, threshold, title="Confusion Matrix"
-):
-    """Displays confusion matrix with row-normalized percentages and classification metrics.
-    - Shows ONLY percentages (row-normalized).
-    - No overlapping text: renders a single value per cell (2 decimal %).
-    - Axis labels: Y-axis: “Truth”, X-axis: “Prediction”.
-    """
+    y_true: np.ndarray,
+    y_proba: np.ndarray,
+    threshold: float,
+    title: str = "Confusion Matrix",
+) -> None:
+    """Display confusion matrix with row-normalized percentages and classification metrics.
+
     predictions = (y_proba >= threshold).astype(int)
     cm = confusion_matrix(y_true, predictions)
 
@@ -289,8 +441,8 @@ def display_confusion_matrix_and_metrics(
 
         # Use seaborn.heatmap for better control over annotations and appearance
         # Annotate with row-normalized percentages, formatted to 2 decimal places
-        # Add a brief note in comments explaining how overlap was prevented for the confusion matrix
-        # Overlap is prevented by using a fixed format string ('.2%') and ensuring sufficient figure size.
+        # Note: Overlap prevented by fixed format and sufficient figure size.
+
         # seaborn's annotation placement is generally robust for single values per cell.
         sns.heatmap(
             cm_normalized,
@@ -327,10 +479,15 @@ def display_confusion_matrix_and_metrics(
 
 
 def generate_shap_html_report(
-    employee_data_with_predictions, X_transformed_for_shap, explainer, all_features
-):
-    """Generates an HTML report with a classic SHAP waterfall plot.
-    Displays Employee ID, Attrition Risk Percentage, and Prediction Type prominently at the top.
+    employee_data_with_predictions: pd.DataFrame,
+    x_transformed_for_shap: pd.DataFrame,
+    explainer: shap.TreeExplainer,
+    all_features: list[str],
+) -> str:
+    """Generate an HTML report with a classic SHAP waterfall plot.
+
+    Displays Employee ID, Attrition Risk Percentage, and Prediction Type
+    prominently at the top.
     """
     html_content = f"""
     <!DOCTYPE html>
@@ -356,12 +513,21 @@ def generate_shap_html_report(
     </head>
     <body>
         <h1>Employee Attrition SHAP Explanation Report</h1>
-        <p class="meta">Report generated on: {datetime.now(UTC).strftime("%Y-%m-%d %H:%M:%S")}</p>
+        <p class="meta">Report generated on: {datetime.now(UTC).strftime(
+            "%Y-%m-%d %H:%M:%S"
+        )}</p>
     """
 
     # compute SHAP values once for all rows (if not precomputed)
+    # Ensure x_transformed_for_shap is a DataFrame for consistent indexing
+    if not isinstance(x_transformed_for_shap, pd.DataFrame):
+        x_transformed_for_shap = pd.DataFrame(
+            x_transformed_for_shap,
+            columns=all_features,
+        )
+
     all_shap_values = explainer.shap_values(
-        X_transformed_for_shap
+        x_transformed_for_shap
     )  # shape: (n, n_features)
 
     for i, (_, row) in enumerate(employee_data_with_predictions.iterrows()):
@@ -379,7 +545,7 @@ def generate_shap_html_report(
             shap.Explanation(
                 values=shap_values_row,
                 base_values=explainer.expected_value,
-                data=X_transformed_for_shap[i],
+                data=x_transformed_for_shap.iloc[i],
                 feature_names=all_features,
             ),
             max_display=10,  # Display top 10 features
@@ -403,8 +569,11 @@ def generate_shap_html_report(
                 <h2>Employee ID: {employee_id}</h2>
                 <p>
                     Predicted Attrition Risk:
-                    <span class="risk-label risk-{risk_category.lower()}">{risk_category}</span>
-                    ({attrition_prob:.1%}) · Prediction: <strong>{prediction_type}</strong>
+                    <span class="risk-label risk-{risk_category.lower()}">
+                        {risk_category}
+                    </span>
+                    ({attrition_prob:.1%}) · Prediction:
+                    <strong>{prediction_type}</strong>
                 </p>
             </div>
             <div class="shap-plot">
@@ -418,8 +587,11 @@ def generate_shap_html_report(
     return html_content
 
 
-def _display_threshold_impact():
-    """Display confusion matrices for different thresholds on training data."""
+def _display_threshold_impact() -> None:
+    """Display confusion matrices for different thresholds on training data.
+
+    Displays confusion matrices for different thresholds on training data.
+    """
     st.subheader("Understanding Threshold Impact (examples from training data)")
     st.write(
         "These examples illustrate how different thresholds affect the model's "
@@ -429,21 +601,30 @@ def _display_threshold_impact():
     col_t1, col_t2, col_t3 = st.columns(3)
     with col_t1:
         display_confusion_matrix_and_metrics(
-            y_train_loaded, train_prediction_proba, 0.3, "Threshold 0.30"
+            st.session_state.y_train_loaded,
+            st.session_state.train_prediction_proba,
+            0.3,
+            "Threshold 0.30",
         )
     with col_t2:
         display_confusion_matrix_and_metrics(
-            y_train_loaded, train_prediction_proba, 0.5, "Threshold 0.50 (Default)"
+            st.session_state.y_train_loaded,
+            st.session_state.train_prediction_proba,
+            0.5,
+            "Threshold 0.50 (Default)",
         )
     with col_t3:
         display_confusion_matrix_and_metrics(
-            y_train_loaded, train_prediction_proba, 0.7, "Threshold 0.70"
+            st.session_state.y_train_loaded,
+            st.session_state.train_prediction_proba,
+            0.7,
+            "Threshold 0.70",
         )
     st.markdown("---")
 
 
-def main():
-    """Main function to run the Streamlit application."""
+def main() -> None:
+    """Run the Streamlit application."""
     _setup_app()  # Ensure global variables are initialized
     # --- Streamlit App Layout ---
     st.set_page_config(layout="wide")
@@ -465,15 +646,17 @@ def main():
 
     # --- Confusion Matrix (Live Update) ---
     display_confusion_matrix_and_metrics(
-        y_train_loaded,
-        train_prediction_proba,
+        st.session_state.y_train_loaded,
+        st.session_state.train_prediction_proba,
         main_threshold,
-        title=f"Live Confusion Matrix on Training Data (Threshold: {main_threshold:.2f})",
+        title=(
+            f"Live Confusion Matrix on Training Data (Threshold: {main_threshold:.2f})"
+        ),
     )
 
     st.markdown("---")
 
-    # _handle_file_uploads_and_predict(main_threshold)
+    _handle_file_uploads_and_predict(main_threshold)
 
     # --- Display Results (if triggered) ---
     if st.session_state.prediction_triggered:

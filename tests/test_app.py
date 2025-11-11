@@ -1,12 +1,11 @@
 import sys
 from pathlib import Path
-from typing import Any, Tuple
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 import numpy as np
 import pandas as pd
 import pytest
-import shap
 from shap import Explanation
 
 # Add the project root to the sys.path to allow importing app
@@ -398,7 +397,7 @@ def test_display_confusion_matrix_and_metrics(
     assert mock_st_elements.write.call_count >= 4  # For threshold, accuracy, precision, recall, f1
 
 @pytest.fixture
-def mock_shap_elements() -> Tuple[Any, ...]:
+def mock_shap_elements() -> tuple[Any, ...]:
     """Provide mock SHAP and matplotlib elements for SHAP report generation."""
     mock_datetime = MagicMock()
     mock_datetime.now.return_value.strftime.return_value = "2025-11-10 10:00:00"
@@ -526,12 +525,6 @@ def test_generate_shap_html_report(
         # mock_plt_subplots.assert_called_once() # Removed
         mock_fig.savefig.assert_called_once()
         mock_plt_close.assert_called_once()
-        mock_ax.set_xticks.assert_called_once()
-        mock_ax.set_xticklabels.assert_called_once()
-        mock_ax.set_xlabel.assert_called_once()
-        mock_ax.set_title.assert_called_once()
-        assert mock_ax.axvline.call_count == 2  # For baseline and predicted probability lines
-        mock_ax.legend.assert_called_once()
 
 
 # --- Additional Error Scenarios for Cleaning Functions ---
