@@ -10,22 +10,23 @@ import pandas as pd
 from fastapi import Depends, FastAPI, HTTPException, status, Request
 from sqlalchemy.orm import Session  # Explicitly import Session for type hinting
 
-from api.app.schemas import (
-    BatchPredictionInput,
-    BatchPredictionOutput,
-    PredictionOutput,
-)
 from api.security import get_api_key, API_TOKEN
 
 # Database imports
 from database.database import get_db
 from database.models import Employee, ModelInput, ModelOutput, PredictionTraceability
 
-logger = logging.getLogger("uvicorn.error")
-
+# Core imports - using canonical schemas and processing
+from core.schema import (
+    BatchPredictionInput,
+    BatchPredictionOutput,
+    PredictionOutput,
+)
 from core.data_processing import clean_and_engineer_features
 from core.preprocess import enforce_schema
 from core.validation import NUMERIC_COLS, CATEGORICAL_COLS
+
+logger = logging.getLogger("uvicorn.error")
 
 # --- Configuration ---
 # Define risk categories for Excel report and HTML visualization

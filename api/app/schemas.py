@@ -1,3 +1,15 @@
+"""DEPRECATED: Use core.schema instead.
+
+This module contains the old API schemas that expected pre-cleaned data.
+The new core.schema module uses the correct RAW input format and is now
+the canonical source of truth for all schemas.
+
+Migration:
+- EmployeeFeatures -> core.schema.EmployeeInputSchema (raw input)
+- BatchPredictionInput -> core.schema.BatchPredictionInput
+- BatchPredictionOutput -> core.schema.BatchPredictionOutput
+- PredictionOutput -> core.schema.PredictionOutput
+"""
 
 from pydantic import BaseModel, ConfigDict, Field
 
