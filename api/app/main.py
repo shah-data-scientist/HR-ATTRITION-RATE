@@ -220,14 +220,11 @@ async def predict_attrition(
                 db.flush()  # Flush to ensure employee_db gets an ID if newly created
 
             # 2. Record Model Input
-            # Use the features that were actually sent to the model (after preprocessing/engineering)
-            # Convert processed_data row to a dictionary for JSON storage
-            features_for_db = (
-                processed_data.loc[i].drop("id_employee", errors="ignore").to_dict()
-            )
+            # Store the RAW input data for audit/traceability (what the user sent)
+            raw_features_for_db = employee_input_data.model_dump(exclude={"id_employee"})
             new_model_input = ModelInput(
                 id_employee=employee_id,
-                features=json.dumps(features_for_db),
+                features=json.dumps(raw_features_for_db),
                 prediction_timestamp=datetime.now(),
             )
             db.add(new_model_input)
