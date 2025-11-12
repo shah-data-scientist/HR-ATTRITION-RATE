@@ -7,7 +7,7 @@ from datetime import datetime  # For timestamps
 import joblib
 import numpy as np
 import pandas as pd
-from fastapi import Depends, FastAPI, HTTPException, status
+from fastapi import Depends, FastAPI, HTTPException, status, Request
 from sqlalchemy.orm import Session  # Explicitly import Session for type hinting
 
 from api.app.schemas import (
@@ -72,33 +72,9 @@ CATEGORICAL = [
 NUMERIC = [c for c in EXPECTED_COLS if c not in CATEGORICAL]
 
 
-def coerce_and_align(df: pd.DataFrame) -> pd.DataFrame:
-    # keep only expected columns and create missing ones
-    for c in EXPECTED_COLS:
-        if c not in df.columns:
-            df[c] = np.nan
-    df = df[EXPECTED_COLS]
-
-    # normalize whitespace/NaNs
-    df.replace({"": np.nan, "NA": np.nan, "NaN": np.nan, "nan": np.nan}, inplace=True)
-
-    # force numeric
-    for col in NUMERIC:
-        df[col] = pd.to_numeric(df[col], errors="coerce")
-
-    # force categorical/text
-    for col in CATEGORICAL:
-        df[col] = df[col].astype("string").str.strip().where(df[col].notna(), None)
-
-    # helpful one-time log
-    logger.info("Incoming dtypes for prediction:\n%s", df.dtypes.to_string())
-    # quick scan for mixed types (objects that should be numeric)
-    bad = [c for c in NUMERIC if not np.issubdtype(df[c].dtype, np.number)]
-    if bad:
-        logger.error("Non-numeric columns among NUMERIC: %s", bad)
-
-    return df
-
+from core.data_processing import clean_and_engineer_features
+from core.preprocess import enforce_schema
+from core.validation import NUMERIC_COLS, CATEGORICAL_COLS
 
 # --- Configuration ---
 # Define risk categories for Excel report and HTML visualization
@@ -153,115 +129,6 @@ app = FastAPI(
 )
 
 
-# --- Helper Functions (copied/adapted from main app.py) ---
-def _clean_extrait_eval(df):
-    df = df.copy()
-    if "augmentation_salaire_precedente" in df.columns:
-        df["augmentation_salaire_precedente"] = (
-            df["augmentation_salaire_precedente"]
-            .astype(str)
-            .str.replace("%", "", regex=False)
-            .str.replace(",", ".", regex=False)
-            .str.strip()
-        )
-        df["augmentation_salaire_precedente"] = (
-            pd.to_numeric(df["augmentation_salaire_precedente"], errors="coerce")
-            / 100.0
-        )
-    for col in [
-        "heures_supplementaires",
-        "heure_supplementaires",
-        "heures_supplémentaires",
-    ]:
-        if col in df.columns:
-            df[col] = (
-                df[col]
-                .replace({"Oui": 1, "Non": 0, "oui": 1, "non": 0, True: 1, False: 0})
-                .astype("Int64")
-            )
-            if col != "heures_supplementaires":
-                df.rename(columns={col: "heures_supplementaires"}, inplace=True)
-    if "eval_number" in df.columns:
-        df["id_employee"] = (
-            df["eval_number"].astype(str).str.replace("E_", "", regex=False)
-        )
-        df["id_employee"] = pd.to_numeric(df["id_employee"], errors="coerce").astype(
-            "Int64"
-        )
-        df.drop(columns=["eval_number"], inplace=True, errors="ignore")
-    return df
-
-
-def _clean_extrait_sirh(df):
-    df = df.copy()
-    if "genre" in df.columns:
-        df["genre"] = (
-            df["genre"].replace({"M": 1, "F": 0, "m": 1, "f": 0}).astype("Int64")
-        )
-    for col in [
-        "nombre_heures_travailless",
-        "...",
-    ]:  # Removed '...' as it's a placeholder
-        if col in df.columns:
-            df.drop(columns=[col], inplace=True)
-    return df
-
-
-def _clean_extrait_sondage(df):
-    df = df.copy()
-    if "code_sondage" in df.columns:
-        df.rename(columns={"code_sondage": "id_employee"}, inplace=True)
-    if "id_employee" in df.columns:
-        df["id_employee"] = pd.to_numeric(df["id_employee"], errors="coerce").astype(
-            "Int64"
-        )
-    return df
-
-
-def load_and_merge_data(eval_df, sirh_df, sond_df):
-    eval_df = _clean_extrait_eval(eval_df)
-    sirh_df = _clean_extrait_sirh(sirh_df)
-    sond_df = _clean_extrait_sondage(sond_df)
-
-    # Ensure 'id_employee' column exists in all dataframes before merging
-    for df in [eval_df, sirh_df, sond_df]:
-        if "id_employee" not in df.columns:
-            df["id_employee"] = pd.Series(dtype="Int64")
-
-    merged = eval_df.merge(
-        sirh_df, on="id_employee", how="outer", suffixes=("_eval", "_sirh")
-    )
-    merged = merged.merge(sond_df, on="id_employee", how="outer")
-    # if '...' in merged.columns: # Removed '...' as it's a placeholder
-    #     merged.drop(columns=['...'], inplace=True, errors='ignore')
-    merged.drop_duplicates(inplace=True)
-    return merged
-
-
-def clean_and_engineer_features(df):
-    """Applies the same cleaning and feature engineering steps as in the notebook."""
-    df = df.copy()
-    # Feature Engineering steps
-    if {"note_evaluation_actuelle", "note_evaluation_precedente"}.issubset(df.columns):
-        df["improvement_evaluation"] = (
-            df["note_evaluation_actuelle"] - df["note_evaluation_precedente"]
-        )
-
-    sat_cols = [
-        "satisfaction_employee_nature_travail",
-        "satisfaction_employee_equipe",
-        "satisfaction_employee_equilibre_pro_perso",
-    ]
-    if set(sat_cols).issubset(df.columns):
-        df["total_satisfaction"] = df[sat_cols[0]] * df[sat_cols[1]] * df[sat_cols[2]]
-
-    if {"annees_dans_le_poste_actuel", "annees_dans_l_entreprise"}.issubset(df.columns):
-        denom = df["annees_dans_l_entreprise"].replace(0, np.nan)
-        df["work_mobility"] = (df["annees_dans_le_poste_actuel"] / denom).fillna(0)
-
-    return df
-
-
 def get_expected_columns_from_pipeline(pipeline):
     """Gets the list of columns the model was trained on."""
     preprocessor = pipeline.named_steps["preprocessor"]
@@ -310,7 +177,7 @@ async def read_root():
     summary="Predict attrition risk for a batch of employees",
 )
 async def predict_attrition(
-    batch_input: BatchPredictionInput, db: Session = Depends(get_db)
+    batch_input: BatchPredictionInput, db: Session = Depends(get_db), request: Request
 ):
     """Predicts the attrition risk for a list of employees based on their features.
     All model inputs, outputs, and prediction traceability are recorded in the database.
@@ -329,67 +196,12 @@ async def predict_attrition(
     # Convert to DataFrame for processing
     input_df = pd.DataFrame(employees_data_list)
 
-    # Explicitly cast relevant columns to numeric types to prevent type mismatch errors
-    numeric_cols_to_cast = [
-        "age",
-        "genre",
-        "revenu_mensuel",
-        "nombre_experiences_precedentes",
-        "annee_experience_totale",
-        "annees_dans_l_entreprise",
-        "annees_dans_le_poste_actuel",
-        "nombre_participation_pee",
-        "nb_formations_suivies",
-        "nombre_employee_sous_responsabilite",
-        "distance_domicile_travail",
-        "niveau_education",
-        "ayant_enfants",
-        "annees_depuis_la_derniere_promotion",
-        "annes_sous_responsable_actuel",
-        "satisfaction_employee_environnement",
-        "note_evaluation_precedente",
-        "niveau_hierarchique_poste",
-        "satisfaction_employee_nature_travail",
-        "satisfaction_employee_equipe",
-        "satisfaction_employee_equilibre_pro_perso",
-        "note_evaluation_actuelle",
-        "heures_supplementaires",
-        "augementation_salaire_precedente",
-    ]
-    for col in numeric_cols_to_cast:
-        if col in input_df.columns:
-            # Use errors='coerce' to turn unparseable values into NaN, then fill NaN with 0
-            input_df[col] = (
-                pd.to_numeric(input_df[col], errors="coerce").fillna(0).astype(float)
-            )
-
-    # Ensure 'id_employee' is present and filled with integers
-    if "id_employee" not in input_df.columns or input_df["id_employee"].isnull().all():
-        # If id_employee is entirely missing or all null, assign temporary IDs
-        input_df["id_employee"] = range(
-            1, len(input_df) + 1
-        )  # Start from 1 for new entries
-    else:
-        # Fill any individual missing id_employee values with temporary IDs
-        missing_id_mask = input_df["id_employee"].isna()
-        if missing_id_mask.any():
-            max_existing_id = (
-                db.query(Employee.id_employee)
-                .order_by(Employee.id_employee.desc())
-                .first()
-            )
-            start_id = (max_existing_id[0] + 1) if max_existing_id else 1
-            new_ids = range(start_id, start_id + missing_id_mask.sum())
-            input_df.loc[missing_id_mask, "id_employee"] = list(new_ids)
-    input_df["id_employee"] = input_df["id_employee"].astype(
-        int
-    )  # Ensure it's integer type
-
     # Apply feature engineering
     processed_data = clean_and_engineer_features(input_df.copy())
 
     # ✨ enforce schema and coerce types
-    data_for_prediction = coerce_and_align(processed_data)
+    feature_order = NUMERIC_COLS + CATEGORICAL_COLS
+    data_for_prediction = enforce_schema(processed_data, feature_order)
 
     try:
         # Make predictions
@@ -465,11 +277,12 @@ async def predict_attrition(
             new_trace = PredictionTraceability(
                 input_id=new_model_input.input_id,
                 output_id=new_model_output.output_id,
-                model_version="v1.0",  # TODO: Make this dynamic from config
+                model_version=app.version,
                 prediction_source="API",
                 request_metadata={
-                    "user_agent": "FastAPI client"
-                },  # TODO: Extract actual request metadata
+                    "user_agent": request.headers.get("user-agent"),
+                    "client_host": request.client.host,
+                },
                 created_at=datetime.now(),
             )
             db.add(new_trace)
