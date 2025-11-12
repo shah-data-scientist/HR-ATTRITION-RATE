@@ -70,8 +70,8 @@ class EmployeeInputSchema(BaseModel):
     nombre_experiences_precedentes: int = Field(
         ..., ge=0, description="Number of previous work experiences"
     )
-    nombre_heures_travailless: int = Field(
-        ..., ge=0, description="Number of work hours"
+    nombre_heures_travailless: int | None = Field(
+        None, ge=0, description="Number of work hours (optional, dropped during processing)"
     )
     annee_experience_totale: int = Field(
         ..., ge=0, description="Total years of work experience"
@@ -112,8 +112,8 @@ class EmployeeInputSchema(BaseModel):
     niveau_education: int = Field(
         ..., ge=1, le=5, description="Education level (1-5)"
     )
-    ayant_enfants: str | int = Field(
-        ..., description="Has children ('Oui'/'Non' or 0/1)"
+    ayant_enfants: str | int | None = Field(
+        None, description="Has children ('Oui'/'Non' or 0/1) - DROPPED during processing"
     )
 
     model_config = ConfigDict(
