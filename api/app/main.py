@@ -15,6 +15,7 @@ from api.app.schemas import (
     BatchPredictionOutput,
     PredictionOutput,
 )
+from api.security import get_api_key, API_TOKEN
 
 # Database imports
 from database.database import get_db
@@ -171,10 +172,18 @@ async def read_root():
     }
 
 
+@app.get("/token", summary="Get a temporary API token", response_model=dict[str, str])
+async def get_token():
+    """Provides a temporary API token for testing purposes.
+    """
+    return {"token": API_TOKEN}
+
+
 @app.post(
     "/predict",
     response_model=BatchPredictionOutput,
     summary="Predict attrition risk for a batch of employees",
+    dependencies=[Depends(get_api_key)],
 )
 async def predict_attrition(
     batch_input: BatchPredictionInput, db: Session = Depends(get_db), request: Request
