@@ -196,28 +196,36 @@ async def predict_attrition(
             )  # Using default threshold 0.5 for API
             current_log_odds = log_odds[i]
 
-            # 1. Fetch or Create Employee Record
+            # 1. Fetch or Create/Update Employee Record
+            # Get the cleaned data from processed_data DataFrame (row i)
+            cleaned_employee_data = processed_data.loc[i].to_dict()
+
+            # Remove id_employee as it's handled separately
+            employee_data_for_db = {
+                k: v for k, v in cleaned_employee_data.items()
+                if k != "id_employee" and k in [col.name for col in Employee.__table__.columns]
+            }
+
             employee_db = (
                 db.query(Employee).filter(Employee.id_employee == employee_id).first()
             )
+
             if not employee_db:
-                # If employee doesn't exist, create a new one with CLEANED/PROCESSED data
-                # Get the cleaned data from processed_data DataFrame (row i)
-                cleaned_employee_data = processed_data.loc[i].to_dict()
-
-                # Remove id_employee as it's handled separately
-                employee_data_for_db = {
-                    k: v for k, v in cleaned_employee_data.items()
-                    if k != "id_employee" and k in [col.name for col in Employee.__table__.columns]
-                }
-
+                # Employee doesn't exist - CREATE new record
                 employee_db = Employee(
                     id_employee=employee_id,
                     **employee_data_for_db,
                     date_ingestion=datetime.now(),
                 )
                 db.add(employee_db)
-                db.flush()  # Flush to ensure employee_db gets an ID if newly created
+            else:
+                # Employee exists - UPDATE with latest data (Option A: Latest Snapshot)
+                for key, value in employee_data_for_db.items():
+                    setattr(employee_db, key, value)
+                # Update ingestion timestamp to reflect latest update
+                employee_db.date_ingestion = datetime.now()
+
+            db.flush()  # Flush to ensure employee_db is persisted
 
             # 2. Record Model Input
             # Store the RAW input data for audit/traceability (what the user sent)
