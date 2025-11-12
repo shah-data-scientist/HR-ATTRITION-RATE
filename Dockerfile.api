@@ -8,10 +8,8 @@ WORKDIR /app
 COPY pyproject.toml ./
 RUN pip install poetry && poetry install --no-root --only main
 
-# Copy the API application code
-COPY api/ ./api/
-COPY database/ ./database/
-COPY outputs/ ./outputs/
+# Copy the entire project
+COPY . /app
 
 # Expose the port FastAPI runs on
 EXPOSE 8000

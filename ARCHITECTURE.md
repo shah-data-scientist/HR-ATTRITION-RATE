@@ -7,8 +7,19 @@ This document provides an overview of the project's architecture, database schem
 The system is composed of three main components:
 
 1.  **Streamlit UI (`app.py`):** A web-based user interface for interactive analysis. It allows users to upload employee data, adjust prediction thresholds, and visualize model predictions and feature importance (SHAP).
+    *   **Port:** Typically runs on `8501` (configurable).
 2.  **FastAPI Backend (`api/app/main.py`):** A RESTful API that serves the machine learning model. It receives employee data, runs predictions, and is designed to log these interactions in the database.
+    *   **Port:** Typically runs on `8000` (configurable).
 3.  **PostgreSQL Database:** A relational database that stores employee data, model predictions, and traceability information.
+    *   **Port:** Typically runs on `5432` (configurable).
+
+## Environment Separation
+
+The project uses environment variables for sensitive configurations and to manage different deployment environments (e.g., development, production).
+
+*   **`.env` files:** For local development, a `.env` file (not committed to Git) is used to store environment-specific variables (e.g., `DATABASE_URL`, `API_TOKEN`). A `.env.example` file is provided as a template.
+*   **Docker:** When deployed via Docker, environment variables are typically passed during container creation or defined in `docker-compose.yml` to override defaults or `.env` file values.
+*   **Poetry:** Poetry manages project dependencies and virtual environments, ensuring consistent development setups.
 
 ## Database Schema
 

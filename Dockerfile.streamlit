@@ -6,13 +6,15 @@ WORKDIR /app
 
 # Copy pyproject.toml and install dependencies
 COPY pyproject.toml ./
-RUN pip install poetry && poetry install --no-root --only main
+RUN pip install poetry && poetry install --only main
 
 # Copy the application code and necessary data/models
 COPY app.py ./
-COPY utils.py ./
+COPY core/ ./core/
 COPY outputs/ ./outputs/
 COPY data/ ./data/
+COPY .env ./.env
+COPY README.md ./
 
 # Expose the port Streamlit runs on
 EXPOSE 8501

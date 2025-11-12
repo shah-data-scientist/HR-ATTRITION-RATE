@@ -23,56 +23,6 @@ from database.models import Employee, ModelInput, ModelOutput, PredictionTraceab
 
 logger = logging.getLogger("uvicorn.error")
 
-# exactly the model's expected columns you printed at startup
-EXPECTED_COLS = [
-    "satisfaction_employee_environnement",
-    "note_evaluation_precedente",
-    "niveau_hierarchique_poste",
-    "satisfaction_employee_nature_travail",
-    "satisfaction_employee_equipe",
-    "satisfaction_employee_equilibre_pro_perso",
-    "note_evaluation_actuelle",
-    "heures_supplementaires",
-    "augementation_salaire_precedente",
-    "id_employee",
-    "age",
-    "genre",
-    "revenu_mensuel",
-    "statut_marital",
-    "departement",
-    "poste",
-    "nombre_experiences_precedentes",
-    "annee_experience_totale",
-    "annees_dans_l_entreprise",
-    "annees_dans_le_poste_actuel",
-    "nombre_participation_pee",
-    "nb_formations_suivies",
-    "nombre_employee_sous_responsabilite",
-    "distance_domicile_travail",
-    "niveau_education",
-    "domaine_etude",
-    "ayant_enfants",
-    "frequence_deplacement",
-    "annees_depuis_la_derniere_promotion",
-    "annes_sous_responsable_actuel",
-    "improvement_evaluation",
-    "total_satisfaction",
-    "work_mobility",
-]
-
-# categorical vs numeric (adjust if your training said otherwise)
-CATEGORICAL = [
-    "statut_marital",
-    "departement",
-    "poste",
-    "domaine_etude",
-    "frequence_deplacement",
-    "augementation_salaire_precedente",
-    "ayant_enfants",
-]
-NUMERIC = [c for c in EXPECTED_COLS if c not in CATEGORICAL]
-
-
 from core.data_processing import clean_and_engineer_features
 from core.preprocess import enforce_schema
 from core.validation import NUMERIC_COLS, CATEGORICAL_COLS
@@ -179,6 +129,15 @@ async def get_token():
     return {"token": API_TOKEN}
 
 
+@app.get("/health", summary="Health check endpoint", response_model=dict[str, str])
+async def health_check():
+    """
+    Health check endpoint to verify API status.
+    Returns a simple message indicating the API is healthy.
+    """
+    return {"status": "ok", "message": "API is healthy"}
+
+
 @app.post(
     "/predict",
     response_model=BatchPredictionOutput,
@@ -186,7 +145,7 @@ async def get_token():
     dependencies=[Depends(get_api_key)],
 )
 async def predict_attrition(
-    batch_input: BatchPredictionInput, db: Session = Depends(get_db), request: Request
+    batch_input: BatchPredictionInput, request: Request, db: Session = Depends(get_db)
 ):
     """Predicts the attrition risk for a list of employees based on their features.
     All model inputs, outputs, and prediction traceability are recorded in the database.

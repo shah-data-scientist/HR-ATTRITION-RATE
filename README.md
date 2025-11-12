@@ -73,6 +73,13 @@ This project can be deployed using Docker. Dockerfiles are provided for both the
 
 Similar steps apply for `Dockerfile.api`.
 
+### Configuration Management
+
+For different environments (development, testing, production), configurations are managed primarily through environment variables.
+
+*   **Local Development:** Use a `.env` file (not committed to version control) to set environment variables. A `.env.example` is provided as a template.
+*   **Deployment:** Environment variables should be set in your deployment environment (e.g., Docker Compose, Kubernetes, CI/CD pipelines) to override local settings. This ensures sensitive information and environment-specific settings are handled securely and distinctly for each stage.
+
 ## Authentication
 
 This project currently does not implement explicit user authentication for the Streamlit UI or the FastAPI. Access control would typically be handled at the infrastructure level (e.g., VPN, API Gateway, internal network restrictions).
@@ -85,6 +92,37 @@ For production deployments, consider integrating an authentication layer (e.g., 
 *   **Dependency Management:** Regularly update project dependencies to mitigate known vulnerabilities. Use tools like `poetry update` and security scanners.
 *   **API Security:** If exposing the FastAPI to external networks, implement rate limiting, input validation, and secure communication (HTTPS).
 *   **Environment Variables:** Sensitive configurations (e.g., database credentials, API keys) should be managed using environment variables and never hardcoded in the codebase.
+
+## Data Management & Logging
+
+The project utilizes a PostgreSQL database to manage employee data and log all model interactions for traceability and auditing purposes.
+
+*   **Employee Data:** Raw and engineered employee features are stored in the `employees` table.
+*   **Model Interaction Logging:** Every prediction request to the FastAPI is logged in detail across three tables:
+    *   `model_inputs`: Stores the exact features used for a prediction.
+    *   `model_outputs`: Records the prediction results (probability, risk category, label).
+    *   `predictions_traceability`: Links inputs and outputs, storing metadata like model version, prediction source, and request details. This ensures full auditability of all predictions made by the API.
+
+## API Reference & Endpoints
+
+The FastAPI provides the following key endpoints:
+
+*   **`/` (GET):**
+    *   **Description:** Root endpoint providing basic information about the API.
+    *   **Response:** JSON object with API version and documentation URL.
+*   **`/token` (GET):**
+    *   **Description:** Provides a temporary API token for testing purposes. **(Note: This endpoint should be secured or removed in production environments).**
+    *   **Response:** JSON object containing the API token.
+*   **`/health` (GET):**
+    *   **Description:** Health check endpoint to verify API status.
+    *   **Response:** JSON object with status "ok" and a message.
+*   **`/predict` (POST):**
+    *   **Description:** Predicts attrition risk for a batch of employees. Requires an `X-API-Key` header for authentication.
+    *   **Request Body:** A JSON array of employee feature objects (conforming to `BatchPredictionInput` schema).
+    *   **Response:** A JSON array of prediction results, including employee ID, predicted label, probability, risk category, and a traceability ID.
+    *   **Authentication:** Requires a valid API token in the `X-API-Key` header.
+
+For detailed API schema and interactive documentation, visit `/docs` when the API is running.
 
 ## Contribution Guidelines
 
