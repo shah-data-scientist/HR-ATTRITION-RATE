@@ -201,14 +201,16 @@ async def predict_attrition(
                 db.query(Employee).filter(Employee.id_employee == employee_id).first()
             )
             if not employee_db:
-                # If employee doesn't exist, create a new one with available data
+                # If employee doesn't exist, create a new one with CLEANED/PROCESSED data
+                # Get the cleaned data from processed_data DataFrame (row i)
+                cleaned_employee_data = processed_data.loc[i].to_dict()
+
+                # Remove id_employee as it's handled separately
                 employee_data_for_db = {
-                    k: v
-                    for k, v in employee_input_data.model_dump(
-                        exclude_unset=True
-                    ).items()
-                    if k != "id_employee"  # id_employee is handled separately
+                    k: v for k, v in cleaned_employee_data.items()
+                    if k != "id_employee" and k in [col.name for col in Employee.__table__.columns]
                 }
+
                 employee_db = Employee(
                     id_employee=employee_id,
                     **employee_data_for_db,
