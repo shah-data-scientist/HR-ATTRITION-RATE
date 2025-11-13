@@ -31,3 +31,7 @@ test.db
 # Coverage files
 .coverage
 coverage.xml
+scripts/kill_pid.py
+nul
+hr_attrition.db
+.gitignore
