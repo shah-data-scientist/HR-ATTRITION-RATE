@@ -2,7 +2,9 @@ import matplotlib
 
 matplotlib.use('Agg') # Use non-interactive backend for matplotlib
 import pandas as pd
+import httpx
 import streamlit as st
+from ui_config import UI_TEXTS
 
 pd.set_option("future.no_silent_downcasting", True)  # This was inserted here
 import base64  # Import base64 for embedding images
@@ -24,6 +26,13 @@ from sklearn.metrics import (
     recall_score,
 )
 from sklearn.pipeline import Pipeline
+
+import os
+
+API_URL = os.getenv("API_BASE_URL", "http://localhost:8000") # Assuming FastAPI is running on this address
+API_TOKEN = os.getenv("API_TOKEN") # Load API token from environment variable
+
+from core.data_processing import clean_raw_input, engineer_features, clean_and_engineer_features
 
 
 def _sigmoid(z: float) -> float:
@@ -70,195 +79,157 @@ if "explainer" not in st.session_state:
     st.session_state.explainer = None
 if "all_features" not in st.session_state:
     st.session_state.all_features = None
+if "shap_values" not in st.session_state:
+    st.session_state.shap_values = None
+if "expected_value" not in st.session_state:
+    st.session_state.expected_value = None
 
 
-def _load_local_csv_files():
-    """Loads the required CSV files from the local 'data' directory."""
-    try:
-        eval_file_path = "data/extrait_eval.csv"
-        sirh_file_path = "data/extrait_sirh.csv"
-        sondage_file_path = "data/extrait_sondage.csv"
-
-        # Read files into BytesIO objects to mimic uploaded files
-        with open(eval_file_path, "rb") as f:
-            eval_file = io.BytesIO(f.read())
-            eval_file.name = "extrait_eval.csv"
-        with open(sirh_file_path, "rb") as f:
-            sirh_file = io.BytesIO(f.read())
-            sirh_file.name = "extrait_sirh.csv"
-        with open(sondage_file_path, "rb") as f:
-            sondage_file = io.BytesIO(f.read())
-            sondage_file.name = "extrait_sondage.csv"
-
-        return eval_file, sirh_file, sondage_file
-    except FileNotFoundError as e:
-        st.error(f"Required data file not found: {e}. Please ensure 'data' directory "
-                 "contains 'extrait_eval.csv', 'extrait_sirh.csv', and 'extrait_sondage.csv'.")
-        return None, None, None
 
 
-def _handle_file_uploads_and_predict(main_threshold: float) -> None:
-    st.subheader("Upload Employee Data for Prediction")
+
+def _render_file_uploader_and_validate():
+    st.subheader(UI_TEXTS["upload_subheader"])
     uploaded_files = st.file_uploader(
-        "Upload three CSV files: `extrait_eval.csv`, "
-        "`extrait_sirh.csv`, `extrait_sondage.csv`",
+        UI_TEXTS["upload_file_uploader_label"],
         type=["csv"],
         accept_multiple_files=True,
     )
 
-    eval_file, sirh_file, sondage_file = None, None, None
-    files_source = "uploaded" # To track if files came from uploader or local
+    if not uploaded_files:
+        st.info(UI_TEXTS["upload_info_no_files"])
+        return None
 
-    if uploaded_files:
-        if len(uploaded_files) != len(REQUIRED_FILES):
-            st.warning("Please upload all three required CSV files.")
-            return
+    if len(uploaded_files) != len(REQUIRED_FILES):
+        st.warning(UI_TEXTS["upload_warning_all_files"])
+        return None
 
-        uploaded_file_names = [file.name for file in uploaded_files]
-        if not all(name in uploaded_file_names for name in REQUIRED_FILES):
-            st.warning(
-                "Please make sure to upload the three required files: "
-                "`extrait_eval.csv`, `extrait_sirh.csv`, and `extrait_sondage.csv`."
-            )
-            return
+    uploaded_file_names = [file.name for file in uploaded_files]
+    if not all(name in uploaded_file_names for name in REQUIRED_FILES):
+        st.warning(UI_TEXTS["upload_warning_correct_names"])
+        return None
 
-        file_map = {file.name: file for file in uploaded_files}
-        eval_file = file_map.get("extrait_eval.csv")
-        sirh_file = file_map.get("extrait_sirh.csv")
-        sondage_file = file_map.get("extrait_sondage.csv")
-    else:
-        # If no files uploaded, try to load from local data directory for testing
-        st.info("No files uploaded. Attempting to load from local 'data' directory for testing.")
-        eval_file, sirh_file, sondage_file = _load_local_csv_files()
-        files_source = "local"
+    file_map = {file.name: file for file in uploaded_files}
+    eval_file = file_map.get("extrait_eval.csv")
+    sirh_file = file_map.get("extrait_sirh.csv")
+    sondage_file = file_map.get("extrait_sondage.csv")
 
-    if eval_file and sirh_file and sondage_file:
-        predict_button = st.button("Predict Attrition")
-
-        if predict_button:
-            processed_df, merged_df = _load_and_process_data(
-                eval_file, sirh_file, sondage_file
-            )
-            _process_predictions_and_reports(
-                processed_df, merged_df, main_threshold
-            )
-        elif files_source == "uploaded":
-            st.info("Please upload the CSV files to get started.")
-        elif files_source == "local":
-            st.info("Local files loaded. Click 'Predict Attrition' to proceed.")
-    else:
-        st.error("Could not load required CSV files.")
-
-
-def _load_and_process_data(
-    eval_file: io.BytesIO,
-    sirh_file: io.BytesIO,
-    sondage_file: io.BytesIO,
-) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """Load, merge, and clean the data."""
-    eval_df = pd.read_csv(eval_file)
-    sirh_df = pd.read_csv(sirh_file)
-    sondage_df = pd.read_csv(sondage_file)
-    merged_df = load_and_merge_data(eval_df, sirh_df, sondage_df)
-    processed_df = clean_and_engineer_features(merged_df.copy())
-    return processed_df, merged_df
-
-
-def _process_predictions_and_reports(
-    processed_df: pd.DataFrame,
-    merged_df: pd.DataFrame,
-    main_threshold: float,
-) -> None:
-    """Process uploaded files, make predictions, and generate reports."""
-    # Ensure all expected columns are present; fill missing with 0.
-    expected_cols = get_expected_columns(st.session_state.model)
-    missing_cols = set(expected_cols) - set(processed_df.columns)
-    for c in missing_cols:
-        processed_df[c] = 0  # Or other appropriate default value
-
-    # Align columns and order
-    processed_df_aligned = processed_df[expected_cols]
-
-    # Get categorical columns from the preprocessor
-    preprocessor = st.session_state.model.named_steps["preprocessor"]
-    cat_cols_from_model = preprocessor.transformers_[1][2]
-
-    # Convert categorical columns to string
-    for col in cat_cols_from_model:
-        if col in processed_df_aligned.columns:
-            processed_df_aligned.loc[:, col] = processed_df_aligned[col].astype(str)
-
-    # Transform data for SHAP
-    x_transformed_for_shap = st.session_state.model.named_steps["preprocessor"].transform(
-        processed_df_aligned
-    )
-
-    # Ensure x_transformed_for_shap is a DataFrame for consistent indexing
-    if not isinstance(x_transformed_for_shap, pd.DataFrame):
-        x_transformed_for_shap = pd.DataFrame(
-            x_transformed_for_shap, columns=st.session_state.all_features
-        )
+    if not (eval_file and sirh_file and sondage_file):
+        # This case should ideally be caught by the 'not all(name in uploaded_file_names...)' check,
+        # but as a safeguard.
+        st.warning(UI_TEXTS["upload_warning_correct_names"])
+        return None
     
-    # Store processed data for SHAP
-    st.session_state.processed_data_for_shap = x_transformed_for_shap
+    return file_map
 
-    # Make predictions
-    predictions_proba = st.session_state.model.predict_proba(processed_df_aligned)[:, 1]
-    predictions_class = (predictions_proba >= main_threshold).astype(int)
 
-    # Generate SHAP explainer and values
-    explainer = shap.LinearExplainer(st.session_state.model.named_steps["model"], x_transformed_for_shap)
-    st.session_state.explainer = explainer
+def _process_uploaded_files(file_map: dict, main_threshold: float) -> dict:
+    """Loads raw dataframes, converts them to lists of dictionaries, and prepares the API payload."""
+    eval_df = pd.read_csv(file_map.get("extrait_eval.csv"))
+    sirh_df = pd.read_csv(file_map.get("extrait_sirh.csv"))
+    sondage_df = pd.read_csv(file_map.get("extrait_sondage.csv"))
 
-    # Create report data
-    report_data = merged_df[["id_employee"]].copy()
-    report_data["Attrition_Risk_Percentage"] = predictions_proba
-    report_data["Prediction"] = np.where(predictions_class == 1, "Leave", "Stay")
-    report_data["Risk_Attrition"] = report_data["Attrition_Risk_Percentage"].apply(
+    # --- Preprocessing for FastAPI Pydantic Schema Compatibility ---
+
+    # 1. Handle 'augementation_salaire_precedente' in eval_df
+    if "augementation_salaire_precedente" in eval_df.columns:
+        eval_df["augementation_salaire_precedente"] = (
+            eval_df["augementation_salaire_precedente"]
+            .astype(str)
+            .str.replace("%", "", regex=False)
+            .str.replace(",", ".", regex=False)
+            .str.strip()
+        )
+        eval_df["augementation_salaire_precedente"] = pd.to_numeric(
+            eval_df["augementation_salaire_precedente"], errors="coerce"
+        )
+        # Convert to float, as the Pydantic schema expects float
+        eval_df["augementation_salaire_precedente"] = eval_df["augementation_salaire_precedente"].astype(float)
+
+    # 2. Handle 'code_sondage' in sondage_df
+    if "code_sondage" in sondage_df.columns:
+        sondage_df["code_sondage"] = sondage_df["code_sondage"].astype(str)
+
+    # --- End Preprocessing ---
+
+    eval_data_list = eval_df.to_dict(orient="records")
+    sirh_data_list = sirh_df.to_dict(orient="records")
+    sondage_data_list = sondage_df.to_dict(orient="records")
+
+    payload = {
+        "eval_data": eval_data_list,
+        "sirh_data": sirh_data_list,
+        "sondage_data": sondage_data_list,
+        "threshold": main_threshold,
+    }
+    return payload
+
+
+def _call_prediction_api(payload: dict):
+    """Makes the API call and handles the response."""
+    headers = {
+        "X-API-Key": API_TOKEN,
+        "Content-Type": "application/json",
+    }
+    try:
+        with st.spinner("Making predictions..."): # Add spinner here
+            response = httpx.post(f"{API_URL}/predict", json=payload, headers=headers)
+            response.raise_for_status()
+            response_data = response.json()
+            return response_data["predictions"], response_data["processed_data"]
+    except httpx.RequestError as e: # Use httpx's specific exception
+        st.error(f"{UI_TEXTS['api_error']} {e}. Please ensure the API server is running and accessible at {API_URL}.")
+        return None, None
+    except httpx.HTTPStatusError as e: # Handle HTTP status errors specifically
+        st.error(f"{UI_TEXTS['api_error']} HTTP Error {e.response.status_code}: {e.response.text}. Please check your input data or API logs.")
+        return None, None
+    except Exception as e:
+        st.error(f"{UI_TEXTS['unexpected_error']}{e}")
+        return None, None
+
+
+def _display_prediction_results(api_predictions: list[dict], main_threshold: float, processed_data: list[dict]) -> None:
+    """Processes API predictions, updates session state, and displays the success message."""
+    report_data = pd.DataFrame(api_predictions)
+    report_data["Attrition_Risk_Percentage"] = report_data["probability"]
+    report_data["Risk_Attrition"] = report_data["probability"].apply(
         lambda x: get_risk_category(x, main_threshold)
     )
-
     st.session_state.report_data = report_data
-
-    # Generate SHAP report data
-    shap_report_data = generate_shap_report_data(
-        report_data,
-        x_transformed_for_shap,
-        explainer,
-        st.session_state.all_features,
-    )
-    st.session_state.shap_report_data = shap_report_data
-
-    # Prepare data for Excel Tab 2 (Features)
-    excel_tab2_data = []
-    for idx, employee_id in enumerate(report_data["id_employee"]):
-        shap_values_row = explainer.shap_values(x_transformed_for_shap.iloc[idx])
-        # Ensure shap_values_row is 1-dimensional
-        if isinstance(shap_values_row, np.ndarray) and shap_values_row.ndim > 1:
-            shap_values_row = shap_values_row.flatten()
-        elif (
-            isinstance(shap_values_row, list)
-            and len(shap_values_row) == 1
-            and isinstance(shap_values_row[0], np.ndarray)
-        ):
-            shap_values_row = shap_values_row[0].flatten()
-
-        # Create a DataFrame for SHAP values and features for this employee
-        employee_shap_df = pd.DataFrame(
-            {
-                "Feature": st.session_state.all_features,
-                "Coefficient": shap_values_row,
-            }
-        )
-        employee_shap_df["Employee_ID"] = employee_id
-        employee_shap_df["Prediction"] = report_data.loc[
-            report_data["id_employee"] == employee_id, "Prediction"
-        ].iloc[0]
-        excel_tab2_data.append(employee_shap_df)
-
-    st.session_state.excel_report_data = pd.concat(excel_tab2_data)
-
     st.session_state.prediction_triggered = True
+    st.session_state.processed_data_for_shap = pd.DataFrame(processed_data) # Store processed data
+    
+    # Extract SHAP values and expected value from the first prediction (assuming they are consistent across batch)
+    # Or, if each prediction has its own SHAP values, store them per employee
+    if api_predictions and "shap_values" in api_predictions[0] and "expected_value" in api_predictions[0]:
+        st.session_state.shap_values = [p["shap_values"] for p in api_predictions]
+        st.session_state.expected_value = api_predictions[0]["expected_value"]
+    else:
+        st.session_state.shap_values = None
+        st.session_state.expected_value = None
+
+    st.success(UI_TEXTS["prediction_success"])
+
+
+def _handle_file_uploads_and_predict(main_threshold: float) -> None:
+    file_map = _render_file_uploader_and_validate()
+    if file_map is None:
+        return
+
+    predict_button = st.button(UI_TEXTS["predict_button_label"])
+
+    if predict_button:
+        payload = _process_uploaded_files(file_map, main_threshold)
+        api_predictions, processed_data = _call_prediction_api(payload)
+
+        if api_predictions and processed_data is not None:
+            _display_prediction_results(api_predictions, main_threshold, processed_data)
+
+
+
+
+
+
 
 
 def clear_prediction_results() -> None:
@@ -274,35 +245,20 @@ def clear_prediction_results() -> None:
 
 # --- Load Model and Data ---
 @st.cache_resource
-def load_model_and_data():
-    """Load the trained model and test/train data."""
+def load_training_data_for_confusion_matrix():
+    """Load the training data for confusion matrix display."""
+    # Only load what's necessary for the confusion matrix
+    y_train_loaded = pd.read_parquet("outputs/y_train.parquet").squeeze()
+    # We need the model to calculate train_prediction_proba
     model = joblib.load("outputs/employee_attrition_pipeline.pkl")
     x_train_loaded = pd.read_parquet("outputs/X_train.parquet")
-    y_train_loaded = pd.read_parquet("outputs/y_train.parquet").squeeze()
-    x_test_loaded = pd.read_parquet("outputs/X_test.parquet")
-    y_test_loaded = pd.read_parquet("outputs/y_test.parquet").squeeze()
-    return model, x_train_loaded, y_train_loaded, x_test_loaded, y_test_loaded
-
+    train_prediction_proba = model.predict_proba(x_train_loaded)[:, 1]
+    return y_train_loaded, train_prediction_proba
 
 # Function to set up the app's global resources
 def _setup_app() -> None:
-    if "model" not in st.session_state:
-        (
-            st.session_state.model,
-            st.session_state.x_train_loaded,
-            st.session_state.y_train_loaded,
-            st.session_state.x_test_loaded,
-            st.session_state.y_test_loaded,
-        ) = load_model_and_data()
-        # Initialize all_features here, after the model is loaded
-        st.session_state.all_features = st.session_state.model.named_steps[
-            "preprocessor"
-        ].get_feature_names_out()
-    if "train_prediction_proba" not in st.session_state:
-        # Pre-calculate probabilities for training data (for confusion matrix)
-        st.session_state.train_prediction_proba = st.session_state.model.predict_proba(
-            st.session_state.x_train_loaded
-        )[:, 1]
+    if "y_train_loaded" not in st.session_state:
+        st.session_state.y_train_loaded, st.session_state.train_prediction_proba = load_training_data_for_confusion_matrix()
 
 
 # Call setup function only if not in a test environment (or if Streamlit is running)
@@ -312,143 +268,22 @@ if "streamlit" in sys.modules and "pytest" not in sys.modules:
 
 
 # --- Helper Functions (from train.py) ---
-def _clean_extrait_eval(df: pd.DataFrame) -> pd.DataFrame:
-    df = df.copy()
-    if "augementation_salaire_precedente" in df.columns:
-        df.rename(
-            columns={
-                "augementation_salaire_precedente": "augmentation_salaire_precedente"
-            },
-            inplace=True,
-        )
-    if "augmentation_salaire_precedente" in df.columns:
-        df["augmentation_salaire_precedente"] = (
-            df["augmentation_salaire_precedente"]
-            .astype(str)
-            .str.replace("%", "", regex=False)
-            .str.replace(",", ".", regex=False)
-            .str.strip()
-        )
-        df["augmentation_salaire_precedente"] = (
-            pd.to_numeric(df["augmentation_salaire_precedente"], errors="coerce")
-            / 100.0
-        )
-    # Harmonize different column names for "heures_supplementaires"
-    heures_sup_cols = [
-        "heures_supplementaires",
-        "heure_supplementaires",
-        "heures_supplémentaires",
-    ]
-    for col in heures_sup_cols:
-        if col in df.columns and col != "heures_supplementaires":
-            df.rename(columns={col: "heures_supplementaires"}, inplace=True)
-
-    if "heures_supplementaires" in df.columns:
-        df["heures_supplementaires"] = (
-            df["heures_supplementaires"]
-            .replace({"Oui": 1, "Non": 0, "oui": 1, "non": 0, True: 1, False: 0})
-            .astype("Int64")
-        )
-    if "eval_number" in df.columns:
-        df["id_employee"] = (
-            df["eval_number"].astype(str).str.replace("E_", "", regex=False)
-        )
-        df["id_employee"] = pd.to_numeric(df["id_employee"], errors="coerce").astype(
-            "Int64"
-        )
-        df.drop(columns=["eval_number"], inplace=True, errors="ignore")
-    return df
 
 
-def _clean_extrait_sirh(df: pd.DataFrame) -> pd.DataFrame:
-    df = df.copy()
-    if "genre" in df.columns:
-        df["genre"] = df["genre"].str.lower()
-        df["genre"] = (
-            df["genre"].replace({"m": 1, "f": 0}).astype("Int64")
-        )
-    for col in ["nombre_heures_travailless"]:
-        if col in df.columns:
-            df.drop(columns=[col], inplace=True)
-    return df
 
 
-def _clean_extrait_sondage(df: pd.DataFrame) -> pd.DataFrame:
-    df = df.copy()
-    if "code_sondage" in df.columns:
-        df.rename(columns={"code_sondage": "id_employee"}, inplace=True)
-    if "id_employee" in df.columns:
-        df["id_employee"] = pd.to_numeric(df["id_employee"], errors="coerce").astype(
-            "Int64"
-        )
-    if "annes_sous_responsable_actuel" in df.columns:
-        df.rename(
-            columns={"annes_sous_responsable_actuel": "annees_sous_responsable_actuel"},
-            inplace=True,
-        )
-    return df
 
 
-def load_and_merge_data(
-    eval_df: pd.DataFrame, sirh_df: pd.DataFrame, sond_df: pd.DataFrame
-) -> pd.DataFrame:
-    """Load and merge employee data from evaluation, SIRH, and survey dataframes."""
-    eval_df = _clean_extrait_eval(eval_df)
-    sirh_df = _clean_extrait_sirh(sirh_df)
-    sond_df = _clean_extrait_sondage(sond_df)
-
-    # The _clean_ functions are expected to ensure 'id_employee' is present.
-    # If not, the merge will handle missing keys.
-
-    merged = eval_df.merge(
-        sirh_df, on="id_employee", how="outer", suffixes=("_eval", "_sirh")
-    )
-    merged = merged.merge(sond_df, on="id_employee", how="outer")
-    if "..." in merged.columns:
-        merged.drop(columns=["..."], inplace=True, errors="ignore")
-    merged.drop_duplicates(inplace=True)
-    return merged
 
 
-def clean_and_engineer_features(df: pd.DataFrame) -> pd.DataFrame:
-    """Apply the same cleaning and feature engineering steps as in the notebook."""
-    df = df.copy()
-    # Feature Engineering steps
-    if {"note_evaluation_actuelle", "note_evaluation_precedente"}.issubset(df.columns):
-        df["improvement_evaluation"] = (
-            df["note_evaluation_actuelle"] - df["note_evaluation_precedente"]
-        )
-
-    sat_cols = [
-        "satisfaction_employee_nature_travail",
-        "satisfaction_employee_equipe",
-        "satisfaction_employee_equilibre_pro_perso",
-    ]
-    if set(sat_cols).issubset(df.columns):
-        df["total_satisfaction"] = df[sat_cols[0]] * df[sat_cols[1]] * df[sat_cols[2]]
-
-    if {"annees_dans_le_poste_actuel", "annees_dans_l_entreprise"}.issubset(df.columns):
-        denom = df["annees_dans_l_entreprise"].replace(0, np.nan)
-        df["work_mobility"] = (df["annees_dans_le_poste_actuel"] / denom).fillna(0)
-
-    # Dynamically get categorical columns from the fitted preprocessor and convert them to string type
-    # This prevents TypeError in OneHotEncoder due to mixed types (int/str)
-    preprocessor = st.session_state.model.named_steps["preprocessor"]
-    # The categorical transformer is usually the second one in the ColumnTransformer
-    # (name, transformer_object, column_names_list)
-    cat_cols_from_model = preprocessor.transformers_[1][2]
-
-    for col in df.columns:
-        if col in cat_cols_from_model:
-            df[col] = df[col].astype(str)
-
-    return df
 
 
-def get_expected_columns(pipeline: Pipeline) -> list[str]:
-    """Get the list of columns the model was trained on."""
-    # Use the columns from the loaded X_train to ensure consistency
-    return st.session_state.x_train_loaded.columns.tolist()
+
+
+
+
+
+
 
 
 def _get_risk_category_from_log_odds(log_odds: float) -> str:
@@ -490,15 +325,15 @@ def display_confusion_matrix_and_metrics(y_true, y_proba, threshold, title):
         if row_sums[i] > 0:
             cm_normalized[i, :] = cm[i, :] / row_sums[i]
 
-    st.subheader(title)
-    fig, ax = plt.subplots(figsize=(4, 3)) # Smaller figure size for visual proportionality
+    # st.subheader(title)
+    fig, ax = plt.subplots(figsize=(4, 3)) # Revert to original figure size
     sns.heatmap(cm_normalized, annot=True, fmt=".1%", cmap='Greens', cbar=False,
                 xticklabels=['Predicted Stay', 'Predicted Leave'],
                 yticklabels=['Actual Stay', 'Actual Leave'], ax=ax,
                 annot_kws={"size": 10}) # Smaller annotation font size
     ax.set_ylabel('Actual Outcome')
     ax.set_xlabel('Predicted Outcome')
-    st.pyplot(fig, use_container_width=True) # Ensure responsiveness
+    st.pyplot(fig, width='stretch') # Ensure responsiveness
     plt.close(fig) # Close the plot to prevent it from displaying twice
 
     # Calculate Accuracy and Recall for external display
@@ -511,302 +346,137 @@ def display_confusion_matrix_and_metrics(y_true, y_proba, threshold, title):
     return accuracy, recall, flagged_count
 
 
-def generate_shap_report_data(
-    employee_data_with_predictions: pd.DataFrame,
-    x_transformed_for_shap: pd.DataFrame,
-    explainer: shap.TreeExplainer,
-    all_features: list[str],
-) -> list[dict]:
-    """Generate SHAP waterfall plot data as base64 encoded images.
 
-    Returns a list of dictionaries, each containing employee details and a
-    base64 encoded PNG image of the SHAP waterfall plot.
-    """
-    shap_report_items = []
 
-    if not isinstance(x_transformed_for_shap, pd.DataFrame):
-        x_transformed_for_shap = pd.DataFrame(
-            x_transformed_for_shap,
-            columns=all_features,
-        )
 
-    all_shap_values = explainer(x_transformed_for_shap)
 
-    for i, (_, row) in enumerate(employee_data_with_predictions.iterrows()):
-        employee_id = row.get("id_employee", f"Employee {i+1}")
-        risk_category = row["Risk_Attrition"]
-        attrition_prob = row["Attrition_Risk_Percentage"]
-        prediction_type = row["Prediction"]
 
-        shap_values_row = all_shap_values[i]
+def _render_shap_explanation(employee_id: int) -> None:
+    """Renders the SHAP force plot for a selected employee."""
+    if st.session_state.shap_values is None or st.session_state.expected_value is None:
+        st.warning("SHAP values not available for explanation.")
+        return
 
-        shap.plots.waterfall(
-            shap_values_row,
-            max_display=10,
-            show=False,
-        )
-        fig = plt.gcf()
-        fig.set_size_inches(8, 6)
-        buf = io.BytesIO()
-        fig.savefig(buf, format="png", bbox_inches="tight", dpi=100)
-        plt.close(fig)
-        img_str = base64.b64encode(buf.getvalue()).decode("utf-8")
+    # Find the index of the selected employee
+    employee_ids = st.session_state.report_data["id_employee"].tolist()
+    try:
+        idx = employee_ids.index(employee_id)
+    except ValueError:
+        st.error(f"Employee ID {employee_id} not found in prediction results.")
+        return
 
-        shap_report_items.append(
-            {
-                "employee_id": employee_id,
-                "risk_category": risk_category,
-                "attrition_prob": attrition_prob,
-                "prediction_type": prediction_type,
-                "img_str": img_str,
-            }
-        )
-    return shap_report_items
-def generate_shap_report_data(
-    employee_data_with_predictions: pd.DataFrame,
-    x_transformed_for_shap: pd.DataFrame,
-    explainer: shap.TreeExplainer,
-    all_features: list[str],
-) -> list[dict]:
-    """Generate SHAP waterfall plot data as base64 encoded images.
+    # Get SHAP values and feature values for the selected employee
+    # Select SHAP values for the positive class (index 1) for the current employee
+    shap_values_for_instance = st.session_state.shap_values[0][idx][1]
+    expected_value_for_class = st.session_state.expected_value
 
-    Returns a list of dictionaries, each containing employee details and a
-    base64 encoded PNG image of the SHAP waterfall plot.
-    """
-    shap_report_items = []
+    feature_values = st.session_state.processed_data_for_shap.iloc[idx]
+    feature_names = st.session_state.processed_data_for_shap.columns.tolist()
 
-    if not isinstance(x_transformed_for_shap, pd.DataFrame):
-        x_transformed_for_shap = pd.DataFrame(
-            x_transformed_for_shap,
-            columns=all_features,
-        )
+    # Create a SHAP Explanation object for the single instance and class
+    explanation = shap.Explanation(
+        values=shap_values_for_instance,
+        base_values=expected_value_for_class,
+        data=feature_values, # Pass Pandas Series directly
+        feature_names=feature_names
+    )
 
-    all_shap_values = explainer(x_transformed_for_shap)
+    st.subheader(UI_TEXTS["shap_plot_title"].format(Employee_ID=employee_id))
+    st.write("This plot shows how each feature contributes to the employee's attrition risk prediction.")
 
-    for i, (_, row) in enumerate(employee_data_with_predictions.iterrows()):
-        employee_id = row.get("id_employee", f"Employee {i+1}")
-        risk_category = row["Risk_Attrition"]
-        attrition_prob = row["Attrition_Risk_Percentage"]
-        prediction_type = row["Prediction"]
-
-        shap_values_row = all_shap_values[i]
-
-        shap.plots.waterfall(
-            shap_values_row,
-            max_display=10,
-            show=False,
-        )
-        fig = plt.gcf()
-        fig.set_size_inches(8, 6)
-        buf = io.BytesIO()
-        fig.savefig(buf, format="png", bbox_inches="tight", dpi=100)
-        plt.close(fig)
-        img_str = base64.b64encode(buf.getvalue()).decode("utf-8")
-
-        shap_report_items.append(
-            {
-                "employee_id": employee_id,
-                "risk_category": risk_category,
-                "attrition_prob": attrition_prob,
-                "prediction_type": prediction_type,
-                "img_str": img_str,
-            }
-        )
-    return shap_report_items
-
-def render_threshold_block():
-    """
-    Renders the confusion matrix with a threshold slider, Accuracy and Recall metrics,
-    workload estimation, and an HR-friendly explanation.
-    """
-    st.header("Adjust Risk Threshold & Review Impact")
-
-    col1, col2 = st.columns([0.7, 0.3]) # Reverted column widths
-
-    with col2:
-        threshold = st.slider(
-            "Set 'High Risk' Threshold",
-            min_value=0.0,
-            max_value=1.0,
-            value=0.5,
-            step=0.05,
-            help="Adjust this slider to change the probability score at which an employee is flagged as 'High Risk' (predicted to leave)."
-        )
-        st.session_state.current_threshold = threshold # Store threshold in session state
-
-    with col1:
-        # Assuming y_train_loaded and train_prediction_proba are in st.session_state
-        y_true = st.session_state.y_train_loaded
-        y_proba = st.session_state.train_prediction_proba
-        
-        # Helper function call
-        accuracy, recall, flagged_count = display_confusion_matrix_and_metrics(
-            y_true, y_proba, threshold, "Prediction Accuracy Overview"
-        )
-        
-        st.markdown(f"**Overall Correct Predictions:** {accuracy:.1%}")
-        st.markdown(f"**Correctly Identified 'Leave' Cases:** {recall:.1%}")
-        st.markdown(f"Estimated Review Workload: ~{flagged_count} employees flagged at this threshold.")
-
-    st.markdown("""
-        Understanding how our model predicts employee attrition is key. The 'Risk Score' (probability) tells us how likely an employee is to leave. We use a 'threshold' to decide when a score is high enough to flag an employee as 'High Risk' (predicted to leave).
-
-        *   **Overall Correct Predictions (Accuracy):** This shows the percentage of all employees (both those who stay and those who leave) that our model predicted correctly. A high number here means the model is generally good at its job.
-        *   **Correctly Identified 'Leave' Cases (Recall):** This is crucial for proactive HR. It tells us, out of all the employees who *actually* left, what percentage our model successfully flagged as 'High Risk'. A high Recall means we're good at catching potential leavers.
-
-        Adjusting the 'High Risk' Threshold changes how many employees are flagged. A lower threshold means we flag more employees, increasing our 'Recall' (catching more potential leavers) but potentially also flagging more employees who would have stayed. A higher threshold flags fewer employees, reducing the 'workload' but risking missing some who might leave. It's a balance between catching all potential leavers and managing the number of employees HR needs to review.
-    """)
-
-    st.subheader("Threshold Examples:")
-    st.markdown("""
-        *   **Threshold 0.30 (More Proactive):** At a threshold of 0.30, the model is very sensitive. It flags more employees as 'High Risk', aiming to catch almost everyone who might leave. This means HR will review a larger group, ensuring fewer potential leavers are missed, but some flagged employees might have actually stayed.
-        *   **Threshold 0.50 (Balanced Approach):** With a threshold of 0.50, the model takes a balanced approach. It flags employees with a 50% or higher risk score. This provides a good balance between identifying potential leavers and keeping the review workload manageable for HR.
-        *   **Threshold 0.70 (More Conservative):** Using a threshold of 0.70, the model is more conservative. It only flags employees with a very high risk score. This significantly reduces the number of employees HR needs to review, focusing only on the most critical cases, but it might miss some employees who eventually leave.
-    """)
+    # Render the SHAP force plot
+    shap.initjs()
+    html_plot = shap.force_plot(
+        explanation, # Pass the Explanation object directly
+        matplotlib=False,
+        show=False
+    )
+    shap_html = f"<head>{html_plot.html.split('<head>')[1].split('</head>')[0]}</head><body>{html_plot.html.split('<body>')[1].split('</body>')[0]}</body>"
+    components.html(shap_html, height=300, scrolling=True)
 
 
 def render_employee_overview_and_shap():
     """
-    Renders a sortable employee table, a select box for deep-diving into SHAP,
-    the SHAP waterfall plot, and a summary of top-3 drivers.
-    Includes a download button for a comprehensive Excel report.
+    Renders a sortable employee table and includes a download button for a comprehensive Excel report.
     """
-    st.header("Employee Risk Overview")
+    st.header(UI_TEXTS["overview_header"])
 
-    # Ensure report_data is available
-    if 'report_data' not in st.session_state or st.session_state.report_data.empty:
-        st.warning("No employee data available for overview. Please ensure data is loaded.")
-        return
+    with st.container(border=True):
+        # Ensure report_data is available
+        if 'report_data' not in st.session_state or st.session_state.report_data.empty:
+            st.warning(UI_TEXTS["overview_warning_no_data"])
+            return
 
-    df_display = st.session_state.report_data.copy()
-    df_display = df_display.rename(columns={
-        "id_employee": "Employee ID",
-        "Attrition_Risk_Percentage": "Risk Score",
-        "Prediction": "Prediction",
-        "Risk_Attrition": "Risk Level" # Added Risk Level
-    })
-    
-    # Format Risk Score as percentage
-    df_display["Risk Score"] = df_display["Risk Score"].apply(lambda x: f"{x:.1%}")
+        df_display = st.session_state.report_data.copy()
+        df_display = df_display.rename(columns={
+            "id_employee": "Employee ID", # Explicitly rename to "Employee ID"
+            "Attrition_Risk_Percentage": UI_TEXTS["employee_table_col_probability"],
+            "prediction": UI_TEXTS["employee_table_col_prediction"],
+            "Risk_Attrition": "Risk Level" # This is not in MICROCOPY.md, keep as is
+        })
+        
+        # Format Risk Score as percentage
+        df_display["Attrition Risk (%)"] = df_display["Attrition Risk (%)"].apply(lambda x: f"{x:.1%}")
 
-    # Display sortable table
-    st.dataframe(df_display[["Employee ID", "Risk Score", "Prediction", "Risk Level"]].sort_values(by="Risk Score", ascending=False), use_container_width=True)
+        # Display sortable table
+        st.dataframe(df_display[["Employee ID", "Attrition Risk (%)", "Model Decision", "Risk Level"]].sort_values(by="Attrition Risk (%)", ascending=False), use_container_width=True)
 
-    # --- Download Excel Report Button ---
-    if st.session_state.prediction_triggered and st.session_state.report_data is not None:
-        excel_buffer = io.BytesIO()
-        with pd.ExcelWriter(excel_buffer, engine="openpyxl") as writer:
-            # Tab 1: Summary
-            tab1_df = st.session_state.report_data[
-                [
-                    "id_employee",
-                    "Risk_Attrition",
-                    "Attrition_Risk_Percentage",
-                    "Prediction",
-                ]
-            ].copy()
-            tab1_df.rename(columns={"id_employee": "Employee_ID"}, inplace=True)
-            tab1_df.to_excel(writer, sheet_name="Summary", index=False)
-
-            # Tab 2: Features (all features with coefficients)
-            # Need to merge report_data with excel_tab2_data to get all info
-            if 'excel_report_data' in st.session_state and st.session_state.excel_report_data is not None:
-                # Assuming excel_report_data already contains Employee_ID, Feature, Coefficient, Prediction
-                tab2_df = st.session_state.excel_report_data.copy()
-                tab2_df.to_excel(writer, sheet_name="Features", index=False)
-            else:
-                st.warning("SHAP feature data not available for Excel export.")
-                pd.DataFrame({"Message": ["SHAP feature data not available"]}).to_excel(writer, sheet_name="Features", index=False)
-
-            # Tab 3: Metrics (optional)
-            summary_metrics_df = pd.DataFrame(
-                {
-                    "Metric": [
-                        "Total Employees Processed",
-                        "Predicted to Leave",
-                        "Predicted to Stay",
-                    ],
-                    "Value": [
-                        len(st.session_state.report_data),
-                        st.session_state.report_data["Prediction"].value_counts().get("Leave", 0),
-                        st.session_state.report_data["Prediction"].value_counts().get("Stay", 0),
-                    ],
-                }
+        # --- SHAP Explanation Section ---
+        if st.session_state.prediction_triggered and st.session_state.report_data is not None:
+            st.subheader("Individual Employee Explanation (SHAP)")
+            employee_ids = df_display["Employee ID"].tolist() # Use df_display after rename
+            selected_employee_id = st.selectbox(
+                UI_TEXTS["employee_select_box_label"],
+                options=employee_ids,
+                key="shap_employee_selector"
             )
-            summary_metrics_df.to_excel(writer, sheet_name="Metrics", index=False)
+            if selected_employee_id:
+                _render_shap_explanation(selected_employee_id)
 
-        excel_buffer.seek(0)
-        st.download_button(
-            label="Download Excel Report",
-            data=excel_buffer,
-            file_name="employee_attrition_report.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            help="Download a detailed Excel report including predictions and feature contributions for all employees."
-        )
-    
-    st.subheader("Deep Dive: Individual Employee Analysis")
-    
-    employee_ids = df_display["Employee ID"].unique() # Use renamed column
-    selected_employee_id = st.selectbox(
-        "Select Employee for Detail",
-        options=employee_ids,
-        help="Choose an employee ID to see a detailed breakdown of their attrition risk factors."
-    )
+        # --- Download Excel Report Button ---
+        if st.session_state.prediction_triggered and st.session_state.report_data is not None:
+            excel_buffer = io.BytesIO()
+            with pd.ExcelWriter(excel_buffer, engine="openpyxl") as writer:
+                # Tab 1: Summary
+                tab1_df = st.session_state.report_data[
+                    [
+                        "id_employee",
+                        "Risk_Attrition",
+                        "Attrition_Risk_Percentage",
+                        "Prediction",
+                    ]
+                ].copy()
+                tab1_df.rename(columns={"id_employee": "Employee_ID"}, inplace=True)
+                tab1_df.to_excel(writer, sheet_name="Summary", index=False)
 
-    if selected_employee_id:
-        st.subheader(f"Key Drivers for Employee {selected_employee_id}")
+                # Tab 2: Features (all features with coefficients) - Placeholder for now
+                pd.DataFrame({"Message": [UI_TEXTS["excel_shap_message"]]}).to_excel(writer, sheet_name="Features", index=False)
 
-        try:
-            # Get data for the selected employee
-            employee_row_index = st.session_state.report_data[st.session_state.report_data["id_employee"] == selected_employee_id].index[0]
-            
-            # Ensure explainer and processed_data_for_shap are available
-            if 'explainer' not in st.session_state or st.session_state.explainer is None:
-                st.error("SHAP explainer not found in session state. Please ensure the model is loaded and predictions are made.")
-                return
-            if 'processed_data_for_shap' not in st.session_state or st.session_state.processed_data_for_shap.empty:
-                st.error("Processed data for SHAP not found in session state. Cannot display SHAP plot.")
-                return
+                # Tab 3: Metrics (optional)
+                summary_metrics_df = pd.DataFrame(
+                    {
+                        "Metric": [
+                            "Total Employees Processed",
+                            "Predicted to Leave",
+                            "Predicted to Stay",
+                        ],
+                        "Value": [
+                            len(st.session_state.report_data),
+                            st.session_state.report_data["Prediction"].value_counts().get("Leave", 0),
+                            st.session_state.report_data["Prediction"].value_counts().get("Stay", 0),
+                        ],
+                    }
+                )
+                summary_metrics_df.to_excel(writer, sheet_name="Metrics", index=False)
 
-            employee_shap_values = st.session_state.explainer.shap_values(st.session_state.processed_data_for_shap.iloc[employee_row_index])
-            
-            # For binary classification, shap_values returns a list of two arrays. We need the shap values for the 'Leave' class (index 1).
-            shap_values_for_plot = employee_shap_values[1] if isinstance(employee_shap_values, list) else employee_shap_values
-
-            # SHAP Waterfall Plot
-            fig, ax = plt.subplots()
-            shap.waterfall_plot(
-                shap.Explanation(
-                    values=shap_values_for_plot,
-                    base_values=st.session_state.explainer.expected_value[1] if isinstance(st.session_state.explainer.expected_value, np.ndarray) else st.session_state.explainer.expected_value,
-                    data=st.session_state.processed_data_for_shap.iloc[employee_row_index],
-                    feature_names=st.session_state.all_features
-                ),
-                max_display=10, # Display top 10 features
-                show=False, # Prevent matplotlib from showing the plot immediately
-                # Removed ax=ax
+            excel_buffer.seek(0)
+            st.download_button(
+                label=UI_TEXTS["download_excel_report_label"],
+                data=excel_buffer,
+                file_name="employee_attrition_report.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                help=UI_TEXTS["download_excel_report_help"]
             )
-            st.pyplot(fig, bbox_inches='tight') # Display the plot in Streamlit
-            plt.close(fig) # Close the plot to prevent it from displaying twice
-
-            st.subheader("Top Reasons for Risk")
-            # Get top 3 drivers in plain English
-            
-            # Create a series of SHAP values with feature names
-            shap_series = pd.Series(shap_values_for_plot, index=st.session_state.all_features)
-            
-            # Sort by absolute SHAP value to find most impactful features
-            top_drivers = shap_series.abs().sort_values(ascending=False).head(3)
-
-            for feature_name in top_drivers.index:
-                impact_value = shap_series[feature_name]
-                direction = "increasing" if impact_value > 0 else "decreasing"
-                # Placeholder for HR-friendly feature names - can be expanded with a mapping dictionary
-                hr_feature_name = feature_name.replace("_", " ").title() 
-                st.markdown(f"- **{hr_feature_name}:** This factor is **{direction}** the likelihood of attrition.")
-        except Exception as e:
-            st.error(f"Error retrieving detailed analysis for Employee {selected_employee_id}: {e}")
-            st.exception(e) # Log the exception for debugging
 
 # --- End of STREAMLIT CODE ---
 
@@ -815,10 +485,126 @@ def main() -> None:
     _setup_app()  # Ensure global variables are initialized
     # --- Streamlit App Layout ---
     st.set_page_config(layout="wide")
-    st.title("Employee Attrition Risk")
+    st.title(UI_TEXTS["app_title"])
 
-    # Call the new rendering functions
-    render_threshold_block()
+    # Inject custom CSS
+    st.markdown("""
+    <style>
+    /* Container for CM and Slider */
+    .bordered-container {
+        border: 2px solid black;
+        border-image: linear-gradient(to right, black 30%, gold 70%) 1;
+        padding: 20px;
+        margin-bottom: 20px;
+        background-color: #F0F0F0; /* Light grey background */
+    }
+
+    /* Slider styling */
+    /* Target the slider track background - Light Green */
+    /* This targets the filled portion */
+    [data-testid*="stSlider"] > div > div:nth-child(2) > div:nth-child(1) {
+        background-color: #C8E6C9 !important; /* Light green */
+        opacity: 1 !important;
+    }
+    /* This targets the unfilled portion */
+    [data-testid*="stSlider"] > div > div:nth-child(2) > div:nth-child(2) {
+        background-color: #E0E0E0 !important; /* Light grey for unfilled part */
+        opacity: 1 !important;
+    }
+    /* Make the entire track thicker */
+    [data-testid*="stSlider"] > div > div:nth-child(2) {
+        height: 12px !important; /* Increased track thickness */
+    }
+
+    /* Remove slider prefix/suffix text */
+    .stSlider .st-bs { /* This targets the prefix/suffix text */
+        visibility: hidden;
+        height: 0px;
+    }
+
+    /* Slider value display (the current threshold number) - Twice as big */
+    .stSlider .st-bh { /* This targets the value label above the slider */
+        font-size: 2em !important; /* Twice the default size */
+        visibility: visible !important; /* Make it visible */
+        height: auto !important; /* Adjust height */
+    }
+
+    /* Slider thumb (bullet) - Even bigger and with shadow */
+    .stSlider .st-be { /* This targets the slider thumb */
+        width: 2.5em !important; /* Even bigger */
+        height: 2.5em !important; /* Even bigger */
+        margin-top: -1em !important; /* Adjust position to center it on the track */
+        box-shadow: 0px 0px 5px rgba(0, 0, 0, 0.3); /* Add a subtle shadow */
+    }
+
+    /* Button styling */
+    .stButton > button {
+        border: 1px solid black;
+    }
+
+    /* Adjust slider position - this might need refinement */
+    .stSlider {
+        margin-top: 20px; /* Slightly lower */
+        margin-left: auto;
+        margin-right: auto;
+        width: 80%; /* Slightly toward the center */
+    }
+
+    /* Ensure titles are aligned horizontally */
+    /* This targets the st.markdown for titles, assuming they are rendered as p tags or similar */
+    .title-align {
+        display: flex;
+        align-items: center;
+        height: 100%;
+        font-size: 1.5em; /* Adjust as needed for subheader size */
+        font-weight: bold;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+    # --- Main Content Area: Confusion Matrix and Threshold Slider ---
+    with st.container():
+        st.markdown('<div class="bordered-container">', unsafe_allow_html=True)
+        col_left_margin, col_cm, col_slider, col_right_margin = st.columns([1, 5, 5, 1])
+
+        with col_cm:
+            st.markdown(f'<p class="title-align">{UI_TEXTS["prediction_accuracy_overview_title"]}</p>', unsafe_allow_html=True)
+            # Call render_threshold_block content here, but only the CM part
+            y_true = st.session_state.y_train_loaded
+            y_proba = st.session_state.train_prediction_proba
+            accuracy, recall, flagged_count = display_confusion_matrix_and_metrics(
+                y_true, y_proba, st.session_state.get('current_threshold', 0.5), title=""
+            )
+            st.markdown(f"{UI_TEXTS['overall_correct_predictions']} {accuracy:.1%}")
+            st.markdown(f"{UI_TEXTS['correctly_identified_leave_cases']} {recall:.1%}")
+            st.markdown(UI_TEXTS["estimated_review_workload"].format(flagged_count))
+
+
+        with col_slider:
+            st.markdown(f'<p class="title-align">{UI_TEXTS["threshold_header"]}</p>', unsafe_allow_html=True)
+            # Place the slider slightly toward the center and slightly lower than the top edge of its column.
+            # This is handled by the CSS for .stSlider
+            main_threshold = st.slider(
+                label=UI_TEXTS["threshold_slider_label"], # Use microcopy for label
+                min_value=0.0,
+                max_value=1.0,
+                value=0.5,
+                step=0.01,
+                help=UI_TEXTS["threshold_slider_help"], # Use microcopy for help
+                label_visibility="hidden" # Hide the label visually
+            )
+            st.session_state.current_threshold = main_threshold # Store threshold in session state
+        st.markdown('</div>', unsafe_allow_html=True) # Close bordered-container div
+
+
+    st.markdown(UI_TEXTS["understanding_predictions_intro"])
+    
+
+    st.subheader(UI_TEXTS["threshold_examples_subheader"]) # Add subheader for examples
+    
+
+    for example in UI_TEXTS["threshold_examples_list"]:
+        st.markdown(example) # Display each example on a new line
 
     st.markdown("---")
 
@@ -829,7 +615,7 @@ def main() -> None:
         st.markdown("---")
         render_employee_overview_and_shap()
 
-        st.success("Reports generated successfully!")
+        st.success(UI_TEXTS["reports_generated_success"])
 
 
 if __name__ == "__main__":
