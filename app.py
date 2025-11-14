@@ -30,7 +30,6 @@ from sklearn.pipeline import Pipeline
 import os
 
 API_URL = os.getenv("API_BASE_URL", "http://localhost:8000") # Assuming FastAPI is running on this address
-API_TOKEN = os.getenv("API_TOKEN") # Load API token from environment variable
 
 from core.data_processing import clean_raw_input, engineer_features, clean_and_engineer_features
 
@@ -124,56 +123,33 @@ def _render_file_uploader_and_validate():
 
 
 def _process_uploaded_files(file_map: dict, main_threshold: float) -> dict:
-    """Loads raw dataframes, converts them to lists of dictionaries, and prepares the API payload."""
+    """Loads raw dataframes, merges them, and prepares the API payload."""
     eval_df = pd.read_csv(file_map.get("extrait_eval.csv"))
     sirh_df = pd.read_csv(file_map.get("extrait_sirh.csv"))
     sondage_df = pd.read_csv(file_map.get("extrait_sondage.csv"))
 
-    # --- Preprocessing for FastAPI Pydantic Schema Compatibility ---
+    # Merge the raw dataframes using the helper function
+    merged_df = load_and_merge_data(eval_df, sirh_df, sondage_df)
 
-    # 1. Handle 'augementation_salaire_precedente' in eval_df
-    if "augementation_salaire_precedente" in eval_df.columns:
-        eval_df["augementation_salaire_precedente"] = (
-            eval_df["augementation_salaire_precedente"]
-            .astype(str)
-            .str.replace("%", "", regex=False)
-            .str.replace(",", ".", regex=False)
-            .str.strip()
-        )
-        eval_df["augementation_salaire_precedente"] = pd.to_numeric(
-            eval_df["augementation_salaire_precedente"], errors="coerce"
-        )
-        # Convert to float, as the Pydantic schema expects float
-        eval_df["augementation_salaire_precedente"] = eval_df["augementation_salaire_precedente"].astype(float)
+    # Convert the merged DataFrame to a list of dictionaries,
+    # where each dictionary represents an employee's features
+    employees_data = merged_df.to_dict(orient="records")
 
-    # 2. Handle 'code_sondage' in sondage_df
-    if "code_sondage" in sondage_df.columns:
-        sondage_df["code_sondage"] = sondage_df["code_sondage"].astype(str)
-
-    # --- End Preprocessing ---
-
-    eval_data_list = eval_df.to_dict(orient="records")
-    sirh_data_list = sirh_df.to_dict(orient="records")
-    sondage_data_list = sondage_df.to_dict(orient="records")
-
+    # The API expects a payload with an "employees" key
     payload = {
-        "eval_data": eval_data_list,
-        "sirh_data": sirh_data_list,
-        "sondage_data": sondage_data_list,
-        "threshold": main_threshold,
+        "employees": employees_data,
     }
     return payload
 
 
-def _call_prediction_api(payload: dict):
+def _call_prediction_api(payload: dict, main_threshold: float):
     """Makes the API call and handles the response."""
     headers = {
-        "X-API-Key": API_TOKEN,
         "Content-Type": "application/json",
     }
     try:
         with st.spinner("Making predictions..."): # Add spinner here
-            response = httpx.post(f"{API_URL}/predict", json=payload, headers=headers)
+            response = httpx.post(f"{API_URL}/predict?threshold={main_threshold}", json=payload, headers=headers)
             response.raise_for_status()
             response_data = response.json()
             return response_data["predictions"], response_data["processed_data"]
@@ -220,7 +196,7 @@ def _handle_file_uploads_and_predict(main_threshold: float) -> None:
 
     if predict_button:
         payload = _process_uploaded_files(file_map, main_threshold)
-        api_predictions, processed_data = _call_prediction_api(payload)
+        api_predictions, processed_data = _call_prediction_api(payload, main_threshold)
 
         if api_predictions and processed_data is not None:
             _display_prediction_results(api_predictions, main_threshold, processed_data)
@@ -307,6 +283,98 @@ def get_risk_category(probability: float, threshold: float) -> str:
     return "Medium"
 
 
+def _clean_extrait_eval(df: pd.DataFrame) -> pd.DataFrame:
+    df = df.copy()
+    # Standardize to 'augementation_salaire_precedente' (with the typo)
+    if "augmentation_salaire_precedente" in df.columns:
+        df.rename(
+            columns={
+                "augmentation_salaire_precedente": "augementation_salaire_precedente"
+            },
+            inplace=True,
+        )
+    if "augementation_salaire_precedente" in df.columns:
+        df["augementation_salaire_precedente"] = (
+            df["augementation_salaire_precedente"]
+            .astype(str)
+            .str.replace("%", "", regex=False)
+            .str.replace(",", ".", regex=False)
+            .str.strip()
+        )
+        df["augementation_salaire_precedente"] = (
+            pd.to_numeric(df["augementation_salaire_precedente"], errors="coerce")
+        )
+    # Harmonize different column names for "heures_supplementaires" to "heure_supplementaires"
+    heures_sup_cols = [
+        "heures_supplementaires",
+        "heure_supplementaires",
+        "heures_supplémentaires",
+    ]
+    for col in heures_sup_cols:
+        if col in df.columns and col != "heure_supplementaires":
+            df.rename(columns={col: "heure_supplementaires"}, inplace=True)
+
+    if "heure_supplementaires" in df.columns:
+        df["heure_supplementaires"] = (
+            df["heure_supplementaires"]
+            .replace({"Oui": "Oui", "Non": "Non", "oui": "Oui", "non": "Non", True: "Oui", False: "Non"})
+            .astype(str)
+        )
+    if "eval_number" in df.columns:
+        df["id_employee"] = (
+            df["eval_number"].astype(str).str.replace("E_", "", regex=False)
+        )
+        df["id_employee"] = pd.to_numeric(df["id_employee"], errors="coerce").astype(
+            "Int64"
+        )
+        df.drop(columns=["eval_number"], inplace=True, errors="ignore")
+    return df
+
+
+def _clean_extrait_sirh(df: pd.DataFrame) -> pd.DataFrame:
+    df = df.copy()
+    if "genre" in df.columns:
+        print("Before cleaning genre:", df["genre"].dtype)
+        df["genre"] = df["genre"].astype(str)
+        print("After cleaning genre:", df["genre"].dtype)
+    for col in ["nombre_heures_travailless"]:
+        if col in df.columns:
+            df.drop(columns=[col], inplace=True)
+    return df
+
+
+def _clean_extrait_sondage(df: pd.DataFrame) -> pd.DataFrame:
+    df = df.copy()
+    if "code_sondage" in df.columns:
+        df.rename(columns={"code_sondage": "id_employee"}, inplace=True)
+    if "id_employee" in df.columns:
+        df["id_employee"] = pd.to_numeric(df["id_employee"], errors="coerce").astype(
+            "Int64"
+        )
+    return df
+
+
+def load_and_merge_data(
+    eval_df: pd.DataFrame, sirh_df: pd.DataFrame, sond_df: pd.DataFrame
+) -> pd.DataFrame:
+    """Load and merge employee data from evaluation, SIRH, and survey dataframes."""
+    eval_df = _clean_extrait_eval(eval_df)
+    sirh_df = _clean_extrait_sirh(sirh_df)
+    sond_df = _clean_extrait_sondage(sond_df)
+
+    # The _clean_ functions are expected to ensure 'id_employee' is present.
+    # If not, the merge will handle missing keys.
+
+    merged = eval_df.merge(
+        sirh_df, on="id_employee", how="outer", suffixes=("_eval", "_sirh")
+    )
+    merged = merged.merge(sond_df, on="id_employee", how="outer")
+    if "..." in merged.columns:
+        merged.drop(columns=["..."], inplace=True, errors="ignore")
+    merged.drop_duplicates(inplace=True)
+    return merged
+
+
 def display_confusion_matrix_and_metrics(y_true, y_proba, threshold, title):
     """
     Displays a confusion matrix with row-normalized percentages.
@@ -357,6 +425,10 @@ def _render_shap_explanation(employee_id: int) -> None:
         st.warning("SHAP values not available for explanation.")
         return
 
+    if st.session_state.processed_data_for_shap is None or st.session_state.processed_data_for_shap.empty:
+        st.warning("Processed data for SHAP is not available.")
+        return
+
     # Find the index of the selected employee
     employee_ids = st.session_state.report_data["id_employee"].tolist()
     try:
@@ -367,7 +439,7 @@ def _render_shap_explanation(employee_id: int) -> None:
 
     # Get SHAP values and feature values for the selected employee
     # Select SHAP values for the positive class (index 1) for the current employee
-    shap_values_for_instance = st.session_state.shap_values[0][idx][1]
+    shap_values_for_instance = st.session_state.shap_values[0][idx, :, 1]
     expected_value_for_class = st.session_state.expected_value
 
     feature_values = st.session_state.processed_data_for_shap.iloc[idx]
@@ -391,7 +463,7 @@ def _render_shap_explanation(employee_id: int) -> None:
         matplotlib=False,
         show=False
     )
-    shap_html = f"<head>{html_plot.html.split('<head>')[1].split('</head>')[0]}</head><body>{html_plot.html.split('<body>')[1].split('</body>')[0]}</body>"
+    shap_html = f"<head>{html_plot.html().split('<head>')[1].split('</head>')[0]}</head><body>{html_plot.html().split('<body>')[1].split('</body>')[0]}</body>"
     components.html(shap_html, height=300, scrolling=True)
 
 
@@ -443,7 +515,7 @@ def render_employee_overview_and_shap():
                         "id_employee",
                         "Risk_Attrition",
                         "Attrition_Risk_Percentage",
-                        "Prediction",
+                        "prediction",
                     ]
                 ].copy()
                 tab1_df.rename(columns={"id_employee": "Employee_ID"}, inplace=True)
@@ -462,8 +534,8 @@ def render_employee_overview_and_shap():
                         ],
                         "Value": [
                             len(st.session_state.report_data),
-                            st.session_state.report_data["Prediction"].value_counts().get("Leave", 0),
-                            st.session_state.report_data["Prediction"].value_counts().get("Stay", 0),
+                            st.session_state.report_data["prediction"].value_counts().get("Leave", 0),
+                            st.session_state.report_data["prediction"].value_counts().get("Stay", 0),
                         ],
                     }
                 )

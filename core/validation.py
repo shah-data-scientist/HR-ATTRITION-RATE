@@ -71,8 +71,6 @@ NUMERIC_COLS: Final[list[str]] = [
     "satisfaction_employee_equilibre_pro_perso",
     "note_evaluation_actuelle",
     "heures_supplementaires",  # cleaned to 0/1
-    "augementation_salaire_precedente",  # float 0.0-35.0
-    "frequence_deplacement",  # transformed to int (0=Rare, 1=Frequent, 2=Very Frequent)
     "id_employee",
     "age",
     "genre",  # cleaned to 0/1
@@ -98,7 +96,9 @@ CATEGORICAL_COLS: Final[list[str]] = [
     "departement",
     "poste",
     "domaine_etude",
-    # NOTE: ayant_enfants is DROPPED during processing (not in model)
+    "ayant_enfants",
+    "augementation_salaire_precedente",
+    "frequence_deplacement",
 ]
 
 # All model input columns (in canonical order)
@@ -124,8 +124,8 @@ EXPECTED_DTYPES: Final[dict[str, str]] = {
     "satisfaction_employee_equilibre_pro_perso": "int64",
     "note_evaluation_actuelle": "int64",
     "heures_supplementaires": "Int64",  # cleaned to 0/1
-    "augementation_salaire_precedente": "float64",  # float 0.0-35.0
-    "frequence_deplacement": "int64",  # transformed to int
+    "augementation_salaire_precedente": "object",
+    "frequence_deplacement": "object",
     "id_employee": "Int64",
     "age": "int64",
     "genre": "Int64",  # cleaned to 0/1
@@ -143,7 +143,7 @@ EXPECTED_DTYPES: Final[dict[str, str]] = {
     "distance_domicile_travail": "int64",
     "niveau_education": "int64",
     "domaine_etude": "object",
-    # NOTE: ayant_enfants is DROPPED (not in model)
+    "ayant_enfants": "object",
     "annees_depuis_la_derniere_promotion": "int64",
     "annes_sous_responsable_actuel": "int64",
     "improvement_evaluation": "int64",

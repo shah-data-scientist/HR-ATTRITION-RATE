@@ -10,7 +10,7 @@ import pandas as pd
 from fastapi import Depends, FastAPI, HTTPException, status, Request
 from sqlalchemy.orm import Session  # Explicitly import Session for type hinting
 
-from api.security import get_api_key, API_TOKEN
+# from api.security import get_api_key, API_TOKEN
 
 # Database imports
 from database.database import get_db
@@ -123,13 +123,6 @@ async def read_root():
     }
 
 
-@app.get("/token", summary="Get a temporary API token", response_model=dict[str, str])
-async def get_token():
-    """Provides a temporary API token for testing purposes.
-    """
-    return {"token": API_TOKEN}
-
-
 @app.get("/health", summary="Health check endpoint", response_model=dict[str, str])
 async def health_check():
     """
@@ -143,7 +136,6 @@ async def health_check():
     "/predict",
     response_model=BatchPredictionOutput,
     summary="Predict attrition risk for a batch of employees",
-    dependencies=[Depends(get_api_key)],
 )
 async def predict_attrition(
     batch_input: BatchPredictionInput, request: Request, db: Session = Depends(get_db)
@@ -171,6 +163,11 @@ async def predict_attrition(
     # ✨ enforce schema and coerce types
     feature_order = NUMERIC_COLS + CATEGORICAL_COLS
     data_for_prediction = enforce_schema(processed_data, feature_order)
+
+    print("Data for prediction dtypes:")
+    print(data_for_prediction.dtypes)
+    print("Data for prediction head:")
+    print(data_for_prediction.head())
 
     try:
         # Make predictions

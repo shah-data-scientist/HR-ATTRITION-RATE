@@ -11,10 +11,12 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 
 from app import (
     display_confusion_matrix_and_metrics,
-    render_threshold_block,
     render_employee_overview_and_shap,
-    get_risk_category
+    get_risk_category,
+    _call_prediction_api,
+    _handle_file_uploads_and_predict,
 )
+from ui_config import UI_TEXTS
 
 class TestStreamlitUI(unittest.TestCase):
 
@@ -51,10 +53,15 @@ class TestStreamlitUI(unittest.TestCase):
         self.mock_st_warning = self.patcher_st_warning.start()
         self.patcher_st_download_button = patch('streamlit.download_button')
         self.mock_st_download_button = self.patcher_st_download_button.start()
+        self.patcher_components_html = patch('streamlit.components.v1.html')
+        self.mock_components_html = self.patcher_components_html.start()
 
-        # Mock shap.waterfall_plot
-        self.patcher_shap_waterfall_plot = patch('shap.waterfall_plot')
-        self.mock_shap_waterfall_plot = self.patcher_shap_waterfall_plot.start()
+        # Mock shap.force_plot
+        self.patcher_shap_force_plot = patch('shap.force_plot')
+        self.mock_shap_force_plot = self.patcher_shap_force_plot.start()
+        mock_html_obj = MagicMock()
+        mock_html_obj.html.return_value = "<head>header</head><body>body</body>"
+        self.mock_shap_force_plot.return_value = mock_html_obj
 
         # Mock seaborn.heatmap
         self.patcher_sns_heatmap = patch('seaborn.heatmap')
@@ -100,12 +107,14 @@ class TestStreamlitUI(unittest.TestCase):
         mock_explainer.expected_value = np.array([0.1, 0.5]) # For binary classification
         mock_explainer.shap_values.return_value = np.random.rand(len(self.mock_session_state.all_features))
         self.mock_session_state.explainer = mock_explainer
+        self.mock_session_state.shap_values = [np.random.rand(len(self.y_true), len(self.mock_session_state.all_features), 2)]
+        self.mock_session_state.expected_value = 0.5
 
         # Mock report_data for employee overview
         self.mock_session_state.report_data = pd.DataFrame({
             "id_employee": [101, 102, 103, 104, 105, 106, 107, 108, 109, 110],
             "Attrition_Risk_Percentage": self.y_proba,
-            "Prediction": np.where(self.y_proba >= self.threshold, "Leave", "Stay"),
+            "prediction": np.where(self.y_proba >= self.threshold, "Leave", "Stay"),
             "Risk_Attrition": [get_risk_category(p, self.threshold) for p in self.y_proba]
         })
 
@@ -114,7 +123,7 @@ class TestStreamlitUI(unittest.TestCase):
             "Employee_ID": [101, 102, 103],
             "Feature": ["feature_0", "feature_1", "feature_2"],
             "Coefficient": [0.1, 0.2, -0.1],
-            "Prediction": ["Leave", "Stay", "Leave"]
+            "prediction": ["Leave", "Stay", "Leave"]
         })
 
 
@@ -130,7 +139,8 @@ class TestStreamlitUI(unittest.TestCase):
         self.patcher_st_exception.stop()
         self.patcher_st_warning.stop()
         self.patcher_st_download_button.stop()
-        self.patcher_shap_waterfall_plot.stop()
+        self.patcher_components_html.stop()
+        self.patcher_shap_force_plot.stop()
         self.patcher_sns_heatmap.stop() # Stop the seaborn.heatmap patcher
         self.patcher_plt_subplots.stop()
         self.patcher_plt_gcf.stop()
@@ -155,31 +165,8 @@ class TestStreamlitUI(unittest.TestCase):
         for row in cm_normalized:
             self.assertAlmostEqual(np.sum(row), 1.0, delta=0.001) # Allow ±0.1%
 
-        # Assert that st.pyplot was called with use_container_width=True
-        self.mock_st_pyplot.assert_called_with(unittest.mock.ANY, use_container_width=True)
-
-    def test_vertical_threshold_slider_updates(self):
-        # Mock the slider to return a specific value
-        self.mock_st_slider.return_value = 0.6
-
-        render_threshold_block()
-
-        # Assert that st.slider was called with orientation="vertical"
-        self.mock_st_slider.assert_called_with(
-            "Set 'High Risk' Threshold",
-            min_value=0.0,
-            max_value=1.0,
-            value=0.5,
-            step=0.05,
-            orientation="vertical",
-            height=200,
-            help=unittest.mock.ANY
-        )
-        # Assert that the current_threshold in session state was updated
-        self.assertEqual(self.mock_session_state.current_threshold, 0.6)
-
-        # Assert that display_confusion_matrix_and_metrics was called with the new threshold
-        self.mock_st_subheader.assert_any_call("Prediction Accuracy Overview")
+        # Assert that st.pyplot was called with width='stretch'
+        self.mock_st_pyplot.assert_called_with(unittest.mock.ANY, width='stretch')
 
     def test_individual_employee_analysis_success(self):
         # Mock selectbox to return a specific employee ID
@@ -187,8 +174,8 @@ class TestStreamlitUI(unittest.TestCase):
 
         render_employee_overview_and_shap()
 
-        # Assert that SHAP waterfall plot was generated (st.pyplot called)
-        self.mock_st_pyplot.assert_called()
+        # Assert that SHAP force plot was generated (components.html called)
+        self.mock_components_html.assert_called()
         # Assert no error messages were displayed
         self.mock_st_error.assert_not_called()
         self.mock_st_exception.assert_not_called()
@@ -196,14 +183,14 @@ class TestStreamlitUI(unittest.TestCase):
     def test_individual_employee_analysis_error_no_explainer(self):
         # Mock selectbox to return a specific employee ID
         self.mock_st_selectbox.return_value = 101
-        # Simulate missing explainer
-        del self.mock_session_state.explainer # Remove explainer from session state
+        # Simulate missing shap_values
+        self.mock_session_state.shap_values = None
 
         render_employee_overview_and_shap()
 
-        # Assert error message was displayed
-        self.mock_st_error.assert_called_with("SHAP explainer not found in session state. Please ensure the model is loaded and predictions are made.")
-        self.mock_st_pyplot.assert_not_called() # No plot should be generated
+        # Assert warning message was displayed
+        self.mock_st_warning.assert_called_with("SHAP values not available for explanation.")
+        self.mock_shap_force_plot.assert_not_called() # No plot should be generated
 
     def test_individual_employee_analysis_error_no_processed_data(self):
         # Mock selectbox to return a specific employee ID
@@ -214,7 +201,7 @@ class TestStreamlitUI(unittest.TestCase):
         render_employee_overview_and_shap()
 
         # Assert error message was displayed
-        self.mock_st_error.assert_called_with("Processed data for SHAP not found in session state. Cannot display SHAP plot.")
+        self.mock_st_warning.assert_called_with("Processed data for SHAP is not available.")
         self.mock_st_pyplot.assert_not_called() # No plot should be generated
 
     def test_excel_export_button_and_content(self):
@@ -241,22 +228,17 @@ class TestStreamlitUI(unittest.TestCase):
         self.assertIn("Employee_ID", summary_df.columns)
         self.assertIn("Risk_Attrition", summary_df.columns)
         self.assertIn("Attrition_Risk_Percentage", summary_df.columns)
-        self.assertIn("Prediction", summary_df.columns)
+        self.assertIn("prediction", summary_df.columns)
         self.assertFalse(summary_df.empty)
         self.assertEqual(len(summary_df), len(self.mock_session_state.report_data))
 
         # Check content of "Features" sheet
         features_df = pd.read_excel(xls, sheet_name="Features")
-        self.assertIn("Employee_ID", features_df.columns)
-        self.assertIn("Feature", features_df.columns)
-        self.assertIn("Coefficient", features_df.columns)
-        self.assertIn("Prediction", features_df.columns)
-        self.assertFalse(features_df.empty)
-        self.assertEqual(len(features_df), len(self.mock_session_state.excel_report_data))
+        self.assertIn("Message", features_df.columns)
+        self.assertEqual(features_df["Message"][0], UI_TEXTS["excel_shap_message"])
 
         # Check content of "Metrics" sheet
         metrics_df = pd.read_excel(xls, sheet_name="Metrics")
         self.assertIn("Metric", metrics_df.columns)
         self.assertIn("Value", metrics_df.columns)
         self.assertFalse(metrics_df.empty)
-        self.assertGreater(len(metrics_df), 0)

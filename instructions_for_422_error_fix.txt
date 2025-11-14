@@ -1,0 +1,17 @@
+I have made further corrections to the data processing logic in `app.py` to address the `422 Unprocessable Entity` error. The issue was due to a mismatch between the column names and data types being sent by the Streamlit app and what the FastAPI backend was expecting.
+
+Please try the following steps again:
+
+1.  **Stop** both the Streamlit and FastAPI servers if they are running.
+2.  **Restart** the FastAPI server first to ensure it picks up the latest code:
+    ```bash
+    poetry run uvicorn api.app.main:app --host 0.0.0.0 --port 8000 --reload
+    ```
+3.  **Restart** the Streamlit application:
+    ```bash
+    poetry run streamlit run app.py
+    ```
+4.  **Enter your API Token** in the Streamlit UI.
+5.  **Upload your CSV files** and click the "Predict Attrition" button.
+
+The application should now be able to communicate with the API without the `422` error. Please let me know if you encounter any further issues.

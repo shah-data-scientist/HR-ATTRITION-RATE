@@ -36,7 +36,17 @@ def clean_raw_input(df: pd.DataFrame) -> pd.DataFrame:
             .astype("Int64")
         )
 
-    # 2. Clean heures_supplementaires: "Oui"/"Non" → 1/0
+    # 2. Clean ayant_enfants: ensure it's string
+    if "ayant_enfants" in df.columns:
+        df["ayant_enfants"] = (
+            df["ayant_enfants"]
+            .astype(str)
+            .str.lower()
+            .replace({"y": "oui", "n": "non"}) # Standardize to 'oui'/'non'
+            .astype(str)
+        )
+
+    # 3. Clean heures_supplementaires: "Oui"/"Non" → 1/0
     # Handle multiple possible column names (train.py checks for variants)
     for col in ["heures_supplementaires", "heure_supplementaires", "heures_supplémentaires"]:
         if col in df.columns:
@@ -63,7 +73,6 @@ def clean_raw_input(df: pd.DataFrame) -> pd.DataFrame:
                 .str.replace(",", ".", regex=False)
                 .str.strip()
             )
-            df[col] = pd.to_numeric(df[col], errors="coerce")
             # Standardize to the typo version (matches train.py output)
             if col == "augmentation_salaire_precedente":
                 df.rename(columns={col: "augementation_salaire_precedente"}, inplace=True)
@@ -77,35 +86,12 @@ def clean_raw_input(df: pd.DataFrame) -> pd.DataFrame:
         )
         df["id_employee"] = pd.to_numeric(df["id_employee"], errors="coerce").astype("Int64")
 
-    # 5. Transform frequence_deplacement: categorical → int
-    # Map: "Rarement"/"Rarely" → 0, "Fréquemment"/"Frequently" → 1, "Très fréquemment"/"Very frequently" → 2
+    # 5. Transform frequence_deplacement: categorical → string
     if "frequence_deplacement" in df.columns:
-        freq_mapping = {
-            "rarement": 0,
-            "rarely": 0,
-            "fréquemment": 1,
-            "frequemment": 1,
-            "frequently": 1,
-            "très fréquemment": 2,
-            "tres frequemment": 2,
-            "very frequently": 2,
-            "non": 0,  # fallback
-            "oui": 1,  # fallback
-        }
-        df["frequence_deplacement"] = (
-            df["frequence_deplacement"]
-            .astype(str)
-            .str.lower()
-            .str.strip()
-            .replace(freq_mapping)
-            .infer_objects(copy=False)
-        )
-        df["frequence_deplacement"] = pd.to_numeric(
-            df["frequence_deplacement"], errors="coerce"
-        ).fillna(0).astype("int64")
+        df["frequence_deplacement"] = df["frequence_deplacement"].astype(str).str.lower().str.strip()
 
-    # 6. Drop unnecessary columns (including ayant_enfants which is not in model)
-    cols_to_drop = ["eval_number", "code_sondage", "nombre_heures_travailless", "ayant_enfants"]
+    # 6. Drop unnecessary columns
+    cols_to_drop = ["eval_number", "code_sondage", "nombre_heures_travailless"]
     for col in cols_to_drop:
         if col in df.columns:
             df.drop(columns=[col], inplace=True, errors="ignore")

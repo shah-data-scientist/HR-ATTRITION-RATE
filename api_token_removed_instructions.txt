@@ -1,0 +1,18 @@
+I have successfully removed the API token requirement from both the FastAPI backend and the Streamlit frontend.
+
+You no longer need to enter an API token in the Streamlit application.
+
+Please try the following steps:
+
+1.  **Stop** both the Streamlit and FastAPI servers if they are running.
+2.  **Restart** the FastAPI server to ensure it picks up the latest code changes (where API key authentication is disabled):
+    ```bash
+    poetry run uvicorn api.app.main:app --host 0.0.0.0 --port 8000 --reload
+    ```
+3.  **Restart** the Streamlit application:
+    ```bash
+    poetry run streamlit run app.py
+    ```
+4.  **Upload your CSV files** and click the "Predict Attrition" button.
+
+The application should now function without any API token prompts or related errors. Please let me know if you encounter any further issues.

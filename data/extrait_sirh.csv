@@ -1,11 +1,5 @@
-id_employee,genre,nombre_heures_travailless,departement,salaire
-1,f,194,IT,41338
-2,m,196,Sales,76177
-3,m,187,HR,64260
-4,m,175,IT,43953
-5,f,190,HR,60047
-6,m,194,Sales,60534
-7,f,159,Sales,45046
-8,m,163,Sales,65879
-9,f,181,Sales,68850
-10,f,163,Sales,43853
+id_employee,age,genre,revenu_mensuel,statut_marital,departement,poste,nombre_experiences_precedentes,nombre_heures_travailless,annee_experience_totale,annees_dans_l_entreprise,annees_dans_le_poste_actuel
+21345,41,F,5993,Célibataire,Commercial,Cadre Commercial,8,80,8,6,4
+21346,49,M,5130,Marié(e),Consulting,Assistant de Direction,1,80,10,10,7
+21347,37,M,2090,Célibataire,Consulting,Consultant,6,80,7,0,0
+21348,33,F,2909,Marié(e),Consulting,Assistant de Direction,1,80,8,8,7

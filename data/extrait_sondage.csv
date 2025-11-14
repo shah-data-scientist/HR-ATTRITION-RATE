@@ -1,11 +1,5 @@
-code_sondage,satisfaction_employee_nature_travail,satisfaction_employee_equipe,satisfaction_employee_equilibre_pro_perso,annees_dans_le_poste_actuel,annees_dans_l_entreprise,annees_sous_responsable_actuel
-1,2,4,1,2,1,2
-2,3,3,4,1,6,4
-3,2,2,1,4,1,2
-4,1,2,4,2,1,3
-5,4,3,1,4,4,3
-6,1,1,4,1,5,1
-7,1,3,2,2,3,1
-8,2,2,3,2,8,4
-9,2,1,4,2,8,3
-10,3,2,3,2,5,2
+nombre_participation_pee,nb_formations_suivies,nombre_employee_sous_responsabilite,code_sondage,distance_domicile_travail,niveau_education,domaine_etude,ayant_enfants,frequence_deplacement,annees_depuis_la_derniere_promotion,annes_sous_responsable_actuel
+0,0,1,21345,1,2,Infra & Cloud,Y,Occasionnel,0,5
+1,3,1,21346,8,1,Infra & Cloud,Y,Frequent,1,7
+0,3,1,21347,2,2,Autre,Y,Occasionnel,0,0
+0,3,1,21348,3,4,Infra & Cloud,Y,Frequent,3,0
