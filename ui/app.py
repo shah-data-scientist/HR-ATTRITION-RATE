@@ -75,9 +75,9 @@ if "all_features" not in st.session_state:
 def _load_local_csv_files():
     """Loads the required CSV files from the local 'data' directory."""
     try:
-        eval_file_path = "data/extrait_eval.csv"
-        sirh_file_path = "data/extrait_sirh.csv"
-        sondage_file_path = "data/extrait_sondage.csv"
+        eval_file_path = "../data/extrait_eval.csv"
+        sirh_file_path = "../data/extrait_sirh.csv"
+        sondage_file_path = "../data/extrait_sondage.csv"
 
         # Read files into BytesIO objects to mimic uploaded files
         with open(eval_file_path, "rb") as f:
@@ -276,11 +276,11 @@ def clear_prediction_results() -> None:
 @st.cache_resource
 def load_model_and_data():
     """Load the trained model and test/train data."""
-    model = joblib.load("outputs/employee_attrition_pipeline.pkl")
-    x_train_loaded = pd.read_parquet("outputs/X_train.parquet")
-    y_train_loaded = pd.read_parquet("outputs/y_train.parquet").squeeze()
-    x_test_loaded = pd.read_parquet("outputs/X_test.parquet")
-    y_test_loaded = pd.read_parquet("outputs/y_test.parquet").squeeze()
+    model = joblib.load("../outputs/employee_attrition_pipeline.pkl")
+    x_train_loaded = pd.read_parquet("../outputs/X_train.parquet")
+    y_train_loaded = pd.read_parquet("../outputs/y_train.parquet").squeeze()
+    x_test_loaded = pd.read_parquet("../outputs/X_test.parquet")
+    y_test_loaded = pd.read_parquet("../outputs/y_test.parquet").squeeze()
     return model, x_train_loaded, y_train_loaded, x_test_loaded, y_test_loaded
 
 
