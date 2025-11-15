@@ -7,6 +7,7 @@ import streamlit as st
 pd.set_option("future.no_silent_downcasting", True)  # This was inserted here
 import base64  # Import base64 for embedding images
 import io
+import os
 import sys  # Import sys
 from datetime import UTC, datetime
 
@@ -72,12 +73,18 @@ if "all_features" not in st.session_state:
     st.session_state.all_features = None
 
 
+def get_project_root():
+    """Returns the absolute path to the project root."""
+    return os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+
+
 def _load_local_csv_files():
     """Loads the required CSV files from the local 'data' directory."""
     try:
-        eval_file_path = "../data/extrait_eval.csv"
-        sirh_file_path = "../data/extrait_sirh.csv"
-        sondage_file_path = "../data/extrait_sondage.csv"
+        project_root = get_project_root()
+        eval_file_path = os.path.join(project_root, "data", "extrait_eval.csv")
+        sirh_file_path = os.path.join(project_root, "data", "extrait_sirh.csv")
+        sondage_file_path = os.path.join(project_root, "data", "extrait_sondage.csv")
 
         # Read files into BytesIO objects to mimic uploaded files
         with open(eval_file_path, "rb") as f:
@@ -133,7 +140,7 @@ def _handle_file_uploads_and_predict(main_threshold: float) -> None:
         files_source = "local"
 
     if eval_file and sirh_file and sondage_file:
-        predict_button = st.button("Predict Attrition")
+        predict_button = st.button("Predict Attrition", key="Predict Attrition")
 
         if predict_button:
             processed_df, merged_df = _load_and_process_data(
@@ -276,11 +283,12 @@ def clear_prediction_results() -> None:
 @st.cache_resource
 def load_model_and_data():
     """Load the trained model and test/train data."""
-    model = joblib.load("../outputs/employee_attrition_pipeline.pkl")
-    x_train_loaded = pd.read_parquet("../outputs/X_train.parquet")
-    y_train_loaded = pd.read_parquet("../outputs/y_train.parquet").squeeze()
-    x_test_loaded = pd.read_parquet("../outputs/X_test.parquet")
-    y_test_loaded = pd.read_parquet("../outputs/y_test.parquet").squeeze()
+    project_root = get_project_root()
+    model = joblib.load(os.path.join(project_root, "outputs", "employee_attrition_pipeline.pkl"))
+    x_train_loaded = pd.read_parquet(os.path.join(project_root, "outputs", "X_train.parquet"))
+    y_train_loaded = pd.read_parquet(os.path.join(project_root, "outputs", "y_train.parquet")).squeeze()
+    x_test_loaded = pd.read_parquet(os.path.join(project_root, "outputs", "X_test.parquet"))
+    y_test_loaded = pd.read_parquet(os.path.join(project_root, "outputs", "y_test.parquet")).squeeze()
     return model, x_train_loaded, y_train_loaded, x_test_loaded, y_test_loaded
 
 
