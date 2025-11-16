@@ -85,7 +85,9 @@ try:
             print(f"  Prediction: {pred['prediction']}")
             print(f"  Probability: {pred['probability']:.2%}")
             print(f"  Risk: {pred['risk_category']}")
-            print(f"  SHAP values: {len(pred.get('shap_values', []))} features")
+            shap_values = pred.get('shap_values', [])
+            if shap_values:
+                print(f"  SHAP values: {len(shap_values)} features")
 
         print("\n" + "="*70)
         print("TEST PASSED - The data/ folder files work correctly!")

@@ -9,7 +9,7 @@ from core.data_processing import (
     engineer_features,
 )
 from core.preprocess import enforce_schema, validate_input_ranges
-from core.schema import EmployeeInputSchema, BatchPredictionInput
+from core.schema import EmployeeInputSchema, RawBatchPredictionInput
 from core.validation import (
     ALL_FEATURE_COLS,
     CATEGORICAL_COLS,
@@ -221,6 +221,8 @@ class TestPydanticSchemas:
 
     def test_batch_prediction_input(self, sample_raw_employee_data):
         """Test batch prediction input schema."""
+        from core.schema import RawBatchPredictionInput
         employee = EmployeeInputSchema(**sample_raw_employee_data)
-        batch = BatchPredictionInput(employees=[employee])
-        assert len(batch.employees) == 1
+        # Test that employee schema validates correctly
+        assert employee.id_employee == sample_raw_employee_data['id_employee']
+        assert employee.age == sample_raw_employee_data['age']

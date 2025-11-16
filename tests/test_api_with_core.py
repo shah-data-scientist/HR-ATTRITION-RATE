@@ -2,7 +2,7 @@
 
 import json
 
-from core.schema import EmployeeInputSchema, BatchPredictionInput
+from core.schema import EmployeeInputSchema, RawBatchPredictionInput
 
 # Test 1: Validate raw input schema
 print("=== Testing API Schema Validation ===\n")
@@ -52,7 +52,7 @@ try:
     print(f"  - Salary increase: {employee.augementation_salaire_precedente}%")
 
     # Test batch validation
-    batch = BatchPredictionInput(employees=[employee])
+    batch = RawBatchPredictionInput(employees=[employee])
     print("\n[OK] Batch schema validation PASSED")
     print(f"  - Batch size: {len(batch.employees)}")
 
