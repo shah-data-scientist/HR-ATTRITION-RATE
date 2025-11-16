@@ -130,3 +130,20 @@ cython_debug/
 *.sqlite
 *.sqlite3
 hr_attrition.db
+
+# Temporary debug files
+temp_*.json
+*_simulation_*.json
+
+# IDE
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+.dockerignore

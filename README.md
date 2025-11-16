@@ -1,139 +1,282 @@
-# HR Attrition Rate
+# HR Attrition Rate - Employee Turnover Prediction
 
-## Project Overview and Goals
+A machine learning-powered system to predict and analyze employee attrition risk, featuring a FastAPI backend and Streamlit frontend.
 
-This project aims to analyze HR attrition data to identify key factors contributing to employee turnover. The ultimate goal is to build a predictive model that can help the HR department proactively address attrition risks.
+## 🚀 Quick Start
 
-## Installation and Setup
+### Prerequisites
 
-1.  **Clone the repository:**
-    ```bash
-    git clone <repository-url>
-    cd hr-attrition-rate
-    ```
+- Python 3.12+
+- Poetry (for dependency management)
+- PostgreSQL 16+ (for data storage)
+- Docker & Docker Compose (optional, for containerized deployment)
 
-2.  **Install dependencies:**
-    This project uses Poetry for dependency management. Make sure you have Poetry installed.
-    ```bash
-    poetry install
-    ```
+### Installation
 
-3.  **Activate the virtual environment:**
-    ```bash
-    poetry shell
-    ```
+1. **Clone the repository**
+   ```bash
+   git clone <repository-url>
+   cd hr-attrition-rate
+   ```
 
-## Usage
+2. **Install dependencies**
+   ```bash
+   poetry install
+   ```
 
-### Running the Streamlit Application
+3. **Set up environment variables**
+   ```bash
+   cp .env.example .env
+   # Edit .env with your configuration
+   ```
 
-To launch the interactive Streamlit application:
+4. **Start PostgreSQL**
+   ```bash
+   docker-compose up db -d
+   ```
 
+5. **Initialize the database**
+   ```bash
+   poetry run python database/init_db.py
+   ```
+
+### Running the Application
+
+#### Option 1: Local Development (Recommended for Development)
+
+**On Linux/Mac:**
+
+Open two terminal windows:
+
+Terminal 1 - Start the API:
 ```bash
-poetry run streamlit run app.py
+./scripts/start-api.sh
 ```
 
-This will open the application in your web browser, allowing you to upload data, adjust prediction thresholds, and view attrition risk predictions and SHAP explanations.
-
-### Running the API
-
-To start the FastAPI application:
-
+Terminal 2 - Start the UI:
 ```bash
-poetry run uvicorn api.app.main:app --host 0.0.0.0 --port 8000
+./scripts/start-ui.sh
 ```
 
-The API documentation will then be available at `http://localhost:8000/docs`.
+**On Windows:**
 
-### Training the Model
+Open two command prompts:
 
-To retrain the attrition prediction model:
+Command Prompt 1 - Start the API:
+```cmd
+scripts\start-api.bat
+```
 
+Command Prompt 2 - Start the UI:
+```cmd
+scripts\start-ui.bat
+```
+
+#### Option 2: Docker Deployment (Recommended for Production)
+
+```bash
+docker-compose up
+```
+
+This will start:
+- PostgreSQL database on port 5432
+- FastAPI backend on http://localhost:8001
+- Streamlit UI on http://localhost:8501
+
+### Access the Application
+
+- **Streamlit UI**: http://localhost:8501
+- **API Documentation**: http://localhost:8001/docs
+- **API Health Check**: http://localhost:8001/health
+
+## 📋 Features
+
+- **Predictive Analytics**: Machine learning model to predict employee attrition
+- **SHAP Explanations**: Interpretable AI with feature importance visualization
+- **REST API**: FastAPI-based backend for programmatic access
+- **Interactive UI**: Streamlit-based dashboard for easy data upload and analysis
+- **Database Logging**: Full traceability of predictions in PostgreSQL
+- **Docker Support**: Containerized deployment for easy scaling
+
+## 🏗️ Architecture
+
+```
+┌─────────────────────┐
+│  Streamlit UI       │  (Port 8501)
+│  ui/app.py          │
+└──────────┬──────────┘
+           │ HTTP API
+           ▼
+┌─────────────────────┐
+│  FastAPI Backend    │  (Port 8001)
+│  api/app/main.py    │
+└──────────┬──────────┘
+           │
+           ├─► PostgreSQL DB (Port 5432)
+           ├─► ML Model (outputs/)
+           └─► SHAP Explainer
+```
+
+## 📁 Project Structure
+
+```
+hr-attrition-rate/
+├── api/                    # FastAPI backend application
+│   ├── app/
+│   │   ├── main.py        # Main API application
+│   │   └── schemas.py     # Pydantic data models
+│   └── tests/             # API tests
+├── core/                   # Core business logic
+│   ├── data_processing.py # Feature engineering
+│   ├── preprocess.py      # Data preprocessing
+│   ├── schema.py          # Data schemas
+│   └── validation.py      # Data validation
+├── database/              # Database models and utilities
+│   ├── models.py          # SQLAlchemy models
+│   ├── database.py        # Database connection
+│   └── init_db.py         # Database initialization
+├── ui/                    # Streamlit frontend
+│   └── app.py            # Main UI application
+├── data/                  # Sample data files
+├── outputs/               # Model artifacts and outputs
+├── scripts/               # Utility scripts
+│   ├── start-api.sh      # Start API (Linux/Mac)
+│   ├── start-ui.sh       # Start UI (Linux/Mac)
+│   ├── start-api.bat     # Start API (Windows)
+│   └── start-ui.bat      # Start UI (Windows)
+├── tests/                 # Test suite
+├── docs/                  # Documentation
+├── docker-compose.yml     # Docker orchestration
+├── Dockerfile.api         # API container definition
+├── Dockerfile.streamlit   # UI container definition
+└── pyproject.toml        # Project dependencies
+```
+
+## 🔧 Configuration
+
+### Environment Variables
+
+Key configuration options in `.env`:
+
+```bash
+# Database
+DATABASE_URL="postgresql://user:password@localhost:5432/hr_attrition_db"
+
+# API
+API_PORT="8001"
+API_HOST="0.0.0.0"
+
+# For UI to connect to API
+API_BASE_URL="http://localhost:8001"
+
+# Streamlit
+STREAMLIT_SERVER_PORT="8501"
+```
+
+### Port Configuration
+
+The application uses the following default ports:
+- **API**: 8001 (configurable via `API_PORT`)
+- **UI**: 8501 (configurable via `STREAMLIT_SERVER_PORT`)
+- **Database**: 5432 (standard PostgreSQL port)
+
+## 📊 Usage
+
+### Using the Streamlit UI
+
+1. Navigate to http://localhost:8501
+2. Upload three CSV files:
+   - `extrait_eval.csv` - Employee evaluation data
+   - `extrait_sirh.csv` - HR system data
+   - `extrait_sondage.csv` - Employee survey data
+3. Click "Predict Attrition"
+4. View results and download the Excel report
+5. Explore SHAP explanations for each employee
+
+### Using the API
+
+**Health Check:**
+```bash
+curl http://localhost:8001/health
+```
+
+**Make Predictions:**
+```bash
+curl -X POST http://localhost:8001/predict \
+  -H "Content-Type: application/json" \
+  -d @sample_payload.json
+```
+
+See API documentation at http://localhost:8001/docs for detailed endpoint information.
+
+## 🧪 Testing
+
+```bash
+# Run all tests
+poetry run pytest
+
+# Run with coverage
+poetry run pytest --cov=api --cov=core --cov=database
+
+# Run specific test file
+poetry run pytest tests/test_core.py
+```
+
+## 🐛 Troubleshooting
+
+### Connection Refused Error
+
+**Problem**: UI can't connect to API
+```
+Network error while connecting to API: [WinError 10061] No connection could be made because the target machine actively refused it
+```
+
+**Solution**:
+1. Ensure the API is running: `curl http://localhost:8001/health`
+2. Check that ports match in your configuration
+3. For Docker: Use service names (e.g., `http://fastapi_app:8001`)
+4. For local dev: Use `http://localhost:8001`
+
+### Model Not Found
+
+**Problem**: API fails to start with "Model file not found"
+
+**Solution**: Train the model first:
 ```bash
 poetry run python train.py
 ```
 
-This script will process the raw data, train the model, and save the updated model artifact and associated metadata in the `outputs/` directory.
+### Database Connection Issues
 
-## Deployment
+**Problem**: API can't connect to PostgreSQL
 
-This project can be deployed using Docker. Dockerfiles are provided for both the Streamlit application and the FastAPI.
+**Solution**:
+1. Ensure PostgreSQL is running: `docker-compose up db -d`
+2. Check `DATABASE_URL` in `.env`
+3. Initialize database: `poetry run python database/init_db.py`
 
-### Docker Deployment (Example for Streamlit)
+## 📚 Documentation
 
-1.  **Build the Docker image:**
-    ```bash
-    docker build -f Dockerfile.streamlit -t hr-attrition-streamlit .
-    ```
+- [DEVELOPMENT.md](DEVELOPMENT.md) - Development setup and guidelines
+- [DEPLOYMENT.md](DEPLOYMENT.md) - Production deployment instructions
+- [ARCHITECTURE.md](ARCHITECTURE.md) - System architecture details
+- [docs/archive/](docs/archive/) - Historical documentation
 
-2.  **Run the Docker container:**
-    ```bash
-    docker run -p 8501:8501 hr-attrition-streamlit
-    ```
+## 🤝 Contributing
 
-Similar steps apply for `Dockerfile.api`.
+1. Create a feature branch: `git checkout -b feat/your-feature`
+2. Make your changes
+3. Run tests: `poetry run pytest`
+4. Commit using conventional commits: `git commit -m "feat: add new feature"`
+5. Push and create a pull request
 
-### Configuration Management
+## 📄 License
 
-For different environments (development, testing, production), configurations are managed primarily through environment variables.
+[Your License Here]
 
-*   **Local Development:** Use a `.env` file (not committed to version control) to set environment variables. A `.env.example` is provided as a template.
-*   **Deployment:** Environment variables should be set in your deployment environment (e.g., Docker Compose, Kubernetes, CI/CD pipelines) to override local settings. This ensures sensitive information and environment-specific settings are handled securely and distinctly for each stage.
+## 🆘 Support
 
-## Authentication
-
-This project currently does not implement explicit user authentication for the Streamlit UI or the FastAPI. Access control would typically be handled at the infrastructure level (e.g., VPN, API Gateway, internal network restrictions).
-
-For production deployments, consider integrating an authentication layer (e.g., OAuth2, JWT) for the FastAPI and appropriate access management for the Streamlit application.
-
-## Security
-
-*   **Data Handling:** Ensure sensitive data is handled in accordance with organizational policies and regulations (e.g., GDPR, CCPA). Avoid storing personally identifiable information (PII) in plain text.
-*   **Dependency Management:** Regularly update project dependencies to mitigate known vulnerabilities. Use tools like `poetry update` and security scanners.
-*   **API Security:** If exposing the FastAPI to external networks, implement rate limiting, input validation, and secure communication (HTTPS).
-*   **Environment Variables:** Sensitive configurations (e.g., database credentials, API keys) should be managed using environment variables and never hardcoded in the codebase.
-
-## Data Management & Logging
-
-The project utilizes a PostgreSQL database to manage employee data and log all model interactions for traceability and auditing purposes.
-
-*   **Employee Data:** Raw and engineered employee features are stored in the `employees` table.
-*   **Model Interaction Logging:** Every prediction request to the FastAPI is logged in detail across three tables:
-    *   `model_inputs`: Stores the exact features used for a prediction.
-    *   `model_outputs`: Records the prediction results (probability, risk category, label).
-    *   `predictions_traceability`: Links inputs and outputs, storing metadata like model version, prediction source, and request details. This ensures full auditability of all predictions made by the API.
-
-## API Reference & Endpoints
-
-The FastAPI provides the following key endpoints:
-
-*   **`/` (GET):**
-    *   **Description:** Root endpoint providing basic information about the API.
-    *   **Response:** JSON object with API version and documentation URL.
-*   **`/token` (GET):**
-    *   **Description:** Provides a temporary API token for testing purposes. **(Note: This endpoint should be secured or removed in production environments).**
-    *   **Response:** JSON object containing the API token.
-*   **`/health` (GET):**
-    *   **Description:** Health check endpoint to verify API status.
-    *   **Response:** JSON object with status "ok" and a message.
-*   **`/predict` (POST):**
-    *   **Description:** Predicts attrition risk for a batch of employees. Requires an `X-API-Key` header for authentication.
-    *   **Request Body:** A JSON array of employee feature objects (conforming to `BatchPredictionInput` schema).
-    *   **Response:** A JSON array of prediction results, including employee ID, predicted label, probability, risk category, and a traceability ID.
-    *   **Authentication:** Requires a valid API token in the `X-API-Key` header.
-
-For detailed API schema and interactive documentation, visit `/docs` when the API is running.
-
-## Contribution Guidelines
-
--   **Branching:**
-    -   `main`: This branch is for stable releases. Direct pushes are not allowed.
-    -   `develop`: This is the main development branch. All feature branches should be created from `develop`.
-    -   Feature branches: `feat/<feature-name>`
-    -   Bugfix branches: `fix/<bug-name>`
--   **Commits:**
-    -   Follow the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
--   **Pull Requests:**
-    -   All changes must be submitted through a pull request.
-    -   Pull requests should be made to the `develop` branch.
-    -   Ensure your code is well-tested before submitting a pull request.
+For issues and questions:
+1. Check the [Troubleshooting](#-troubleshooting) section
+2. Review [docs/archive/](docs/archive/) for additional context
+3. Open an issue on GitHub

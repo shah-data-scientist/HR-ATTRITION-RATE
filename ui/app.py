@@ -57,7 +57,8 @@ LOG_ODDS_RISK_THRESHOLDS = {
 
 REQUIRED_FILES = ["extrait_eval.csv", "extrait_sirh.csv", "extrait_sondage.csv"]
 
-API_BASE_URL = "http://localhost:8001" # FastAPI endpoint
+# Get API URL from environment variable, default to localhost for development
+API_BASE_URL = os.environ.get("API_BASE_URL", "http://localhost:8001")
 
 # --- Session State Initialization ---
 if "prediction_triggered" not in st.session_state:
