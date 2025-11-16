@@ -1,117 +1,176 @@
 # Employee Attrition Prediction API
 
-This API provides predictions for employee attrition risk using a pre-trained machine learning model. It is built with FastAPI, offering automatic interactive documentation (Swagger UI) and robust data validation.
+FastAPI backend for predicting employee attrition risk using a machine learning model with SHAP explanations.
 
 ## Features
 
-*   **Prediction Endpoint:** `POST /predict` to get attrition risk predictions for single or multiple employees.
-*   **Model Information:** `GET /` for basic API information.
-*   **Integrated Documentation:** Automatic Swagger UI (`/docs`) and ReDoc (`/redoc`) documentation.
-*   **Data Validation:** Input data is validated using Pydantic models.
+- **Prediction Endpoint**: `POST /predict` - Get attrition risk predictions for employees
+- **Health Check**: `GET /health` - API health status
+- **Root Info**: `GET /` - Basic API information
+- **Auto Documentation**: Interactive docs at `/docs` (Swagger UI) and `/redoc` (ReDoc)
+- **Data Validation**: Pydantic models ensure data integrity
+- **Database Logging**: All predictions stored in PostgreSQL for traceability
+- **SHAP Values**: Feature importance explanations included in predictions
 
-## Setup
+## Quick Start
 
 ### Prerequisites
 
-*   Python 3.9+
-*   Poetry (for dependency management)
+- Python 3.12+
+- Poetry (dependency management)
+- PostgreSQL (for prediction logging)
 
-### Installation
+### Running the API
 
-1.  **Clone the repository:**
-    ```bash
-    git clone <repository_url>
-    cd HR Attrition Rate
-    ```
-
-2.  **Install dependencies using Poetry:**
-    ```bash
-    poetry install
-    ```
-
-3.  **Ensure the ML model is available:**
-    The API expects a pre-trained model file at `outputs/employee_attrition_pipeline.pkl`. If you haven't trained the model yet, please run the `train.py` script or ensure the file is present.
-
-## Running the API
-
-To start the FastAPI application, navigate to the project root directory (`HR Attrition Rate/`) and run:
-
+**Option 1: Using startup script**
 ```bash
-poetry run uvicorn api.app.main:app --host 0.0.0.0 --port 8000 --reload
+./scripts/start-api.sh  # Linux/Mac
+scripts\start-api.bat   # Windows
 ```
 
-*   `api.app.main:app`: Specifies that the FastAPI application instance `app` is located in the `main.py` file within the `api/app` directory.
-*   `--host 0.0.0.0`: Makes the server accessible from all network interfaces.
-*   `--port 8000`: Runs the server on port 8000.
-*   `--reload`: Enables auto-reloading on code changes (useful for development).
+**Option 2: Manual start**
+```bash
+poetry run uvicorn api.app.main:app --host 0.0.0.0 --port 8001 --reload
+```
 
-## Accessing the Documentation
+**Option 3: Docker**
+```bash
+docker-compose up fastapi_app
+```
 
-Once the API is running, you can access the automatically generated interactive documentation:
+The API will be available at: http://localhost:8001
 
-*   **Swagger UI:** Open your web browser and go to `http://127.0.0.1:8000/docs`
-*   **ReDoc:** Open your web browser and go to `http://127.0.0.1:8000/redoc`
+## API Documentation
 
-The Swagger UI allows you to:
-*   View all available endpoints.
-*   Understand the expected request and response schemas.
-*   Try out the endpoints directly from the browser.
+Once running, access interactive documentation:
 
-## Example Usage (using `/predict` endpoint)
+- **Swagger UI**: http://localhost:8001/docs
+- **ReDoc**: http://localhost:8001/redoc
 
-You can use the Swagger UI to test the `/predict` endpoint. Here's an example of a request body for a single employee:
+## Endpoints
 
+### `GET /health`
+
+Health check endpoint.
+
+**Response:**
 ```json
 {
-  "employees": [
+  "status": "ok",
+  "message": "API is healthy"
+}
+```
+
+### `POST /predict`
+
+Predict attrition risk for employees.
+
+**Request Body:**
+```json
+{
+  "eval_data": [
     {
-      "id_employee": 12345,
-      "age": 35,
-      "genre": 1,
-      "revenu_mensuel": 6000.0,
-      "statut_marital": "Marié",
-      "departement": "R&D",
-      "poste": "Développeur",
-      "nombre_experiences_precedentes": 2,
-      "annee_experience_totale": 10,
-      "annees_dans_l_entreprise": 5,
-      "annees_dans_le_poste_actuel": 3,
-      "nombre_participation_pee": 1,
-      "nb_formations_suivies": 2,
-      "nombre_employee_sous_responsabilite": 0,
-      "distance_domicile_travail": 15,
-      "niveau_education": 3,
-      "domaine_etude": "Informatique",
-      "ayant_enfants": 1,
-      "frequence_deplacement": "Rarement",
-      "annees_depuis_la_derniere_promotion": 2,
-      "annes_sous_responsable_actuel": 2,
-      "satisfaction_employee_environnement": 3,
-      "note_evaluation_precedente": 3.5,
-      "niveau_hierarchique_poste": 2,
-      "satisfaction_employee_nature_travail": 4,
+      "eval_number": "E_1",
+      "augmentation_salaire_precedente": "11%",
+      "heures_supplementaires": "Oui",
+      "note_evaluation_actuelle": 2,
+      "note_evaluation_precedente": 4,
+      "anciennete": 3
+    }
+  ],
+  "sirh_data": [
+    {
+      "id_employee": 1,
+      "genre": "m",
+      "nombre_heures_travailless": 186,
+      "departement": "IT",
+      "salaire": 76106
+    }
+  ],
+  "sondage_data": [
+    {
+      "code_sondage": 1,
+      "satisfaction_employee_nature_travail": 2,
       "satisfaction_employee_equipe": 3,
-      "satisfaction_employee_equilibre_pro_perso": 3,
-      "note_evaluation_actuelle": 4.0,
-      "heures_supplementaires": 0,
-      "augementation_salaire_precedente": 0.07
+      "satisfaction_employee_equilibre_pro_perso": 2,
+      "annees_dans_le_poste_actuel": 1,
+      "annees_dans_l_entreprise": 5,
+      "annees_sous_responsable_actuel": 4
     }
   ]
 }
 ```
 
-The API will return a response similar to:
-
+**Response:**
 ```json
 {
   "predictions": [
     {
-      "id_employee": 12345,
+      "id_employee": 1,
       "prediction": "Leave",
-      "probability": 0.78,
+      "probability": 0.97,
       "risk_category": "High",
-      "message": "Employee 12345 is predicted to Leave with 78.00% attrition risk (Risk: High)."
+      "message": "Employee 1 is predicted to Leave with 97.00% attrition risk (Risk: High).",
+      "trace_id": 267,
+      "shap_values": [-0.015, 0.234, ...],
+      "base_value": -1.038,
+      "feature_names": ["feature1", "feature2", ...]
     }
   ]
 }
 ```
+
+## Configuration
+
+Set via environment variables (see `.env.example`):
+
+- `API_PORT`: Port number (default: 8001)
+- `API_HOST`: Host address (default: 0.0.0.0)
+- `DATABASE_URL`: PostgreSQL connection string
+
+## Architecture
+
+```
+Client → FastAPI (/predict) → Data Processing → ML Model → SHAP → PostgreSQL
+                                                    ↓
+                                            Return Predictions
+```
+
+The API:
+1. Receives raw employee data (3 separate datasets)
+2. Merges and engineers features
+3. Makes predictions using trained model
+4. Calculates SHAP explanations
+5. Stores everything in database
+6. Returns predictions with SHAP values
+
+## Database Tables
+
+All predictions are logged in PostgreSQL:
+
+- `employees` - Employee master data
+- `model_inputs` - Raw input features for each prediction
+- `model_outputs` - Prediction results
+- `predictions_traceability` - Links inputs to outputs with metadata
+
+## Development
+
+```bash
+# Install dependencies
+poetry install
+
+# Run tests
+poetry run pytest api/tests/
+
+# Run with auto-reload
+poetry run uvicorn api.app.main:app --reload --port 8001
+
+# Check code quality
+poetry run ruff check api/
+```
+
+## See Also
+
+- [QUICKSTART.md](../QUICKSTART.md) - Fast setup guide
+- [DEVELOPMENT.md](../DEVELOPMENT.md) - Development workflow
+- [docs/ARCHITECTURE.md](../docs/ARCHITECTURE.md) - System architecture

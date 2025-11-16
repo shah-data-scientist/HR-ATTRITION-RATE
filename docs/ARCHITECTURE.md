@@ -8,8 +8,8 @@ The system is composed of three main components:
 
 1.  **Streamlit UI (`app.py`):** A web-based user interface for interactive analysis. It allows users to upload employee data, adjust prediction thresholds, and visualize model predictions and feature importance (SHAP).
     *   **Port:** Typically runs on `8501` (configurable).
-2.  **FastAPI Backend (`api/app/main.py`):** A RESTful API that serves the machine learning model. It receives employee data, runs predictions, and is designed to log these interactions in the database.
-    *   **Port:** Typically runs on `8000` (configurable).
+2.  **FastAPI Backend (`api/app/main.py`):** A RESTful API that serves the machine learning model. It receives employee data, runs predictions, and logs all interactions in the database.
+    *   **Port:** Runs on `8001` (configurable via `API_PORT` environment variable).
 3.  **PostgreSQL Database:** A relational database that stores employee data, model predictions, and traceability information.
     *   **Port:** Typically runs on `5432` (configurable).
 
@@ -89,6 +89,8 @@ The database schema is defined using SQLAlchemy ORM in `database/models.py`. It 
 
 3.  **Prediction via Streamlit UI:**
     *   A user uploads CSV files through the web interface.
-    *   The Streamlit application processes the data and calls the model to get predictions.
-    *   *(Currently, the Streamlit app does not log to the database, but it could be extended to do so by making requests to the FastAPI backend).*
-    *   The results (predictions, SHAP plots) are displayed to the user.
+    *   The Streamlit application sends the data to the FastAPI backend via HTTP POST to `/predict`.
+    *   The API processes the data, makes predictions, stores everything in the database, and returns results with SHAP values.
+    *   The UI displays the results (predictions, SHAP plots) received from the API.
+    
+**Note:** The UI and API are fully decoupled. The UI has no direct access to the model or database—all operations go through the API.

@@ -257,10 +257,12 @@ poetry run python train.py
 
 ## 📚 Documentation
 
-- [DEVELOPMENT.md](DEVELOPMENT.md) - Development setup and guidelines
+- [QUICKSTART.md](QUICKSTART.md) - 5-minute setup guide
+- [DEVELOPMENT.md](DEVELOPMENT.md) - Development workflow and guidelines  
 - [DEPLOYMENT.md](DEPLOYMENT.md) - Production deployment instructions
-- [ARCHITECTURE.md](ARCHITECTURE.md) - System architecture details
-- [docs/archive/](docs/archive/) - Historical documentation
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) - System architecture and data flow
+- [api/README.md](api/README.md) - API documentation
+- [docs/REFACTOR_SUMMARY.md](docs/REFACTOR_SUMMARY.md) - Recent changes and improvements
 
 ## 🤝 Contributing
 
