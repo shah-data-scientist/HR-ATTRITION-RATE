@@ -138,6 +138,9 @@ test_results_*.json
 test_payload.json
 test_response*.json
 
+# Test screenshots
+test_screenshots/
+
 # IDE
 .idea/
 *.swp

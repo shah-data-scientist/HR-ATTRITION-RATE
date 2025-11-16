@@ -1,20 +1,41 @@
 # Automated Testing Guide
 
-This directory contains automated tests for the HR Attrition Rate system.
+This directory contains automated tests for the HR Attrition Rate system, including API tests and UI tests with screenshots.
 
 ## Quick Start - Automated E2E Test
 
-### Option 1: Simple Script (No pytest required)
+### Option 1: API Tests (Simple Script - No pytest required)
 
 ```bash
 # Make sure API is running first
 ./scripts/start-api.sh  # or scripts\start-api.bat on Windows
 
-# Run automated test in another terminal
+# Run automated API test in another terminal
 python tests/run_automated_test.py
 ```
 
+### Option 2: UI Tests with Screenshots (Playwright)
+
+```bash
+# Install Playwright first (one time)
+pip install playwright
+playwright install chromium
+
+# Make sure both API and UI are running
+./scripts/start-api.sh   # Terminal 1
+./scripts/start-ui.sh    # Terminal 2
+
+# Run UI automation test in another terminal
+python tests/run_ui_test.py
+```
+
 This will:
+- ✅ Open the Streamlit UI in a browser
+- ✅ Upload test data from `data/` folder
+- ✅ Click "Predict Attrition" button
+- ✅ Capture screenshots at each step
+- ✅ Validate results are displayed
+- ✅ Save screenshots to `test_screenshots/` folder
 - ✅ Check API health
 - ✅ Load test data from `data/` folder
 - ✅ Test with 5 sample employees
@@ -22,7 +43,7 @@ This will:
 - ✅ Process full dataset and generate statistics
 - ✅ Save results to `test_results_automated.json`
 
-### Option 2: Pytest Suite (Full test coverage)
+### Option 3: Pytest Suite (Full test coverage)
 
 ```bash
 # Run all automated tests
@@ -36,11 +57,20 @@ poetry run pytest tests/test_automated_e2e.py -v -m "not slow"
 
 # Run full dataset test
 poetry run pytest tests/test_automated_e2e.py -v -m slow
+
+# Run UI tests (requires Playwright)
+poetry run pytest tests/test_ui_automation.py -v -s
 ```
 
 ## Test Files
 
-### New Automated Tests
+### API Tests
+- **`run_automated_test.py`**: Standalone API test script
+  - No pytest dependency
+  - Can be run directly
+  - Generates detailed console output
+  - Saves results to JSON
+
 - **`test_automated_e2e.py`**: Complete pytest test suite
   - Health check
   - Sample data prediction (5 rows)
@@ -49,11 +79,17 @@ poetry run pytest tests/test_automated_e2e.py -v -m slow
   - Full dataset test (marked as slow)
   - Error handling tests
 
-- **`run_automated_test.py`**: Standalone test script
+### UI Tests (NEW)
+- **`run_ui_test.py`**: Standalone UI test with Playwright
   - No pytest dependency
-  - Can be run directly
-  - Generates detailed console output
-  - Saves results to JSON
+  - Automated browser interaction
+  - Screenshots at each step
+  - Saves to `test_screenshots/` folder
+  
+- **`test_ui_automation.py`**: Pytest UI test suite
+  - Full UI workflow testing
+  - Screenshot capture
+  - Result validation
 
 ### Existing Tests
 - `test_core.py`: Core data processing tests
@@ -68,6 +104,74 @@ Tests use data from the `data/` folder:
 - `data/extrait_eval.csv` - Employee evaluation data
 - `data/extrait_sirh.csv` - HR system data
 - `data/extrait_sondage.csv` - Employee survey data
+
+## UI Test Screenshots
+
+The UI automation test (`run_ui_test.py`) captures screenshots at each step:
+
+1. **01_ui_initial_load.png**: Streamlit UI loaded
+2. **02_files_uploaded.png**: After uploading CSV files
+3. **03_prediction_initiated.png**: After clicking Predict button
+4. **04_results_top.png**: Top of results page
+5. **05_results_full_page.png**: Full scrolled page with results
+
+Screenshots are saved to `test_screenshots/` directory (not committed to git).
+
+### UI Test Output Example:
+
+```
+======================================================================
+  STREAMLIT UI - AUTOMATED TESTING WITH SCREENSHOTS
+======================================================================
+
+Configuration:
+  UI URL: http://localhost:8501
+  Data folder: /path/to/data
+  Screenshots: /path/to/test_screenshots
+
+[STEP 1] Launching Browser
+----------------------------------------------------------------------
+
+[STEP 2] Opening Streamlit UI
+----------------------------------------------------------------------
+  Navigating to: http://localhost:8501
+  ✓ UI loaded successfully
+  📸 Screenshot: 01_ui_initial_load.png
+
+[STEP 3] Uploading CSV Files
+----------------------------------------------------------------------
+  ✓ Uploaded: extrait_eval.csv
+  ✓ Uploaded: extrait_sirh.csv
+  ✓ Uploaded: extrait_sondage.csv
+  📸 Screenshot: 02_files_uploaded.png
+
+[STEP 4] Running Prediction
+----------------------------------------------------------------------
+  ✓ Found button: 'Predict Attrition'
+  ⏳ Waiting for predictions to complete...
+  📸 Screenshot: 03_prediction_initiated.png
+
+[STEP 5] Capturing Results
+----------------------------------------------------------------------
+  Results indicators:
+    ✓ predictions
+    ✓ probabilities
+    ✓ risk categories
+    ✓ employee data
+
+  📸 Screenshot: 04_results_top.png
+  📸 Screenshot: 05_results_full_page.png
+  ✓ Results displayed successfully!
+
+======================================================================
+  TEST COMPLETED
+======================================================================
+
+📸 Screenshots saved to:
+  test_screenshots/
+
+✓ UI automation test completed!
+```
 
 ## Expected Output
 
@@ -129,6 +233,21 @@ Tests use data from the `data/` folder:
 ```
 
 ## Troubleshooting
+
+### Playwright Installation
+
+If UI tests fail with "Playwright not installed":
+
+```bash
+# Install Playwright Python package
+pip install playwright
+
+# Install browser binaries
+playwright install chromium
+
+# Or install all browsers
+playwright install
+```
 
 ### API Not Running
 ```
