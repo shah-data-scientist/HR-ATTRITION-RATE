@@ -134,6 +134,9 @@ hr_attrition.db
 # Temporary debug files
 temp_*.json
 *_simulation_*.json
+test_results_*.json
+test_payload.json
+test_response*.json
 
 # IDE
 .idea/
