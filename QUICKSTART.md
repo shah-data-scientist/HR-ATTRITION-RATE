@@ -29,23 +29,30 @@ cd hr-attrition-rate
 poetry install
 ```
 
-### Step 3: Set Up Database
+### Step 3: Start with Docker (Easiest)
 
-**Option A: Using Docker (Easiest)**
 ```bash
+docker-compose up -d
+```
+
+This automatically:
+- Starts PostgreSQL database
+- Initializes database with tables and sample data  
+- Starts FastAPI backend on port 8001
+- Starts Streamlit UI on port 8501
+
+**OR** for local development without Docker, see Step 4.
+
+### Step 4: Local Development Setup (Optional)
+
+If you prefer to run services locally:
+
+```bash
+# Start PostgreSQL (if using Docker for DB only)
 docker-compose up db -d
-```
 
-**Option B: Using Existing PostgreSQL**
-```bash
-# Create database
-createdb hr_attrition_db
-```
-
-### Step 4: Initialize Database
-
-```bash
-poetry run python database/init_db.py
+# Initialize database
+poetry run python -m database.init_db
 ```
 
 ✅ **Setup Complete!**
@@ -146,10 +153,7 @@ docker-compose down
 
 **Problem:** API can't find the trained model
 
-**Solution:** Train the model:
-```bash
-poetry run python train.py
-```
+**Solution:** Ensure `outputs/employee_attrition_pipeline.pkl` exists. The model should be in the repository. If missing, contact the repository maintainer.
 
 ### "Port already in use"
 

@@ -6,7 +6,7 @@ This guide covers development setup, workflow, and best practices for the HR Att
 
 ### Prerequisites
 
-- Python 3.12+
+- Python 3.13+ (via Poetry)
 - Poetry 1.8+
 - PostgreSQL 16+ (or use Docker)
 - Git
@@ -65,7 +65,7 @@ This guide covers development setup, workflow, and best practices for the HR Att
 docker-compose up db -d
 
 # Initialize the database
-poetry run python database/init_db.py
+poetry run python -m database.init_db
 ```
 
 #### Option 2: Local PostgreSQL
@@ -75,7 +75,7 @@ poetry run python database/init_db.py
 createdb hr_attrition_db
 
 # Initialize the database
-poetry run python database/init_db.py
+poetry run python -m database.init_db
 ```
 
 ## 🏃 Running the Application
@@ -468,10 +468,7 @@ taskkill /PID <PID> /F  # Windows
 
 ### Issue: Model not found
 
-**Solution:** Train the model
-```bash
-poetry run python train.py
-```
+**Solution:** Ensure the trained model exists in `outputs/employee_attrition_pipeline.pkl`
 
 ## 📚 Additional Resources
 

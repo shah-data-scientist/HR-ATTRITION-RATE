@@ -6,9 +6,9 @@ A machine learning-powered system to predict and analyze employee attrition risk
 
 ### Prerequisites
 
-- Python 3.12+
+- Python 3.13+ (managed via Poetry)
 - Poetry (for dependency management)
-- PostgreSQL 16+ (for data storage)
+- PostgreSQL 16+ or SQLite (for data storage)
 - Docker & Docker Compose (optional, for containerized deployment)
 
 ### Installation
@@ -24,21 +24,17 @@ A machine learning-powered system to predict and analyze employee attrition risk
    poetry install
    ```
 
-3. **Set up environment variables**
+3. **Set up environment variables** (optional for local dev)
    ```bash
    cp .env.example .env
-   # Edit .env with your configuration
+   # Edit .env with your configuration if needed
    ```
 
-4. **Start PostgreSQL**
+4. **Run with Docker** (simplest option)
    ```bash
-   docker-compose up db -d
+   docker-compose up -d
    ```
-
-5. **Initialize the database**
-   ```bash
-   poetry run python database/init_db.py
-   ```
+   This starts the database, API, and UI automatically.
 
 ### Running the Application
 
@@ -241,10 +237,7 @@ Network error while connecting to API: [WinError 10061] No connection could be m
 
 **Problem**: API fails to start with "Model file not found"
 
-**Solution**: Train the model first:
-```bash
-poetry run python train.py
-```
+**Solution**: Ensure the model file exists in `outputs/employee_attrition_pipeline.pkl`. The model should be trained and committed to the repository. If missing, contact the repository maintainer.
 
 ### Database Connection Issues
 
@@ -257,12 +250,13 @@ poetry run python train.py
 
 ## 📚 Documentation
 
-- [QUICKSTART.md](QUICKSTART.md) - 5-minute setup guide
-- [DEVELOPMENT.md](DEVELOPMENT.md) - Development workflow and guidelines  
-- [DEPLOYMENT.md](DEPLOYMENT.md) - Production deployment instructions
-- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) - System architecture and data flow
+- **[QUICKSTART.md](QUICKSTART.md)** - 5-minute setup guide for getting started
+- **[HUGGINGFACE_DEPLOYMENT.md](HUGGINGFACE_DEPLOYMENT.md)** - Deploy to Hugging Face Spaces
+- **[DEVELOPMENT.md](DEVELOPMENT.md)** - Development workflow and guidelines  
+- **[DEPLOYMENT.md](DEPLOYMENT.md)** - Production deployment (Docker, AWS, Azure, K8s)
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) - System architecture details
 - [api/README.md](api/README.md) - API documentation
-- [docs/REFACTOR_SUMMARY.md](docs/REFACTOR_SUMMARY.md) - Recent changes and improvements
+- [.github/workflows/ci-cd.yml](.github/workflows/ci-cd.yml) - CI/CD pipeline
 
 ## 🤝 Contributing
 

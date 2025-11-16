@@ -137,9 +137,22 @@ temp_*.json
 test_results_*.json
 test_payload.json
 test_response*.json
+api_docs.html
+app_output.log
+check_recent_db.py
+test_downloads.py
 
 # Test screenshots
 test_screenshots/
+
+# Temporary startup scripts
+start_api_fixed.bat
+start_api_with_restart.bat
+start_ui_with_restart.bat
+start_worker_with_restart.bat
+
+# Workbook/notebooks
+workbook/
 
 # IDE
 .idea/
