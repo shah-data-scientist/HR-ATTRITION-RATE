@@ -1,8 +1,22 @@
 from sqlalchemy import JSON, Column, DateTime, Float, ForeignKey, Integer, String
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
+import uuid
 
 from .database import Base
+
+
+class Job(Base):
+    __tablename__ = "jobs"
+
+    job_id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    job_type = Column(String, nullable=False)  # e.g., 'report'
+    status = Column(String, nullable=False, default="queued")  # queued|processing|completed|failed
+    payload_json = Column(JSON, nullable=False)
+    result_json = Column(JSON, nullable=True)
+    error = Column(String, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now(), server_default=func.now())
 
 
 class Employee(Base):
@@ -10,7 +24,7 @@ class Employee(Base):
 
     id_employee = Column(Integer, primary_key=True, index=True)
     age = Column(Integer, nullable=True)
-    genre = Column(Integer, nullable=True)
+    genre = Column(String, nullable=True)  # Raw string ('M'/'F', 'H'/'F')
     revenu_mensuel = Column(Float, nullable=True)
     statut_marital = Column(String, nullable=True)
     departement = Column(String, nullable=True)
@@ -29,8 +43,8 @@ class Employee(Base):
     distance_domicile_travail = Column(Integer, nullable=True)
     niveau_education = Column(Integer, nullable=True)
     domaine_etude = Column(String, nullable=True)
-    ayant_enfants = Column(Integer, nullable=True)
-    frequence_deplacement = Column(String, nullable=True)
+    ayant_enfants = Column(String, nullable=True)  # Raw string ('Y'/'N', 'Oui'/'Non')
+    frequence_deplacement = Column(String, nullable=True)  # Raw string ('Occasionnel', 'Frequent', etc.)
     annees_depuis_la_derniere_promotion = Column(Integer, nullable=True)
     annes_sous_responsable_actuel = Column(Integer, nullable=True)
     satisfaction_employee_environnement = Column(Float, nullable=True)
@@ -42,11 +56,11 @@ class Employee(Base):
     note_evaluation_actuelle = Column(Float, nullable=True)
     heures_supplementaires = Column(Integer, nullable=True)
     augmentation_salaire_precedente = Column(
-        Float, nullable=True
-    )  # Corrected typo here
+        String, nullable=True
+    )  # Raw string like '11 %', '13 %'
     augementation_salaire_precedente = Column(
-        Float, nullable=True
-    )  # Keeping the typo version for now to match input
+        String, nullable=True
+    )  # Keeping the typo version for now to match input - raw percentage strings
     nombre_heures_travailless = Column(Float, nullable=True)  # From sirh_df
     improvement_evaluation = Column(Float, nullable=True)  # Engineered feature
     total_satisfaction = Column(Float, nullable=True)  # Engineered feature

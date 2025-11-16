@@ -86,11 +86,41 @@ def clean_raw_input(df: pd.DataFrame) -> pd.DataFrame:
         )
         df["id_employee"] = pd.to_numeric(df["id_employee"], errors="coerce").astype("Int64")
 
-    # 5. Transform frequence_deplacement: categorical → string
+    # 5a. Transform frequence_deplacement: categorical → int (0=Rare, 1=Frequent, 2=Very Frequent)
     if "frequence_deplacement" in df.columns:
-        df["frequence_deplacement"] = df["frequence_deplacement"].astype(str).str.lower().str.strip()
+        freq_mapping = {
+            "rarement": 0,
+            "rarely": 0,
+            "occasionnel": 0,
+            "occasional": 0,
+            "fréquemment": 1,
+            "frequemment": 1,
+            "frequently": 1,
+            "frequent": 1,
+            "très fréquemment": 2,
+            "tres frequemment": 2,
+            "very frequently": 2,
+            "non": 0,  # fallback
+            "oui": 1,  # fallback
+        }
+        df["frequence_deplacement"] = (
+            df["frequence_deplacement"]
+            .astype(str)
+            .str.lower()
+            .str.strip()
+            .replace(freq_mapping)
+            .infer_objects(copy=False)
+        )
+        df["frequence_deplacement"] = pd.to_numeric(
+            df["frequence_deplacement"], errors="coerce"
+        ).fillna(0).astype("int64")
 
-    # 6. Drop unnecessary columns
+    # 5b. Clamp nb_formations_suivies to [0, 3] to match model training
+    if "nb_formations_suivies" in df.columns:
+        df["nb_formations_suivies"] = pd.to_numeric(df["nb_formations_suivies"], errors="coerce").fillna(0).astype(int)
+        df["nb_formations_suivies"] = df["nb_formations_suivies"].clip(lower=0, upper=3)
+
+    # 6. Drop unnecessary columns (ayant_enfants NOT dropped - keep for DB but not used in model)
     cols_to_drop = ["eval_number", "code_sondage", "nombre_heures_travailless"]
     for col in cols_to_drop:
         if col in df.columns:

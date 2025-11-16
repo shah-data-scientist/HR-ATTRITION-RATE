@@ -1,81 +1,55 @@
-import json # Import json for debugging
-import matplotlib
-matplotlib.use('Agg') # Use non-interactive backend for matplotlib
+import json
 import pandas as pd
 import streamlit as st
 
-pd.set_option("future.no_silent_downcasting", True)  # This was inserted here
-import base64  # Import base64 for embedding images
+pd.set_option("future.no_silent_downcasting", True)
 import io
 import os
-import sys  # Import sys
-import httpx # Import httpx for API calls
-from datetime import UTC, datetime
-
-import joblib
-import matplotlib.pyplot as plt
-import numpy as np
-import seaborn as sns  # Import seaborn for enhanced plotting
-import shap
-import streamlit.components.v1 as components
-from sklearn.metrics import (
-    accuracy_score,
-    confusion_matrix,
-    f1_score,
-    precision_score,
-    recall_score,
-)
-from sklearn.pipeline import Pipeline
-
-
-def _sigmoid(z: float) -> float:
-    return 1.0 / (1.0 + np.exp(-z))
-
-
-def _logit(p: float) -> float:
-    """Inverse of sigmoid function."""
-    if p <= 0:
-        return -np.inf
-    if p >= 1:
-        return np.inf
-    return np.log(p / (1 - p))
-
-
+import httpx
+import base64
+import zipfile
+from typing import Any, Dict
+import time
 # --- Configuration ---
-# Define risk categories for Excel/HTML reports (probability-based, for confusion matrix)
-RISK_THRESHOLDS = {"Low": (0.0, 0.3), "Medium": (0.3, 0.7), "High": (0.7, 1.0)}
-
-# Define risk categories for log-odds (f(x))
-# Corresponding log-odds for probabilities 0.3 and 0.7
-# logit(0.3) approx -0.847
-# logit(0.7) approx 0.847
-LOG_ODDS_RISK_THRESHOLDS = {
-    "Low": (-np.inf, _logit(0.3)),  # f(x) < -0.847
-    "Medium": (_logit(0.3), _logit(0.7)),  # -0.847 <= f(x) < 0.847
-    "High": (_logit(0.7), np.inf),  # f(x) >= 0.847
-}
-
 REQUIRED_FILES = ["extrait_eval.csv", "extrait_sirh.csv", "extrait_sondage.csv"]
 
 # Get API URL from environment variable, default to localhost for development
 API_BASE_URL = os.environ.get("API_BASE_URL", "http://localhost:8001")
 
-# --- Session State Initialization ---
+
+def _check_api_health(base_url: str) -> tuple[bool, str]:
+    """Quick health probe to show connection status in the UI."""
+    try:
+        resp = httpx.get(f"{base_url}/health", timeout=3.0)
+        if resp.status_code == 200:
+            return True, "API is healthy"
+        return False, f"API responded with status {resp.status_code}"
+    except httpx.RequestError as e:
+        return False, f"Network error: {e}"
+    except Exception as e:
+        return False, f"Unexpected error: {e}"
+
+# --- Session State Initialization (minimal) ---
 if "prediction_triggered" not in st.session_state:
     st.session_state.prediction_triggered = False
 if "report_data" not in st.session_state:
     st.session_state.report_data = None
-if "shap_html_content" not in st.session_state:
-    st.session_state.shap_html_content = None
-if "excel_report_data" not in st.session_state:
-    st.session_state.excel_report_data = None
-# The following session state variables are no longer needed as SHAP values come from the API
-# if "processed_data_for_shap" not in st.session_state:
-#     st.session_state.processed_data_for_shap = None
-# if "explainer" not in st.session_state:
-#     st.session_state.explainer = None
-# if "all_features" not in st.session_state:
-#     st.session_state.all_features = None
+if "last_payload" not in st.session_state:
+    st.session_state.last_payload = None
+if "excel_report_bytes" not in st.session_state:
+    st.session_state.excel_report_bytes = None
+if "shap_zip_bytes" not in st.session_state:
+    st.session_state.shap_zip_bytes = None
+if "job_id" not in st.session_state:
+    st.session_state.job_id = None
+if "job_status" not in st.session_state:
+    st.session_state.job_status = None
+if "job_error" not in st.session_state:
+    st.session_state.job_error = None
+if "job_excel_report_bytes" not in st.session_state:
+    st.session_state.job_excel_report_bytes = None
+if "job_shap_zip_bytes" not in st.session_state:
+    st.session_state.job_shap_zip_bytes = None
 
 
 def get_project_root():
@@ -109,7 +83,11 @@ def _load_local_csv_files():
         return None, None, None
 
 
-def _call_prediction_api(eval_data: list[dict], sirh_data: list[dict], sondage_data: list[dict]) -> dict:
+def _call_prediction_api(
+    eval_data: Any,
+    sirh_data: Any,
+    sondage_data: Any,
+) -> Dict[str, Any]:
     """Calls the FastAPI /predict endpoint with raw employee data."""
     try:
         payload = {
@@ -117,8 +95,8 @@ def _call_prediction_api(eval_data: list[dict], sirh_data: list[dict], sondage_d
             "sirh_data": sirh_data,
             "sondage_data": sondage_data,
         }
-        # Set a reasonable timeout, e.g., 60 seconds
-        response = httpx.post(f"{API_BASE_URL}/predict", json=payload, timeout=60.0)
+        # Set a reasonable timeout (increased for DB operations and SHAP calculations)
+        response = httpx.post(f"{API_BASE_URL}/predict", json=payload, timeout=180.0)
         response.raise_for_status()
         return response.json()
     except httpx.TimeoutException as e:
@@ -139,8 +117,98 @@ def _call_prediction_api(eval_data: list[dict], sirh_data: list[dict], sondage_d
         return {"predictions": []}
 
 
-def _handle_file_uploads_and_predict(main_threshold: float) -> None:
-    st.subheader("Upload Employee Data for Prediction")
+def _call_predict_excel_api(payload: Dict[str, Any]) -> bytes | None:
+    try:
+        resp = httpx.post(f"{API_BASE_URL}/predict_excel", json=payload, timeout=180.0)
+        resp.raise_for_status()
+        excel_b64 = resp.json().get("excel_base64")
+        if not excel_b64:
+            st.error("API did not return an Excel report.")
+            return None
+        return base64.b64decode(excel_b64)
+    except Exception as e:
+        st.error(f"Failed to generate Excel report: {e}")
+        return None
+
+
+def _call_predict_shap_images_api(payload: Dict[str, Any]) -> bytes | None:
+    try:
+        resp = httpx.post(f"{API_BASE_URL}/predict_shap_images", json=payload, timeout=180.0)
+        resp.raise_for_status()
+        items = resp.json().get("shap_images", [])
+        if not items:
+            st.warning("No SHAP images returned by API.")
+            return None
+        # Build a zip in-memory
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, mode="w", compression=zipfile.ZIP_DEFLATED) as zf:
+            for item in items:
+                emp_id = item.get("employee_id")
+                img_b64 = item.get("img_base64")
+                if img_b64 and emp_id is not None:
+                    zf.writestr(f"employee_{emp_id}.png", base64.b64decode(img_b64))
+        buf.seek(0)
+        return buf.read()
+    except Exception as e:
+        st.error(f"Failed to generate SHAP images: {e}")
+        return None
+
+
+def _enqueue_report_job(payload: Dict[str, Any]) -> str | None:
+    try:
+        resp = httpx.post(f"{API_BASE_URL}/jobs/report", json=payload, timeout=30.0)
+        resp.raise_for_status()
+        job_id = resp.json().get("job_id")
+        if not job_id:
+            st.error("API did not return a job_id.")
+            return None
+        return job_id
+    except Exception as e:
+        st.error(f"Failed to enqueue report job: {e}")
+        return None
+
+
+def _get_job_status(job_id: str) -> Dict[str, Any] | None:
+    try:
+        resp = httpx.get(f"{API_BASE_URL}/jobs/{job_id}", timeout=15.0)
+        resp.raise_for_status()
+        return resp.json()
+    except Exception as e:
+        st.error(f"Failed to check job status: {e}")
+        return None
+
+
+def _fetch_job_result(job_id: str) -> tuple[bytes | None, bytes | None]:
+    try:
+        resp = httpx.get(f"{API_BASE_URL}/jobs/{job_id}/result", timeout=180.0)
+        resp.raise_for_status()
+        data = resp.json()
+        excel_b64 = data.get("excel_base64")
+        shap_images = data.get("shap_images", [])
+
+        excel_bytes = base64.b64decode(excel_b64) if excel_b64 else None
+
+        # Build a zip with SHAP images
+        shap_zip_bytes = None
+        if shap_images:
+            buf = io.BytesIO()
+            with zipfile.ZipFile(buf, mode="w", compression=zipfile.ZIP_DEFLATED) as zf:
+                for item in shap_images:
+                    emp_id = item.get("employee_id")
+                    img_b64 = item.get("img_base64")
+                    if img_b64 and emp_id is not None:
+                        zf.writestr(f"employee_{emp_id}.png", base64.b64decode(img_b64))
+            buf.seek(0)
+            shap_zip_bytes = buf.read()
+
+        return excel_bytes, shap_zip_bytes
+    except Exception as e:
+        st.error(f"Failed to fetch job result: {e}")
+        return None, None
+
+
+def _handle_file_uploads_and_predict() -> None:
+    st.subheader("Upload Data (UI is thin; API does processing)")
     uploaded_files = st.file_uploader(
         "Upload three CSV files: `extrait_eval.csv`, "
         "`extrait_sirh.csv`, `extrait_sondage.csv`",
@@ -175,7 +243,7 @@ def _handle_file_uploads_and_predict(main_threshold: float) -> None:
         files_source = "local"
 
     if eval_file and sirh_file and sondage_file:
-        predict_button = st.button("Predict Attrition", key="Predict Attrition")
+        predict_button = st.button("Predict Attrition")
 
         if predict_button:
             with st.spinner("Processing data and getting predictions..."):
@@ -193,28 +261,36 @@ def _handle_file_uploads_and_predict(main_threshold: float) -> None:
                         eval_data_for_api, sirh_data_for_api, sondage_data_for_api
                     )
                     
-                    # Save API response to a temporary JSON file for debugging
-                    temp_api_response_path = os.path.join(get_project_root(), "temp_api_response.json")
-                    with open(temp_api_response_path, "w") as f:
-                        json.dump(api_response, f, indent=4)
-                    st.info(f"For debugging, API response saved to: {temp_api_response_path}")
+                    # Optionally save API response for debugging
+                    try:
+                        temp_api_response_path = os.path.join(get_project_root(), "temp_api_response.json")
+                        with open(temp_api_response_path, "w") as f:
+                            json.dump(api_response, f, indent=4)
+                        st.caption(f"Saved API response to: {temp_api_response_path}")
+                    except Exception:
+                        pass
 
                     if api_response and api_response["predictions"]:
                         predictions_data = api_response["predictions"]
+                        st.session_state.last_payload = {
+                            "eval_data": eval_data_for_api,
+                            "sirh_data": sirh_data_for_api,
+                            "sondage_data": sondage_data_for_api,
+                        }
                         
-                        # Prepare report_data
+                        # Minimal table for display only (no local processing)
                         report_data = pd.DataFrame([
                             {
-                                "id_employee": p["id_employee"],
-                                "Attrition_Risk_Percentage": p["probability"],
-                                "Prediction": p["prediction"],
-                                "Risk_Attrition": p["risk_category"],
-                                "shap_values": p.get("shap_values"),
-                                "base_value": p.get("base_value"),
-                                "feature_names": p.get("feature_names"),
+                                "id_employee": p.get("id_employee"),
+                                "prediction": p.get("prediction"),
+                                "probability": p.get("probability"),
+                                "risk_category": p.get("risk_category"),
                             }
                             for p in predictions_data
                         ])
+                        # Format probability as percentage for display
+                        if "probability" in report_data.columns:
+                            report_data["probability"] = (report_data["probability"].astype(float) * 100).round(1)
                         st.session_state.report_data = report_data
                         st.session_state.prediction_triggered = True
                         st.success("Predictions received successfully!")
@@ -224,224 +300,153 @@ def _handle_file_uploads_and_predict(main_threshold: float) -> None:
                 except Exception as e:
                     st.error(f"An error occurred during prediction: {e}")
         elif files_source == "uploaded":
-            st.info("Please upload the CSV files to get started.")
+            st.info("Files uploaded. Click 'Predict Attrition' to call the API.")
         elif files_source == "local":
-            st.info("Local files loaded. Click 'Predict Attrition' to proceed.")
+            st.info("Using local data/. Click 'Predict Attrition' to call the API.")
     else:
         st.error("Could not load required CSV files.")
 
 
 def clear_prediction_results() -> None:
-    """Clear all prediction results and reset session state."""
+    """Clear prediction results and reset session state."""
     st.session_state.prediction_triggered = False
     st.session_state.report_data = None
-    st.session_state.shap_report_data = None
-    st.session_state.excel_report_data = None
+    st.session_state.last_payload = None
+    st.session_state.excel_report_bytes = None
+    st.session_state.shap_zip_bytes = None
 
 
-# --- Helper Functions (from train.py) ---
-def generate_shap_report_data(
-    report_data: pd.DataFrame,
-) -> list[dict]:
-    """Generate SHAP waterfall plot data as base64 encoded images.
-
-    Returns a list of dictionaries, each containing employee details and a
-    base64 encoded PNG image of the SHAP waterfall plot.
-    """
-    shap_report_items = []
-
-    for i, (_, row) in enumerate(report_data.iterrows()):
-        employee_id = row.get("id_employee", f"Employee {i+1}")
-        risk_category = row["Risk_Attrition"]
-        attrition_prob = row["Attrition_Risk_Percentage"]
-        prediction_type = row["Prediction"]
-        shap_values_row = row["shap_values"]
-        base_value_row = row["base_value"]
-        feature_names_row = row.get("feature_names")
-
-        if shap_values_row is None or base_value_row is None:
-            # Skip if SHAP values are not available for this prediction
-            continue
-
-        # Use feature names from API if available, otherwise use generic names
-        if feature_names_row and len(feature_names_row) == len(shap_values_row):
-            feature_names = feature_names_row
-        else:
-            feature_names = [f"Feature {j}" for j in range(len(shap_values_row))]
-
-        # Create a dummy Explanation object
-        # The data parameter is optional for plotting, but can be useful
-        # For now, we'll just pass the shap_values and base_value
-        explanation = shap.Explanation(
-            values=np.array(shap_values_row),
-            base_values=base_value_row,
-            data=np.zeros(len(shap_values_row)), # Dummy data
-            feature_names=feature_names
-        )
-
-        shap.plots.waterfall(
-            explanation,
-            max_display=10,
-            show=False,
-        )
-        fig = plt.gcf()
-        fig.set_size_inches(8, 6)
-        buf = io.BytesIO()
-        fig.savefig(buf, format="png", bbox_inches="tight", dpi=100)
-        plt.close(fig)
-        img_str = base64.b64encode(buf.getvalue()).decode("utf-8")
-
-        shap_report_items.append(
-            {
-                "employee_id": employee_id,
-                "risk_category": risk_category,
-                "attrition_prob": attrition_prob,
-                "prediction_type": prediction_type,
-                "img_str": img_str,
-            }
-        )
-    return shap_report_items
+# No local SHAP or Excel processing in the UI — API handles processing.
 def main() -> None:
     """Run the Streamlit application."""
     # --- Streamlit App Layout ---
     st.set_page_config(layout="wide")
     st.title("Employee Attrition Risk")
 
-    # --- Threshold Slider ---
-    st.subheader("Adjust Prediction Threshold")
-    main_threshold = st.slider(
-        "Select Probability Threshold",
-        0.0,
-        1.0,
-        0.5,
-        0.01,
-        help="Adjust this threshold to see how it impacts the model's "
-        "classification on the training data.",
-    )
+    with st.container():
+        st.caption(f"API endpoint: {API_BASE_URL}")
+        ok, msg = _check_api_health(API_BASE_URL)
+        if ok:
+            st.success(msg, icon="✅")
+        else:
+            st.error(f"{msg}. Make sure the API is running (port 8001).", icon="⚠️")
+        if st.button("Re-check API status", type="secondary"):
+            ok, msg = _check_api_health(API_BASE_URL)
+            if ok:
+                st.success(msg, icon="✅")
+            else:
+                st.error(f"{msg}. Make sure the API is running (port 8001).", icon="⚠️")
 
-    st.markdown("---")
+    _handle_file_uploads_and_predict()
 
-    _handle_file_uploads_and_predict(main_threshold)
-
-    # --- Display Results (if triggered) ---
+    # --- Display Results (thin UI) ---
     if st.session_state.prediction_triggered:
         st.markdown("---")
-        st.subheader("Prediction Results and Reports")
+        st.subheader("Prediction Results")
 
         report_data = st.session_state.report_data
-        # Removed: x_transformed_for_shap, explainer, all_features
-        excel_tab2_data = st.session_state.excel_report_data
-
-        # --- Generate Excel Report ---
-        excel_buffer = io.BytesIO()
-        with pd.ExcelWriter(excel_buffer, engine="openpyxl") as writer:
-            # Tab 1: Summary (no employee name, no extra columns)
-            tab1_df = report_data[
-                [
-                    "id_employee",
-                    "Risk_Attrition",
-                    "Attrition_Risk_Percentage",
-                    "Prediction",
-                ]
-            ].copy()
-            tab1_df.rename(columns={"id_employee": "Employee_ID"}, inplace=True)
-            tab1_df.to_excel(writer, sheet_name="Summary", index=False)
-
-            # Tab 2: Features (all features with coefficients; no employee name)
-            excel_tab2_data = []
-            for idx, row in report_data.iterrows():
-                employee_id = row["id_employee"]
-                shap_values_row = row.get("shap_values")
-                base_value_row = row.get("base_value")
-                feature_names_row = row.get("feature_names")
-                prediction_label = row["Prediction"]
-
-                if shap_values_row is not None:
-                    # Use feature names from API if available, otherwise use generic names
-                    if feature_names_row and len(feature_names_row) == len(shap_values_row):
-                        feature_names = feature_names_row
-                    else:
-                        feature_names = [f"Feature {j}" for j in range(len(shap_values_row))]
-
-                    employee_shap_df = pd.DataFrame(
-                        {
-                            "Feature": feature_names,
-                            "Coefficient": shap_values_row,
-                        }
-                    )
-                    employee_shap_df["Employee_ID"] = employee_id
-                    employee_shap_df["Prediction"] = prediction_label
-                    excel_tab2_data.append(employee_shap_df)
-            
-            if excel_tab2_data:
-                st.session_state.excel_report_data = pd.concat(excel_tab2_data)
-            else:
-                st.session_state.excel_report_data = pd.DataFrame() # Empty if no SHAP data
-
-            tab2_df = st.session_state.excel_report_data.copy()
-            # Ensure column names are exactly as required
-            tab2_df.rename(
-                columns={
-                    "Employee_ID": "Employee_ID",
-                    "Feature": "Feature",
-                    "Coefficient": "Coefficient",
-                },
-                inplace=True,
-            )
-            tab2_df[["Employee_ID", "Feature", "Coefficient", "Prediction"]].to_excel(
-                writer, sheet_name="Features", index=False
-            )
-
-            # Tab 3: Metrics (optional)
-            summary_metrics_df = pd.DataFrame(
-                {
-                    "Metric": [
-                        "Total Employees Processed",
-                        "Predicted to Leave",
-                        "Predicted to Stay",
-                    ],
-                    "Value": [
-                        len(report_data),
-                        report_data["Prediction"].value_counts().get("Leave", 0),
-                        report_data["Prediction"].value_counts().get("Stay", 0),
-                    ],
-                }
-            )
-            summary_metrics_df.to_excel(writer, sheet_name="Metrics", index=False)
-
-        excel_buffer.seek(0)
-        st.download_button(
-            label="Download Excel Report",
-            data=excel_buffer,
-            file_name="employee_attrition_report.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        st.dataframe(
+            report_data.rename(columns={
+                "id_employee": "Employee ID",
+                "prediction": "Prediction",
+                "probability": "Probability (%)",
+                "risk_category": "Risk Category",
+            }),
+            use_container_width=True,
         )
+        st.success("Predictions retrieved from API.")
 
-        # Generate SHAP report data
-        shap_report_data = generate_shap_report_data(report_data)
-        st.session_state.shap_report_data = shap_report_data
-
-        # --- Display SHAP Visualization Report ---
-        st.subheader("Employee Attrition SHAP Explanations")
-        shap_report_items = st.session_state.shap_report_data
-        if shap_report_items:
-            for item in shap_report_items:
-                st.markdown(f"### Employee ID: {item['employee_id']}")
-                st.markdown(
-                    f"Predicted Attrition Risk: **{item['risk_category']}** "
-                    f"({item['attrition_prob']:.1%}) · Prediction: "
-                    f"**{item['prediction_type']}**"
+        # Downloads section
+        st.markdown("---")
+        st.subheader("Downloads")
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("Generate Excel Report"):
+                if st.session_state.last_payload:
+                    with st.spinner("Generating Excel report via API..."):
+                        excel_bytes = _call_predict_excel_api(st.session_state.last_payload)
+                        st.session_state.excel_report_bytes = excel_bytes
+                else:
+                    st.warning("No input payload available. Please run a prediction first.")
+            if st.session_state.excel_report_bytes:
+                st.download_button(
+                    label="Download Excel Report",
+                    data=st.session_state.excel_report_bytes,
+                    file_name="employee_attrition_report.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 )
-                st.image(
-                    f"data:image/png;base64,{item['img_str']}",
-                    caption=f"SHAP Waterfall Plot for Employee {item['employee_id']}",
-                    use_container_width=True,
+        with col2:
+            if st.button("Generate SHAP Images (ZIP)"):
+                if st.session_state.last_payload:
+                    with st.spinner("Generating SHAP images via API..."):
+                        zip_bytes = _call_predict_shap_images_api(st.session_state.last_payload)
+                        st.session_state.shap_zip_bytes = zip_bytes
+                else:
+                    st.warning("No input payload available. Please run a prediction first.")
+            if st.session_state.shap_zip_bytes:
+                st.download_button(
+                    label="Download SHAP Images (ZIP)",
+                    data=st.session_state.shap_zip_bytes,
+                    file_name="shap_images.zip",
+                    mime="application/zip",
                 )
-                st.markdown("---")
-        else:
-            st.info("No SHAP reports generated yet.")
 
-        st.success("Reports generated successfully!")
+        st.markdown("---")
+        st.subheader("Async Job (Excel + SHAP)")
+        if st.button("Generate Full Report (Async)"):
+            if not st.session_state.last_payload:
+                st.warning("No input payload available. Please run a prediction first.")
+            else:
+                with st.spinner("Enqueuing job..."):
+                    jid = _enqueue_report_job(st.session_state.last_payload)
+                    if jid:
+                        st.session_state.job_id = jid
+                        st.session_state.job_status = "queued"
+                        st.session_state.job_error = None
+
+                        # Poll status with a simple loop (max ~2 minutes)
+                        max_checks = 60
+                        status_placeholder = st.empty()
+                        progress = st.progress(0)
+                        for i in range(max_checks):
+                            status = _get_job_status(jid)
+                            if status:
+                                st.session_state.job_status = status.get("status")
+                                st.session_state.job_error = status.get("error")
+                                status_placeholder.info(f"Job {jid} status: {st.session_state.job_status}")
+                                if st.session_state.job_status == "completed":
+                                    with st.spinner("Fetching job result..."):
+                                        excel_b, shap_zip_b = _fetch_job_result(jid)
+                                        st.session_state.job_excel_report_bytes = excel_b
+                                        st.session_state.job_shap_zip_bytes = shap_zip_b
+                                    break
+                                if st.session_state.job_status == "failed":
+                                    break
+                            progress.progress(min(int((i + 1) / max_checks * 100), 100))
+                            time.sleep(2)
+
+        # If a job has completed, expose downloads
+        if st.session_state.job_status == "completed":
+            st.success("Async report ready. Download below.")
+            d1, d2 = st.columns(2)
+            with d1:
+                if st.session_state.job_excel_report_bytes:
+                    st.download_button(
+                        label="Download Async Excel Report",
+                        data=st.session_state.job_excel_report_bytes,
+                        file_name="employee_attrition_report_async.xlsx",
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    )
+            with d2:
+                if st.session_state.job_shap_zip_bytes:
+                    st.download_button(
+                        label="Download Async SHAP Images (ZIP)",
+                        data=st.session_state.job_shap_zip_bytes,
+                        file_name="shap_images_async.zip",
+                        mime="application/zip",
+                    )
+        elif st.session_state.job_status == "failed":
+            st.error(f"Job failed: {st.session_state.job_error}")
 
 
 if __name__ == "__main__":

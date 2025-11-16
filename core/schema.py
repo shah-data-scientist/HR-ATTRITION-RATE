@@ -38,7 +38,8 @@ class SirhInputSchema(BaseModel):
 class SondageInputSchema(BaseModel):
     """Raw input schema for survey data (extrait_sondage.csv)."""
     nombre_participation_pee: int = Field(..., ge=0, description="Number of PEE participations")
-    nb_formations_suivies: int = Field(..., ge=0, le=3, description="Number of trainings attended (0-3)")
+    # Accept any non-negative value; we'll clamp to [0,3] during cleaning to match model expectations
+    nb_formations_suivies: int = Field(..., ge=0, description="Number of trainings attended (>=0); clamped to 0-3 during processing")
     nombre_employee_sous_responsabilite: int = Field(..., ge=0, le=20, description="Number of employees under responsibility")
     code_sondage: int = Field(..., ge=0, description="Survey code (corresponds to id_employee)")
     distance_domicile_travail: int = Field(..., ge=0, le=50, description="Distance from home to work (km)")
