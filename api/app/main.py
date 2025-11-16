@@ -7,6 +7,7 @@ from datetime import datetime  # For timestamps
 import joblib
 import numpy as np
 import pandas as pd
+import shap # Import shap
 from fastapi import Depends, FastAPI, HTTPException, status, Request
 from sqlalchemy.orm import Session  # Explicitly import Session for type hinting
 
@@ -18,9 +19,13 @@ from database.models import Employee, ModelInput, ModelOutput, PredictionTraceab
 
 # Core imports - using canonical schemas and processing
 from core.schema import (
-    BatchPredictionInput,
+    ProcessedBatchPredictionInput, # Renamed from BatchPredictionInput
     BatchPredictionOutput,
     PredictionOutput,
+    EvalInputSchema,
+    SirhInputSchema,
+    SondageInputSchema,
+    RawBatchPredictionInput,
 )
 from core.data_processing import clean_and_engineer_features
 from core.preprocess import enforce_schema
@@ -35,12 +40,14 @@ RISK_THRESHOLDS = {"Low": (0.0, 0.3), "Medium": (0.3, 0.7), "High": (0.7, 1.0)}
 # --- Global Model and Preprocessor ---
 model = None
 expected_model_columns = None
+explainer = None
+expected_model_columns_for_shap = None
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Load the ML model
-    global model, expected_model_columns
+    global model, expected_model_columns, explainer, expected_model_columns_for_shap
     model_path = os.path.join(
         os.path.dirname(__file__),
         "..",
@@ -57,6 +64,34 @@ async def lifespan(app: FastAPI):
     expected_model_columns = get_expected_columns_from_pipeline(model)
     print(f"Model loaded successfully from {model_path}")
     print(f"Expected model columns: {expected_model_columns}")
+
+    # Load X_train for SHAP explainer
+    x_train_path = os.path.join(
+        os.path.dirname(__file__), "..", "..", "outputs", "X_train.parquet"
+    )
+    if not os.path.exists(x_train_path):
+        raise RuntimeError(
+            f"X_train file not found at {x_train_path}. SHAP explainer cannot be initialized."
+        )
+    x_train_for_shap = pd.read_parquet(x_train_path)
+
+    # Initialize SHAP explainer
+    # Assuming the model is a pipeline with a 'preprocessor' and a 'model' step
+    preprocessor = model.named_steps["preprocessor"]
+    ml_model = model.named_steps["model"]
+
+    # Transform x_train_for_shap to get the data in the format the ML model expects
+    x_train_transformed = preprocessor.transform(x_train_for_shap)
+    expected_model_columns_for_shap = preprocessor.get_feature_names_out()
+
+    # Ensure x_train_transformed is a DataFrame for explainer
+    if not isinstance(x_train_transformed, pd.DataFrame):
+        x_train_transformed = pd.DataFrame(
+            x_train_transformed, columns=expected_model_columns_for_shap
+        )
+
+    explainer = shap.LinearExplainer(ml_model, x_train_transformed)
+    print("SHAP Explainer initialized successfully.")
 
     # --- DEBUG: Inspect ColumnTransformer's internal column lists ---
     if "preprocessor" in model.named_steps:
@@ -138,7 +173,7 @@ async def health_check():
     summary="Predict attrition risk for a batch of employees",
 )
 async def predict_attrition(
-    batch_input: BatchPredictionInput, request: Request, db: Session = Depends(get_db)
+    batch_input: RawBatchPredictionInput, request: Request, db: Session = Depends(get_db)
 ):
     """Predicts the attrition risk for a list of employees based on their features.
     All model inputs, outputs, and prediction traceability are recorded in the database.
@@ -151,11 +186,36 @@ async def predict_attrition(
 
     predictions_output: list[PredictionOutput] = []
 
-    # Convert list of Pydantic models to a list of dictionaries
-    employees_data_list = [employee.model_dump() for employee in batch_input.employees]
+    # Convert raw input data to DataFrames
+    eval_df = pd.DataFrame([e.model_dump() for e in batch_input.eval_data])
+    sirh_df = pd.DataFrame([s.model_dump() for s in batch_input.sirh_data])
+    sondage_df = pd.DataFrame([s.model_dump() for s in batch_input.sondage_data])
 
-    # Convert to DataFrame for processing
-    input_df = pd.DataFrame(employees_data_list)
+    # --- Data Merging Logic ---
+    # 1. Create id_employee for eval_df from eval_number
+    eval_df["id_employee"] = eval_df["eval_number"].str.extract(r'E_(\d+)').astype(int)
+    print(f"eval_df id_employee dtype: {eval_df['id_employee'].dtype}")
+    print(f"eval_df id_employee null count: {eval_df['id_employee'].isnull().sum()}")
+
+    # 2. Merge sirh_df and sondage_df
+    # Rename 'code_sondage' in sondage_df to 'id_employee' for merging
+    sondage_df_renamed = sondage_df.rename(columns={"code_sondage": "id_employee"})
+    merged_sirh_sondage = sirh_df.merge(sondage_df_renamed, on="id_employee", how="outer")
+    print(f"merged_sirh_sondage id_employee dtype: {merged_sirh_sondage['id_employee'].dtype}")
+    print(f"merged_sirh_sondage id_employee null count: {merged_sirh_sondage['id_employee'].isnull().sum()}")
+
+    # 3. Merge with eval_df
+    # Use a full outer merge to ensure all employees are kept, handling potential missing data
+    input_df = merged_sirh_sondage.merge(eval_df, on="id_employee", how="outer", suffixes=('_sirh_sondage', '_eval'))
+    print(f"input_df id_employee dtype after all merges: {input_df['id_employee'].dtype}")
+    print(f"input_df id_employee null count after all merges: {input_df['id_employee'].isnull().sum()}")
+    print(f"input_df id_employee head after all merges:\n{input_df['id_employee'].head()}")
+
+    # Drop duplicates if any (e.g., if an id_employee appears multiple times across sources)
+    input_df.drop_duplicates(subset=["id_employee"], inplace=True)
+
+    # Ensure id_employee is integer type
+    input_df["id_employee"] = input_df["id_employee"].astype(int)
 
     # Apply feature engineering
     processed_data = clean_and_engineer_features(input_df.copy())
@@ -184,14 +244,35 @@ async def predict_attrition(
             / (1 - np.clip(prediction_proba_raw, 1e-10, 1 - 1e-10))
         )
 
-        for i, employee_input_data in enumerate(batch_input.employees):
-            employee_id = int(input_df.loc[i, "id_employee"])
+        for i, employee_input_data_row in input_df.iterrows(): # Iterate through the merged input_df
+            employee_id = int(employee_input_data_row["id_employee"])
             prob = prediction_proba_raw[i]
             pred_label = "Leave" if predictions_binary[i] == 1 else "Stay"
             risk_cat = get_risk_category(
                 prob, threshold=0.5
             )  # Using default threshold 0.5 for API
             current_log_odds = log_odds[i]
+
+            # Calculate SHAP values for the current employee
+            # Ensure data_for_prediction is a DataFrame for consistent indexing
+            if not isinstance(data_for_prediction, pd.DataFrame):
+                data_for_prediction = pd.DataFrame(
+                    data_for_prediction, columns=expected_model_columns
+                )
+
+            # Transform the single row for SHAP explanation
+            single_employee_data_transformed = model.named_steps["preprocessor"].transform(
+                data_for_prediction.iloc[[i]]
+            )
+            
+            # Ensure it's a DataFrame for SHAP explainer
+            if not isinstance(single_employee_data_transformed, pd.DataFrame):
+                single_employee_data_transformed = pd.DataFrame(
+                    single_employee_data_transformed, columns=expected_model_columns_for_shap
+                )
+
+            shap_values_instance = explainer.shap_values(single_employee_data_transformed)[0]
+            base_value_instance = explainer.expected_value
 
             # 1. Fetch or Create/Update Employee Record
             # Get the cleaned data from processed_data DataFrame (row i)
@@ -226,7 +307,10 @@ async def predict_attrition(
 
             # 2. Record Model Input
             # Store the RAW input data for audit/traceability (what the user sent)
-            raw_features_for_db = employee_input_data.model_dump(exclude={"id_employee"})
+            # Need to reconstruct the raw input for this specific employee from the original batch_input
+            # This is complex as the raw inputs are separate. For now, we'll store the merged input_df row.
+            # A more robust solution would involve linking raw inputs to the merged employee_id.
+            raw_features_for_db = input_df.loc[i].to_dict() # Store the merged raw input for now
             new_model_input = ModelInput(
                 id_employee=employee_id,
                 features=json.dumps(raw_features_for_db),
@@ -241,6 +325,7 @@ async def predict_attrition(
                 risk_category=risk_cat,
                 prediction_label=pred_label,
                 log_odds=float(current_log_odds),
+                threshold=0.5, # Pass the threshold value
                 prediction_timestamp=datetime.now(),
             )
             db.add(new_model_output)
@@ -274,6 +359,9 @@ async def predict_attrition(
                     risk_category=risk_cat,
                     message=f"Employee {employee_id} is predicted to {pred_label} with {prob:.2%} attrition risk (Risk: {risk_cat}).",
                     trace_id=new_trace.trace_id,
+                    shap_values=shap_values_instance.tolist(),  # Convert numpy array to list
+                    base_value=base_value_instance,
+                    feature_names=list(expected_model_columns_for_shap),  # Add feature names
                 )
             )
     except Exception as e:

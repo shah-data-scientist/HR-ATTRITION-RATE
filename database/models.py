@@ -83,6 +83,7 @@ class ModelOutput(Base):
     risk_category = Column(String, nullable=False)
     prediction_label = Column(String, nullable=False)
     log_odds = Column(Float, nullable=False)
+    threshold = Column(Float, nullable=True) # Added threshold column
     prediction_timestamp = Column(DateTime(timezone=True), server_default=func.now())
 
     trace = relationship(

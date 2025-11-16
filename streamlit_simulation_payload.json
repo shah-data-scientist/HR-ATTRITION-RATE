@@ -1,0 +1,203 @@
+{
+  "eval_data": [
+    {
+      "satisfaction_employee_environnement": 2,
+      "note_evaluation_precedente": 3,
+      "niveau_hierarchique_poste": 2,
+      "satisfaction_employee_nature_travail": 4,
+      "satisfaction_employee_equipe": 1,
+      "satisfaction_employee_equilibre_pro_perso": 1,
+      "eval_number": "E_1",
+      "note_evaluation_actuelle": 3,
+      "heure_supplementaires": "Oui",
+      "augementation_salaire_precedente": "11 %"
+    },
+    {
+      "satisfaction_employee_environnement": 3,
+      "note_evaluation_precedente": 2,
+      "niveau_hierarchique_poste": 2,
+      "satisfaction_employee_nature_travail": 2,
+      "satisfaction_employee_equipe": 4,
+      "satisfaction_employee_equilibre_pro_perso": 3,
+      "eval_number": "E_2",
+      "note_evaluation_actuelle": 4,
+      "heure_supplementaires": "Non",
+      "augementation_salaire_precedente": "23 %"
+    },
+    {
+      "satisfaction_employee_environnement": 4,
+      "note_evaluation_precedente": 2,
+      "niveau_hierarchique_poste": 1,
+      "satisfaction_employee_nature_travail": 3,
+      "satisfaction_employee_equipe": 2,
+      "satisfaction_employee_equilibre_pro_perso": 3,
+      "eval_number": "E_4",
+      "note_evaluation_actuelle": 3,
+      "heure_supplementaires": "Oui",
+      "augementation_salaire_precedente": "15 %"
+    },
+    {
+      "satisfaction_employee_environnement": 4,
+      "note_evaluation_precedente": 3,
+      "niveau_hierarchique_poste": 1,
+      "satisfaction_employee_nature_travail": 3,
+      "satisfaction_employee_equipe": 3,
+      "satisfaction_employee_equilibre_pro_perso": 3,
+      "eval_number": "E_5",
+      "note_evaluation_actuelle": 3,
+      "heure_supplementaires": "Oui",
+      "augementation_salaire_precedente": "11 %"
+    },
+    {
+      "satisfaction_employee_environnement": 1,
+      "note_evaluation_precedente": 3,
+      "niveau_hierarchique_poste": 1,
+      "satisfaction_employee_nature_travail": 2,
+      "satisfaction_employee_equipe": 4,
+      "satisfaction_employee_equilibre_pro_perso": 3,
+      "eval_number": "E_7",
+      "note_evaluation_actuelle": 3,
+      "heure_supplementaires": "Non",
+      "augementation_salaire_precedente": "12 %"
+    }
+  ],
+  "sirh_data": [
+    {
+      "id_employee": 1,
+      "age": 41,
+      "genre": "F",
+      "revenu_mensuel": 5993,
+      "statut_marital": "C\u00e9libataire",
+      "departement": "Commercial",
+      "poste": "Cadre Commercial",
+      "nombre_experiences_precedentes": 8,
+      "nombre_heures_travailless": 80,
+      "annee_experience_totale": 8,
+      "annees_dans_l_entreprise": 6,
+      "annees_dans_le_poste_actuel": 4
+    },
+    {
+      "id_employee": 2,
+      "age": 49,
+      "genre": "M",
+      "revenu_mensuel": 5130,
+      "statut_marital": "Mari\u00e9(e)",
+      "departement": "Consulting",
+      "poste": "Assistant de Direction",
+      "nombre_experiences_precedentes": 1,
+      "nombre_heures_travailless": 80,
+      "annee_experience_totale": 10,
+      "annees_dans_l_entreprise": 10,
+      "annees_dans_le_poste_actuel": 7
+    },
+    {
+      "id_employee": 4,
+      "age": 37,
+      "genre": "M",
+      "revenu_mensuel": 2090,
+      "statut_marital": "C\u00e9libataire",
+      "departement": "Consulting",
+      "poste": "Consultant",
+      "nombre_experiences_precedentes": 6,
+      "nombre_heures_travailless": 80,
+      "annee_experience_totale": 7,
+      "annees_dans_l_entreprise": 0,
+      "annees_dans_le_poste_actuel": 0
+    },
+    {
+      "id_employee": 5,
+      "age": 33,
+      "genre": "F",
+      "revenu_mensuel": 2909,
+      "statut_marital": "Mari\u00e9(e)",
+      "departement": "Consulting",
+      "poste": "Assistant de Direction",
+      "nombre_experiences_precedentes": 1,
+      "nombre_heures_travailless": 80,
+      "annee_experience_totale": 8,
+      "annees_dans_l_entreprise": 8,
+      "annees_dans_le_poste_actuel": 7
+    },
+    {
+      "id_employee": 7,
+      "age": 27,
+      "genre": "M",
+      "revenu_mensuel": 3468,
+      "statut_marital": "Mari\u00e9(e)",
+      "departement": "Consulting",
+      "poste": "Consultant",
+      "nombre_experiences_precedentes": 9,
+      "nombre_heures_travailless": 80,
+      "annee_experience_totale": 6,
+      "annees_dans_l_entreprise": 2,
+      "annees_dans_le_poste_actuel": 2
+    }
+  ],
+  "sondage_data": [
+    {
+      "nombre_participation_pee": 0,
+      "nb_formations_suivies": 0,
+      "nombre_employee_sous_responsabilite": 1,
+      "code_sondage": 1,
+      "distance_domicile_travail": 1,
+      "niveau_education": 2,
+      "domaine_etude": "Infra & Cloud",
+      "ayant_enfants": "Y",
+      "frequence_deplacement": "Occasionnel",
+      "annees_depuis_la_derniere_promotion": 0,
+      "annes_sous_responsable_actuel": 5
+    },
+    {
+      "nombre_participation_pee": 1,
+      "nb_formations_suivies": 3,
+      "nombre_employee_sous_responsabilite": 1,
+      "code_sondage": 2,
+      "distance_domicile_travail": 8,
+      "niveau_education": 1,
+      "domaine_etude": "Infra & Cloud",
+      "ayant_enfants": "Y",
+      "frequence_deplacement": "Frequent",
+      "annees_depuis_la_derniere_promotion": 1,
+      "annes_sous_responsable_actuel": 7
+    },
+    {
+      "nombre_participation_pee": 0,
+      "nb_formations_suivies": 3,
+      "nombre_employee_sous_responsabilite": 1,
+      "code_sondage": 4,
+      "distance_domicile_travail": 2,
+      "niveau_education": 2,
+      "domaine_etude": "Autre",
+      "ayant_enfants": "Y",
+      "frequence_deplacement": "Occasionnel",
+      "annees_depuis_la_derniere_promotion": 0,
+      "annes_sous_responsable_actuel": 0
+    },
+    {
+      "nombre_participation_pee": 0,
+      "nb_formations_suivies": 3,
+      "nombre_employee_sous_responsabilite": 1,
+      "code_sondage": 5,
+      "distance_domicile_travail": 3,
+      "niveau_education": 4,
+      "domaine_etude": "Infra & Cloud",
+      "ayant_enfants": "Y",
+      "frequence_deplacement": "Frequent",
+      "annees_depuis_la_derniere_promotion": 3,
+      "annes_sous_responsable_actuel": 0
+    },
+    {
+      "nombre_participation_pee": 1,
+      "nb_formations_suivies": 3,
+      "nombre_employee_sous_responsabilite": 1,
+      "code_sondage": 7,
+      "distance_domicile_travail": 2,
+      "niveau_education": 1,
+      "domaine_etude": "Transformation Digitale",
+      "ayant_enfants": "Y",
+      "frequence_deplacement": "Occasionnel",
+      "annees_depuis_la_derniere_promotion": 2,
+      "annes_sous_responsable_actuel": 2
+    }
+  ]
+}

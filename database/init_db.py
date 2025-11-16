@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 # Add the project root to sys.path to allow importing modules from the root
 # Add the project root to sys.path to allow importing modules from the root
-sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from utils import load_and_merge_data  # Import the merged data loading function
 
@@ -18,10 +18,24 @@ from .models import Employee
 
 def init_db():
     """Initialize the database and load initial employee data if the table is empty."""
-    # Create all tables defined in Base
-    print("Creating database tables...")
-    Base.metadata.create_all(bind=engine)
-    print("Database tables created.")
+    try:
+        # Create all tables defined in Base
+        print("Creating database tables...")
+        Base.metadata.create_all(bind=engine)
+        print("Database tables created.")
+    except Exception as e:
+        if "psycopg2" in str(e):
+            print("\n--- DATABASE CONNECTION ERROR ---")
+            print("Could not connect to the PostgreSQL database.")
+            print("This script is configured to use PostgreSQL by default.")
+            print("\nPlease choose one of the following options:")
+            print("1. Make sure you have a PostgreSQL server running and accessible.")
+            print("2. To use a local SQLite database instead, open the '.env' file and comment out the DATABASE_URL line.")
+            print("   The application will automatically create and use a 'hr_attrition.db' file in the project root.")
+            print("\nOriginal error:", e)
+            return
+        else:
+            raise e
 
     # Load initial data into the employees table
     db: Session = SessionLocal()

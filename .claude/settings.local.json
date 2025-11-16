@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl:*)",
+      "Bash(python -m uvicorn:*)",
+      "Bash(poetry run uvicorn:*)",
+      "Bash(timeout /t 5 /nobreak)",
+      "Bash(poetry run python:*)",
+      "Bash(poetry run streamlit:*)",
+      "Bash(git checkout:*)",
+      "Bash(.venvScriptspython.exe:*)",
+      "Bash(\".venv/Scripts/python.exe\" -m uvicorn:*)",
+      "Bash(\".venv/Scripts/python.exe\" test_streamlit_simulation.py)",
+      "Bash(where poetry:*)",
+      "Bash(cat:*)",
+      "Bash(git add:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

@@ -7,10 +7,14 @@ from core.data_processing import (
 )
 from core.preprocess import enforce_schema, validate_input_ranges
 from core.schema import (
-    BatchPredictionInput,
+    ProcessedBatchPredictionInput, # Renamed from BatchPredictionInput
     BatchPredictionOutput,
     EmployeeInputSchema,
     PredictionOutput,
+    EvalInputSchema,
+    SirhInputSchema,
+    SondageInputSchema,
+    RawBatchPredictionInput,
 )
 from core.validation import (
     ALL_FEATURE_COLS,
@@ -34,10 +38,14 @@ __all__ = [
     "enforce_schema",
     "validate_input_ranges",
     # Schemas
-    "BatchPredictionInput",
+    "ProcessedBatchPredictionInput",
     "BatchPredictionOutput",
     "EmployeeInputSchema",
     "PredictionOutput",
+    "EvalInputSchema",
+    "SirhInputSchema",
+    "SondageInputSchema",
+    "RawBatchPredictionInput",
     # Validation constants
     "ALL_FEATURE_COLS",
     "CATEGORICAL_COLS",

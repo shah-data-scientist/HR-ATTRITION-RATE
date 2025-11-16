@@ -7,6 +7,49 @@ before it goes through cleaning and feature engineering.
 from pydantic import BaseModel, ConfigDict, Field
 
 
+class EvalInputSchema(BaseModel):
+    """Raw input schema for evaluation data (extrait_eval.csv)."""
+    satisfaction_employee_environnement: int = Field(..., ge=1, le=4, description="Employee satisfaction with environment (1-4)")
+    note_evaluation_precedente: int = Field(..., ge=1, le=4, description="Previous evaluation score (1-4)")
+    niveau_hierarchique_poste: int = Field(..., ge=1, le=5, description="Hierarchical level of position (1-5)")
+    satisfaction_employee_nature_travail: int = Field(..., ge=1, le=4, description="Employee satisfaction with nature of work (1-4)")
+    satisfaction_employee_equipe: int = Field(..., ge=1, le=4, description="Employee satisfaction with team (1-4)")
+    satisfaction_employee_equilibre_pro_perso: int = Field(..., ge=1, le=4, description="Employee satisfaction with work-life balance (1-4)")
+    eval_number: str = Field(..., description="Evaluation number (e.g., 'E_1')")
+    note_evaluation_actuelle: int = Field(..., ge=1, le=4, description="Current evaluation score (1-4)")
+    heure_supplementaires: str = Field(..., description="Overtime ('Oui' or 'Non')")
+    augementation_salaire_precedente: str = Field(..., description="Previous salary increase percentage (e.g., '11 %')")
+
+class SirhInputSchema(BaseModel):
+    """Raw input schema for SIRH data (extrait_sirh.csv)."""
+    id_employee: int = Field(..., ge=0, description="Unique employee identifier")
+    age: int = Field(..., ge=18, le=70, description="Employee age")
+    genre: str = Field(..., description="Gender ('M', 'F', etc.)")
+    revenu_mensuel: int = Field(..., ge=0, description="Monthly income")
+    statut_marital: str = Field(..., description="Marital status")
+    departement: str = Field(..., description="Department")
+    poste: str = Field(..., description="Job position")
+    nombre_experiences_precedentes: int = Field(..., ge=0, description="Number of previous work experiences")
+    nombre_heures_travailless: int = Field(..., ge=0, description="Number of hours worked")
+    annee_experience_totale: int = Field(..., ge=0, description="Total years of work experience")
+    annees_dans_l_entreprise: int = Field(..., ge=0, description="Years in the company")
+    annees_dans_le_poste_actuel: int = Field(..., ge=0, description="Years in current position")
+
+class SondageInputSchema(BaseModel):
+    """Raw input schema for survey data (extrait_sondage.csv)."""
+    nombre_participation_pee: int = Field(..., ge=0, description="Number of PEE participations")
+    nb_formations_suivies: int = Field(..., ge=0, le=3, description="Number of trainings attended (0-3)")
+    nombre_employee_sous_responsabilite: int = Field(..., ge=0, le=20, description="Number of employees under responsibility")
+    code_sondage: int = Field(..., ge=0, description="Survey code (corresponds to id_employee)")
+    distance_domicile_travail: int = Field(..., ge=0, le=50, description="Distance from home to work (km)")
+    niveau_education: int = Field(..., ge=1, le=5, description="Education level (1-5)")
+    domaine_etude: str = Field(..., description="Field of study")
+    ayant_enfants: str = Field(..., description="Has children ('Y' or 'N')")
+    frequence_deplacement: str = Field(..., description="Travel frequency")
+    annees_depuis_la_derniere_promotion: int = Field(..., ge=0, description="Years since last promotion")
+    annes_sous_responsable_actuel: int = Field(..., ge=0, description="Years under current manager")
+
+
 class EmployeeInputSchema(BaseModel):
     """Raw employee input schema (before cleaning/transformation).
 
@@ -168,10 +211,20 @@ class PredictionOutput(BaseModel):
     risk_category: str = Field(..., description="Risk category ('Low', 'Medium', 'High')")
     message: str = Field(..., description="Descriptive message about the prediction")
     trace_id: int | None = Field(None, description="Traceability ID")
+    shap_values: list[float] | None = Field(None, description="SHAP values for the prediction")
+    base_value: float | None = Field(None, description="SHAP base value (expected value)")
+    feature_names: list[str] | None = Field(None, description="Feature names corresponding to SHAP values")
 
 
-class BatchPredictionInput(BaseModel):
-    """Batch prediction input schema."""
+class RawBatchPredictionInput(BaseModel):
+    """Batch prediction input schema for raw, unmerged employee data."""
+    eval_data: list[EvalInputSchema] = Field(..., description="List of raw evaluation records")
+    sirh_data: list[SirhInputSchema] = Field(..., description="List of raw SIRH records")
+    sondage_data: list[SondageInputSchema] = Field(..., description="List of raw survey records")
+
+
+class ProcessedBatchPredictionInput(BaseModel):
+    """Batch prediction input schema for processed (merged) employee data."""
 
     employees: list[EmployeeInputSchema] = Field(
         ..., description="List of employee records"
