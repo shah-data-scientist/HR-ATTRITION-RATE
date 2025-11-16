@@ -99,7 +99,7 @@ services:
   fastapi_app:
     build:
       context: .
-      dockerfile: Dockerfile.api
+      dockerfile: docker/Dockerfile.api
     restart: always
     ports:
       - "8001:8001"
@@ -119,7 +119,7 @@ services:
   streamlit_app:
     build:
       context: .
-      dockerfile: Dockerfile.streamlit
+      dockerfile: docker/Dockerfile.streamlit
     restart: always
     ports:
       - "8501:8501"
@@ -144,10 +144,10 @@ volumes:
    aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin <account-id>.dkr.ecr.us-east-1.amazonaws.com
    
    # Build and tag images
-   docker build -f Dockerfile.api -t hr-attrition-api .
+   docker build -f docker/Dockerfile.api -t hr-attrition-api .
    docker tag hr-attrition-api:latest <account-id>.dkr.ecr.us-east-1.amazonaws.com/hr-attrition-api:latest
    
-   docker build -f Dockerfile.streamlit -t hr-attrition-ui .
+   docker build -f docker/Dockerfile.streamlit -t hr-attrition-ui .
    docker tag hr-attrition-ui:latest <account-id>.dkr.ecr.us-east-1.amazonaws.com/hr-attrition-ui:latest
    
    # Push to ECR
@@ -222,8 +222,8 @@ volumes:
 
 2. **Build and push images**
    ```bash
-   az acr build --registry myregistry --image hr-attrition-api:latest --file Dockerfile.api .
-   az acr build --registry myregistry --image hr-attrition-ui:latest --file Dockerfile.streamlit .
+   az acr build --registry myregistry --image hr-attrition-api:latest --file docker/Dockerfile.api .
+   az acr build --registry myregistry --image hr-attrition-ui:latest --file docker/Dockerfile.streamlit .
    ```
 
 3. **Create Azure Database for PostgreSQL**

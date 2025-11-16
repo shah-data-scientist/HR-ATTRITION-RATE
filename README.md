@@ -142,9 +142,12 @@ hr-attrition-rate/
 │   └── start-ui.bat      # Start UI (Windows)
 ├── tests/                 # Test suite
 ├── docs/                  # Documentation
+├── docker/                # Docker configuration
+│   ├── Dockerfile.api         # API container
+│   ├── Dockerfile.streamlit   # UI container
+│   ├── Dockerfile.database    # DB initialization
+│   └── Dockerfile.huggingface # Unified HF deployment
 ├── docker-compose.yml     # Docker orchestration
-├── Dockerfile.api         # API container definition
-├── Dockerfile.streamlit   # UI container definition
 └── pyproject.toml        # Project dependencies
 ```
 
@@ -250,10 +253,15 @@ Network error while connecting to API: [WinError 10061] No connection could be m
 
 ## 📚 Documentation
 
-- **[QUICKSTART.md](QUICKSTART.md)** - 5-minute setup guide for getting started
-- **[HUGGINGFACE_DEPLOYMENT.md](HUGGINGFACE_DEPLOYMENT.md)** - Deploy to Hugging Face Spaces
-- **[DEVELOPMENT.md](DEVELOPMENT.md)** - Development workflow and guidelines  
+### Getting Started
+- **[QUICKSTART.md](QUICKSTART.md)** - 5-minute setup guide
+- **[DEVELOPMENT.md](DEVELOPMENT.md)** - Development workflow and guidelines
+
+### Deployment
 - **[DEPLOYMENT.md](DEPLOYMENT.md)** - Production deployment (Docker, AWS, Azure, K8s)
+- **[docs/deployment/HUGGINGFACE_DEPLOYMENT.md](docs/deployment/HUGGINGFACE_DEPLOYMENT.md)** - Deploy to Hugging Face Spaces
+
+### Architecture & API
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) - System architecture details
 - [api/README.md](api/README.md) - API documentation
 - [.github/workflows/ci-cd.yml](.github/workflows/ci-cd.yml) - CI/CD pipeline

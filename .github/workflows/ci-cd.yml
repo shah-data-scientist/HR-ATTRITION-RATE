@@ -82,7 +82,7 @@ jobs:
     
     - name: Build Hugging Face Docker image
       run: |
-        docker build -f Dockerfile.huggingface -t hr-attrition-hf:${{ github.sha }} .
+        docker build -f docker/Dockerfile.huggingface -t hr-attrition-hf:${{ github.sha }} .
     
     - name: Test Docker image
       run: |

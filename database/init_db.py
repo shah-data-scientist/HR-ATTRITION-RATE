@@ -1,6 +1,6 @@
 import os
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 import pandas as pd
@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 # Add the project root to sys.path to allow importing modules from the root
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from utils import load_and_merge_data  # Import the merged data loading function
+from scripts.utils import load_and_merge_data  # Import the merged data loading function
 
 from .database import Base, SessionLocal, engine
 from .models import Employee
@@ -79,7 +79,7 @@ def init_db():
                 employee = Employee(
                     id_employee=employee_id,
                     **employee_data,
-                    date_ingestion=datetime.now(UTC),
+                    date_ingestion=datetime.now(timezone.utc),
                 )
                 employees_to_add.append(employee)
 
