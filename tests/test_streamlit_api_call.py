@@ -5,10 +5,11 @@ import sys
 import json
 
 # Add the project root to the sys.path to allow importing modules from the project
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 # Import the functions from ui/app.py
 from ui.app import _call_prediction_api, _load_local_csv_files, get_project_root
+
 
 @pytest.fixture(scope="module")
 def raw_synthetic_data():
@@ -29,6 +30,7 @@ def raw_synthetic_data():
         "sondage_data": sondage_data_for_api,
     }
 
+
 def test_streamlit_api_call_success(raw_synthetic_data):
     """
     Tests the _call_prediction_api function from ui/app.py directly.
@@ -40,7 +42,7 @@ def test_streamlit_api_call_success(raw_synthetic_data):
         api_response = _call_prediction_api(
             raw_synthetic_data["eval_data"],
             raw_synthetic_data["sirh_data"],
-            raw_synthetic_data["sondage_data"]
+            raw_synthetic_data["sondage_data"],
         )
 
         print("\n--- API Response received by _call_prediction_api ---")

@@ -30,8 +30,12 @@ def init_db():
             print("This script is configured to use PostgreSQL by default.")
             print("\nPlease choose one of the following options:")
             print("1. Make sure you have a PostgreSQL server running and accessible.")
-            print("2. To use a local SQLite database instead, open the '.env' file and comment out the DATABASE_URL line.")
-            print("   The application will automatically create and use a 'hr_attrition.db' file in the project root.")
+            print(
+                "2. To use a local SQLite database instead, open the '.env' file and comment out the DATABASE_URL line."
+            )
+            print(
+                "   The application will automatically create and use a 'hr_attrition.db' file in the project root."
+            )
             print("\nOriginal error:", e)
             return
         else:

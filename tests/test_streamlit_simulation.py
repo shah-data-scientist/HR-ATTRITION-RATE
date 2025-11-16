@@ -2,13 +2,14 @@
 Simulates what the Streamlit app does when you click "Predict Attrition"
 This test uses the actual data files from the data/ folder
 """
+
 import httpx
 import pandas as pd
 import json
 
-print("="*70)
+print("=" * 70)
 print("STREAMLIT APP SIMULATION TEST")
-print("="*70)
+print("=" * 70)
 
 # Step 1: Load the CSV files from data/ folder (what Streamlit does)
 print("\n[Step 1] Loading CSV files from data/ folder...")
@@ -19,7 +20,9 @@ try:
 
     print(f"[OK] Loaded eval_df: {len(eval_df)} rows, columns: {list(eval_df.columns)}")
     print(f"[OK] Loaded sirh_df: {len(sirh_df)} rows, columns: {list(sirh_df.columns)}")
-    print(f"[OK] Loaded sondage_df: {len(sondage_df)} rows, columns: {list(sondage_df.columns)}")
+    print(
+        f"[OK] Loaded sondage_df: {len(sondage_df)} rows, columns: {list(sondage_df.columns)}"
+    )
 except Exception as e:
     print(f"[ERROR] Error loading files: {e}")
     exit(1)
@@ -76,22 +79,24 @@ try:
             json.dump(api_response, f, indent=2)
         print("[OK] Response saved to streamlit_simulation_response.json")
 
-        print(f"\n[OK] SUCCESS! Received {len(api_response['predictions'])} predictions")
+        print(
+            f"\n[OK] SUCCESS! Received {len(api_response['predictions'])} predictions"
+        )
 
         # Show summary
-        for i, pred in enumerate(api_response['predictions'], 1):
+        for i, pred in enumerate(api_response["predictions"], 1):
             print(f"\nEmployee {i}:")
             print(f"  ID: {pred['id_employee']}")
             print(f"  Prediction: {pred['prediction']}")
             print(f"  Probability: {pred['probability']:.2%}")
             print(f"  Risk: {pred['risk_category']}")
-            shap_values = pred.get('shap_values', [])
+            shap_values = pred.get("shap_values", [])
             if shap_values:
                 print(f"  SHAP values: {len(shap_values)} features")
 
-        print("\n" + "="*70)
+        print("\n" + "=" * 70)
         print("TEST PASSED - The data/ folder files work correctly!")
-        print("="*70)
+        print("=" * 70)
 
     elif response.status_code == 422:
         print("\n[ERROR] VALIDATION ERROR (422)")
@@ -108,19 +113,19 @@ try:
             # Group errors by location
             errors_by_loc = {}
             for error in error_detail["detail"]:
-                loc = " -> ".join(str(l) for l in error.get('loc', []))
+                loc = " -> ".join(str(l) for l in error.get("loc", []))
                 if loc not in errors_by_loc:
                     errors_by_loc[loc] = []
-                errors_by_loc[loc].append(error.get('msg', 'unknown'))
+                errors_by_loc[loc].append(error.get("msg", "unknown"))
 
             for loc, msgs in errors_by_loc.items():
                 print(f"\n  Location: {loc}")
                 for msg in msgs:
                     print(f"    - {msg}")
 
-        print("\n" + "="*70)
+        print("\n" + "=" * 70)
         print("TEST FAILED - Schema validation error")
-        print("="*70)
+        print("=" * 70)
         exit(1)
     else:
         print(f"\n[ERROR] Unexpected status code: {response.status_code}")
@@ -137,5 +142,6 @@ except httpx.RequestError as e:
 except Exception as e:
     print(f"\n[ERROR] Unexpected error: {e}")
     import traceback
+
     traceback.print_exc()
     exit(1)

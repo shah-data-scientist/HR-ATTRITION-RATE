@@ -2,6 +2,7 @@
 Comprehensive API tests to reach 85% coverage
 Focus on uncovered API paths and error handling
 """
+
 import pytest
 from fastapi.testclient import TestClient
 from unittest.mock import patch, MagicMock, Mock
@@ -16,6 +17,7 @@ from PIL import Image
 def client():
     """Create test client"""
     from api.app.main import app
+
     return TestClient(app)
 
 
@@ -52,13 +54,13 @@ def full_employee_data():
         "satisfaction_employee_equilibre_pro_perso": 2,
         "note_evaluation_actuelle": 4,
         "heure_supplementaires": "Non",
-        "augementation_salaire_precedente": "15"
+        "augementation_salaire_precedente": "15",
     }
 
 
 class TestRootEndpoint:
     """Test root endpoint"""
-    
+
     def test_root_endpoint(self, client):
         """Test GET / returns welcome message"""
         response = client.get("/")
@@ -69,28 +71,28 @@ class TestRootEndpoint:
 
 class TestPredictionWorkflow:
     """Test complete prediction workflow"""
-    
+
     def test_successful_prediction_workflow(self, client, full_employee_data):
         """Test complete successful prediction"""
         payload = {
             "eval_data": [full_employee_data],
             "sirh_data": [full_employee_data],
-            "sondage_data": [full_employee_data]
+            "sondage_data": [full_employee_data],
         }
         response = client.post("/predict", json=payload)
-        
+
         if response.status_code == 200:
             data = response.json()
             assert "predictions" in data
             assert len(data["predictions"]) > 0
-            
+
             # Verify prediction structure
             pred = data["predictions"][0]
             assert "id_employee" in pred
             assert "prediction" in pred
             assert "probability" in pred
             assert "risk_category" in pred
-    
+
     def test_prediction_with_batch(self, client, full_employee_data):
         """Test prediction with multiple employees"""
         employees = []
@@ -98,14 +100,14 @@ class TestPredictionWorkflow:
             emp = full_employee_data.copy()
             emp["id_employee"] = i
             employees.append(emp)
-        
+
         payload = {
             "eval_data": employees,
             "sirh_data": employees,
-            "sondage_data": employees
+            "sondage_data": employees,
         }
         response = client.post("/predict", json=payload)
-        
+
         if response.status_code == 200:
             data = response.json()
             assert len(data["predictions"]) == 3
@@ -113,21 +115,24 @@ class TestPredictionWorkflow:
 
 class TestExcelGeneration:
     """Test Excel report generation"""
-    
+
     def test_excel_generation_success(self, client, full_employee_data):
         """Test successful Excel generation"""
         payload = {
             "eval_data": [full_employee_data],
             "sirh_data": [full_employee_data],
-            "sondage_data": [full_employee_data]
+            "sondage_data": [full_employee_data],
         }
         response = client.post("/predict_excel", json=payload)
-        
+
         if response.status_code == 200:
             # Should return binary Excel file
-            assert response.headers["content-type"] == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            assert (
+                response.headers["content-type"]
+                == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            )
             assert len(response.content) > 0
-    
+
     def test_excel_with_multiple_predictions(self, client, full_employee_data):
         """Test Excel with batch predictions"""
         employees = []
@@ -136,34 +141,34 @@ class TestExcelGeneration:
             emp["id_employee"] = i
             emp["age"] = 30 + i
             employees.append(emp)
-        
+
         payload = {
             "eval_data": employees,
             "sirh_data": employees,
-            "sondage_data": employees
+            "sondage_data": employees,
         }
         response = client.post("/predict_excel", json=payload)
-        
+
         if response.status_code == 200:
             assert len(response.content) > 0
 
 
 class TestShapImages:
     """Test SHAP image generation"""
-    
+
     def test_shap_images_generation(self, client, full_employee_data):
         """Test SHAP image generation"""
         payload = {
             "eval_data": [full_employee_data],
             "sirh_data": [full_employee_data],
-            "sondage_data": [full_employee_data]
+            "sondage_data": [full_employee_data],
         }
         response = client.post("/predict_shap_images", json=payload)
-        
+
         if response.status_code == 200:
             data = response.json()
             assert "predictions" in data
-            
+
             # Check for SHAP images in response
             if data["predictions"]:
                 pred = data["predictions"][0]
@@ -174,44 +179,32 @@ class TestShapImages:
 
 class TestDataValidation:
     """Test input data validation"""
-    
+
     def test_invalid_age(self, client, full_employee_data):
         """Test with invalid age"""
         data = full_employee_data.copy()
         data["age"] = -5  # Invalid
-        
-        payload = {
-            "eval_data": [data],
-            "sirh_data": [data],
-            "sondage_data": [data]
-        }
+
+        payload = {"eval_data": [data], "sirh_data": [data], "sondage_data": [data]}
         response = client.post("/predict", json=payload)
         # Should return validation error
         assert response.status_code in [422, 500]
-    
+
     def test_missing_required_field(self, client, full_employee_data):
         """Test with missing required field"""
         data = full_employee_data.copy()
         del data["age"]  # Remove required field
-        
-        payload = {
-            "eval_data": [data],
-            "sirh_data": [data],
-            "sondage_data": [data]
-        }
+
+        payload = {"eval_data": [data], "sirh_data": [data], "sondage_data": [data]}
         response = client.post("/predict", json=payload)
         assert response.status_code == 422
-    
+
     def test_invalid_categorical_value(self, client, full_employee_data):
         """Test with invalid categorical value"""
         data = full_employee_data.copy()
         data["genre"] = "Invalid"  # Should be M or F
-        
-        payload = {
-            "eval_data": [data],
-            "sirh_data": [data],
-            "sondage_data": [data]
-        }
+
+        payload = {"eval_data": [data], "sirh_data": [data], "sondage_data": [data]}
         response = client.post("/predict", json=payload)
         # May pass validation but handled in processing
         assert response.status_code in [200, 422, 500]
@@ -219,18 +212,18 @@ class TestDataValidation:
 
 class TestJobEndpoints:
     """Test job queue endpoints"""
-    
+
     def test_submit_report_job(self, client, full_employee_data):
         """Test submitting a report job"""
         payload = {
             "eval_data": [full_employee_data],
             "sirh_data": [full_employee_data],
-            "sondage_data": [full_employee_data]
+            "sondage_data": [full_employee_data],
         }
         response = client.post("/jobs/submit_report", json=payload)
         # May fail if DB disabled or method not allowed, but endpoint should exist
         assert response.status_code in [200, 201, 405, 500, 503]
-    
+
     def test_list_jobs(self, client):
         """Test listing jobs"""
         response = client.get("/jobs/")
@@ -240,48 +233,44 @@ class TestJobEndpoints:
 
 class TestErrorScenarios:
     """Test various error scenarios"""
-    
+
     def test_malformed_json(self, client):
         """Test with malformed JSON"""
         response = client.post(
             "/predict",
             data="{invalid json}",
-            headers={"Content-Type": "application/json"}
+            headers={"Content-Type": "application/json"},
         )
         assert response.status_code == 422
-    
+
     def test_empty_payload(self, client):
         """Test with empty payload"""
         response = client.post("/predict", json={})
         assert response.status_code == 422
-    
+
     def test_null_values(self, client, full_employee_data):
         """Test with null values"""
         data = full_employee_data.copy()
         data["age"] = None
         data["revenu_mensuel"] = None
-        
-        payload = {
-            "eval_data": [data],
-            "sirh_data": [data],
-            "sondage_data": [data]
-        }
+
+        payload = {"eval_data": [data], "sirh_data": [data], "sondage_data": [data]}
         response = client.post("/predict", json=payload)
         assert response.status_code in [422, 500]
 
 
 class TestDatabaseIntegration:
     """Test database integration"""
-    
+
     def test_prediction_with_db_enabled(self, client, full_employee_data):
         """Test prediction stores to database when enabled"""
         payload = {
             "eval_data": [full_employee_data],
             "sirh_data": [full_employee_data],
-            "sondage_data": [full_employee_data]
+            "sondage_data": [full_employee_data],
         }
         response = client.post("/predict", json=payload)
-        
+
         if response.status_code == 200:
             data = response.json()
             # Should have trace_id indicating DB storage
@@ -292,7 +281,7 @@ class TestDatabaseIntegration:
 
 class TestEdgeCases:
     """Test edge cases"""
-    
+
     def test_very_large_batch(self, client, full_employee_data):
         """Test with large batch of employees"""
         employees = []
@@ -300,43 +289,35 @@ class TestEdgeCases:
             emp = full_employee_data.copy()
             emp["id_employee"] = i
             employees.append(emp)
-        
+
         payload = {
             "eval_data": employees,
             "sirh_data": employees,
-            "sondage_data": employees
+            "sondage_data": employees,
         }
         response = client.post("/predict", json=payload)
         # Should handle or return appropriate error
         assert response.status_code in [200, 422, 500, 413]
-    
+
     def test_special_characters_in_strings(self, client, full_employee_data):
         """Test with special characters"""
         data = full_employee_data.copy()
         data["departement"] = "IT & Développement"
         data["poste"] = "Senior Developer (L'équipe)"
-        
-        payload = {
-            "eval_data": [data],
-            "sirh_data": [data],
-            "sondage_data": [data]
-        }
+
+        payload = {"eval_data": [data], "sirh_data": [data], "sondage_data": [data]}
         response = client.post("/predict", json=payload)
         # Should handle special characters
         assert response.status_code in [200, 422, 500]
-    
+
     def test_extreme_values(self, client, full_employee_data):
         """Test with extreme but valid values"""
         data = full_employee_data.copy()
         data["age"] = 65  # Maximum
         data["annee_experience_totale"] = 40  # High experience
         data["revenu_mensuel"] = 20000  # High salary
-        
-        payload = {
-            "eval_data": [data],
-            "sirh_data": [data],
-            "sondage_data": [data]
-        }
+
+        payload = {"eval_data": [data], "sirh_data": [data], "sondage_data": [data]}
         response = client.post("/predict", json=payload)
         # Should handle extreme values
         assert response.status_code in [200, 422, 500]
@@ -344,21 +325,21 @@ class TestEdgeCases:
 
 class TestConcurrency:
     """Test concurrent request handling"""
-    
+
     def test_multiple_simultaneous_predictions(self, client, full_employee_data):
         """Test handling multiple requests"""
         payload = {
             "eval_data": [full_employee_data],
             "sirh_data": [full_employee_data],
-            "sondage_data": [full_employee_data]
+            "sondage_data": [full_employee_data],
         }
-        
+
         # Make multiple requests
         responses = []
         for _ in range(3):
             response = client.post("/predict", json=payload)
             responses.append(response)
-        
+
         # All should succeed or fail consistently
         status_codes = [r.status_code for r in responses]
         assert all(code in [200, 422, 500] for code in status_codes)
@@ -366,36 +347,41 @@ class TestConcurrency:
 
 class TestResponseFormat:
     """Test response format validation"""
-    
+
     def test_prediction_response_structure(self, client, full_employee_data):
         """Test prediction response has correct structure"""
         payload = {
             "eval_data": [full_employee_data],
             "sirh_data": [full_employee_data],
-            "sondage_data": [full_employee_data]
+            "sondage_data": [full_employee_data],
         }
         response = client.post("/predict", json=payload)
-        
+
         if response.status_code == 200:
             data = response.json()
             assert isinstance(data, dict)
             assert "predictions" in data
             assert isinstance(data["predictions"], list)
-            
+
             if data["predictions"]:
                 pred = data["predictions"][0]
-                required_fields = ["id_employee", "prediction", "probability", "risk_category"]
+                required_fields = [
+                    "id_employee",
+                    "prediction",
+                    "probability",
+                    "risk_category",
+                ]
                 for field in required_fields:
                     assert field in pred
-    
+
     def test_error_response_structure(self, client):
         """Test error response has correct structure"""
         response = client.post("/predict", json={})
-        
+
         if response.status_code == 422:
             data = response.json()
             assert "detail" in data
 
 
-if __name__ == '__main__':
-    pytest.main([__file__, '-v'])
+if __name__ == "__main__":
+    pytest.main([__file__, "-v"])

@@ -2,14 +2,15 @@
 End-to-End Testing Script for HR Attrition API
 This script tests the full workflow from CSV loading to prediction.
 """
+
 import requests
 import pandas as pd
 import json
 import sys
 
-print("="*70)
+print("=" * 70)
 print("HR ATTRITION API - END-TO-END TEST")
-print("="*70)
+print("=" * 70)
 
 # Test 1: Health Check
 print("\n[TEST 1] Health Check")
@@ -79,9 +80,7 @@ try:
     print("  Payload saved to test_payload.json")
 
     response = requests.post(
-        "http://localhost:8001/predict",
-        json=payload,
-        timeout=60.0
+        "http://localhost:8001/predict", json=payload, timeout=60.0
     )
 
     print(f"\n  Status Code: {response.status_code}")
@@ -120,6 +119,7 @@ except requests.exceptions.Timeout:
 except Exception as e:
     print(f"✗ Failed to send request: {e}")
     import traceback
+
     traceback.print_exc()
     sys.exit(1)
 
@@ -139,7 +139,7 @@ try:
         print(f"    Trace ID: {pred['trace_id']}")
 
         # Validate SHAP values
-        if pred.get('shap_values'):
+        if pred.get("shap_values"):
             print(f"    SHAP values: {len(pred['shap_values'])} features")
             print(f"    Base value: {pred.get('base_value', 'N/A')}")
         else:
@@ -150,6 +150,7 @@ try:
 except Exception as e:
     print(f"✗ Failed to validate predictions: {e}")
     import traceback
+
     traceback.print_exc()
     sys.exit(1)
 
@@ -157,7 +158,7 @@ except Exception as e:
 print("\n[TEST 6] Testing with Full Dataset")
 print("-" * 70)
 response = input("Do you want to test with the full dataset? (y/n): ")
-if response.lower() == 'y':
+if response.lower() == "y":
     try:
         print("  Processing full dataset...")
         eval_data_full = eval_df.to_dict(orient="records")
@@ -171,9 +172,7 @@ if response.lower() == 'y':
         }
 
         response = requests.post(
-            "http://localhost:8001/predict",
-            json=payload_full,
-            timeout=120.0
+            "http://localhost:8001/predict", json=payload_full, timeout=120.0
         )
 
         if response.status_code == 200:
@@ -193,6 +192,6 @@ if response.lower() == 'y':
 else:
     print("  Skipped full dataset test")
 
-print("\n" + "="*70)
+print("\n" + "=" * 70)
 print("END-TO-END TEST COMPLETED SUCCESSFULLY!")
-print("="*70)
+print("=" * 70)

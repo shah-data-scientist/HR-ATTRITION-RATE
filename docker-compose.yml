@@ -12,6 +12,29 @@ services:
       - "5432:5432"
     volumes:
       - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d hr_attrition_db"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - hr_network
+
+  db_init:
+    build:
+      context: .
+      dockerfile: Dockerfile.database
+    environment:
+      DATABASE_URL: postgresql://user:password@db:5432/hr_attrition_db
+      DISABLE_DB: "false"
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./data:/app/data
+    networks:
+      - hr_network
 
   fastapi_app:
     build:
@@ -23,8 +46,21 @@ services:
       DATABASE_URL: postgresql://user:password@db:5432/hr_attrition_db
       API_HOST: 0.0.0.0
       API_PORT: 8001
+      DISABLE_DB: "false"
     depends_on:
-      - db
+      db:
+        condition: service_healthy
+      db_init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+    networks:
+      - hr_network
 
   streamlit_app:
     build:
@@ -35,7 +71,22 @@ services:
     environment:
       API_BASE_URL: http://fastapi_app:8001
     depends_on:
-      - fastapi_app
+      fastapi_app:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8501/_stcore/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+    networks:
+      - hr_network
 
 volumes:
   db_data:
+    driver: local
+
+networks:
+  hr_network:
+    driver: bridge

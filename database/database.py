@@ -36,7 +36,11 @@ else:
     )
 
 # Create a SessionLocal class
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine) if not DISABLE_DB else None
+SessionLocal = (
+    sessionmaker(autocommit=False, autoflush=False, bind=engine)
+    if not DISABLE_DB
+    else None
+)
 
 # Base class for declarative models
 Base = declarative_base()

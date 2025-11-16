@@ -5,13 +5,15 @@ import sys
 import io
 
 # Add the project root to the sys.path to allow importing modules from the project
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 API_BASE_URL = "http://localhost:8001"
 
+
 def get_project_root():
     """Returns the absolute path to the project root (one level up from scripts)."""
-    return os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+    return os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+
 
 def _load_local_csv_files():
     """Loads the required CSV files from the local 'data' directory."""
@@ -27,12 +29,15 @@ def _load_local_csv_files():
 
         return eval_df, sirh_df, sondage_df
     except FileNotFoundError as e:
-        print(f"Required data file not found: {e}. Please ensure 'data' directory "
-              "contains 'extrait_eval.csv', 'extrait_sirh.csv', and 'extrait_sondage.csv'.")
+        print(
+            f"Required data file not found: {e}. Please ensure 'data' directory "
+            "contains 'extrait_eval.csv', 'extrait_sirh.csv', and 'extrait_sondage.csv'."
+        )
         sys.exit(1)
     except Exception as e:
         print(f"An error occurred loading local CSV files: {e}")
         sys.exit(1)
+
 
 def debug_api_call():
     print("--- Starting API Debug Call ---")
@@ -73,6 +78,7 @@ def debug_api_call():
         print(f"An unexpected error occurred: {e}")
 
     print("--- API Debug Call Finished ---")
+
 
 if __name__ == "__main__":
     debug_api_call()

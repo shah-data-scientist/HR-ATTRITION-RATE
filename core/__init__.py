@@ -7,7 +7,7 @@ from core.data_processing import (
 )
 from core.preprocess import enforce_schema, validate_input_ranges
 from core.schema import (
-    ProcessedBatchPredictionInput, # Renamed from BatchPredictionInput
+    ProcessedBatchPredictionInput,  # Renamed from BatchPredictionInput
     BatchPredictionOutput,
     EmployeeInputSchema,
     PredictionOutput,

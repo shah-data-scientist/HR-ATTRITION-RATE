@@ -6,6 +6,7 @@ import pandas as pd
 import numpy as np
 import shap
 import matplotlib
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from datetime import datetime, timedelta
@@ -34,6 +35,7 @@ def mark_stale_jobs(db):
 def build_report_artifacts(predictions_output):
     # Build Summary sheet
     import pandas as pd
+
     summary_rows = []
     for p in predictions_output:
         summary_rows.append(
@@ -55,32 +57,44 @@ def build_report_artifacts(predictions_output):
                 if len(p.feature_names) == len(p.shap_values)
                 else [f"Feature {i}" for i in range(len(p.shap_values))]
             )
-            df = pd.DataFrame({
-                "Feature": feature_names,
-                "Coefficient": p.shap_values,
-            })
+            df = pd.DataFrame(
+                {
+                    "Feature": feature_names,
+                    "Coefficient": p.shap_values,
+                }
+            )
             df["Employee_ID"] = p.id_employee
             df["Prediction"] = p.prediction
             features_frames.append(df)
-    features_df = pd.concat(features_frames, ignore_index=True) if features_frames else pd.DataFrame()
+    features_df = (
+        pd.concat(features_frames, ignore_index=True)
+        if features_frames
+        else pd.DataFrame()
+    )
 
     # Build Metrics sheet
     total = len(predictions_output)
     predicted_leave = sum(1 for p in predictions_output if p.prediction == "Leave")
     predicted_stay = sum(1 for p in predictions_output if p.prediction == "Stay")
-    metrics_df = pd.DataFrame({
-        "Metric": ["Total Employees Processed", "Predicted to Leave", "Predicted to Stay"],
-        "Value": [total, predicted_leave, predicted_stay],
-    })
+    metrics_df = pd.DataFrame(
+        {
+            "Metric": [
+                "Total Employees Processed",
+                "Predicted to Leave",
+                "Predicted to Stay",
+            ],
+            "Value": [total, predicted_leave, predicted_stay],
+        }
+    )
 
     # Write Excel to bytes
     excel_buffer = io.BytesIO()
     with pd.ExcelWriter(excel_buffer, engine="openpyxl") as writer:
         summary_df.to_excel(writer, sheet_name="Summary", index=False)
         if not features_df.empty:
-            features_df[["Employee_ID", "Feature", "Coefficient", "Prediction"]].to_excel(
-                writer, sheet_name="Features", index=False
-            )
+            features_df[
+                ["Employee_ID", "Feature", "Coefficient", "Prediction"]
+            ].to_excel(writer, sheet_name="Features", index=False)
         metrics_df.to_excel(writer, sheet_name="Metrics", index=False)
     excel_buffer.seek(0)
     excel_b64 = base64.b64encode(excel_buffer.read()).decode("utf-8")
@@ -91,7 +105,8 @@ def build_report_artifacts(predictions_output):
         if p.shap_values is None or p.base_value is None:
             continue
         feature_names = (
-            p.feature_names if p.feature_names and len(p.feature_names) == len(p.shap_values)
+            p.feature_names
+            if p.feature_names and len(p.feature_names) == len(p.shap_values)
             else [f"Feature {i}" for i in range(len(p.shap_values))]
         )
         explanation = shap.Explanation(
@@ -108,13 +123,15 @@ def build_report_artifacts(predictions_output):
         plt.close(fig)
         img_str = base64.b64encode(buf.getvalue()).decode("utf-8")
 
-        shap_images.append({
-            "employee_id": p.id_employee,
-            "risk_category": p.risk_category,
-            "attrition_prob": float(p.probability),
-            "prediction_type": p.prediction,
-            "img_base64": img_str,
-        })
+        shap_images.append(
+            {
+                "employee_id": p.id_employee,
+                "risk_category": p.risk_category,
+                "attrition_prob": float(p.probability),
+                "prediction_type": p.prediction,
+                "img_base64": img_str,
+            }
+        )
 
     return {
         "excel_base64": excel_b64,
@@ -131,6 +148,7 @@ def process_job(db, job):
 
     # Create a mock request object for the worker
     from types import SimpleNamespace
+
     mock_request = SimpleNamespace(headers={}, client=SimpleNamespace(host="worker"))
 
     # Use DB session for traceability
@@ -150,7 +168,12 @@ def main_loop():
     while True:
         with SessionLocal() as db:
             mark_stale_jobs(db)
-            job = db.query(Job).filter(Job.status == "queued").order_by(Job.created_at.asc()).first()
+            job = (
+                db.query(Job)
+                .filter(Job.status == "queued")
+                .order_by(Job.created_at.asc())
+                .first()
+            )
             if not job:
                 time.sleep(POLL_INTERVAL)
                 continue

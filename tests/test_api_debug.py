@@ -26,15 +26,13 @@ payload = {
     "sondage_data": sondage_data,
 }
 
-print("\n" + "="*50)
+print("\n" + "=" * 50)
 print("Sending request to API...")
-print("="*50)
+print("=" * 50)
 
 try:
     response = requests.post(
-        "http://localhost:8001/predict",
-        json=payload,
-        timeout=60.0
+        "http://localhost:8001/predict", json=payload, timeout=60.0
     )
 
     print(f"\nStatus Code: {response.status_code}")

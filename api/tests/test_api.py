@@ -20,7 +20,7 @@ from api.app.main import (
 from api.app.schemas import BatchPredictionInput, EmployeeFeatures
 
 # Database setup for testing
-SQLALCHEMY_DATABASE_URL = "sqlite:///./test.db" # Use a file-based SQLite for easier inspection if needed, or :memory: for purely in-memory
+SQLALCHEMY_DATABASE_URL = "sqlite:///./test.db"  # Use a file-based SQLite for easier inspection if needed, or :memory: for purely in-memory
 # For purely in-memory: SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"
 
 engine = create_engine(
@@ -42,6 +42,7 @@ def db_session():
         db.close()
         Base.metadata.drop_all(bind=engine)
 
+
 def override_get_db():
     try:
         db = TestingSessionLocal()
@@ -49,7 +50,9 @@ def override_get_db():
     finally:
         db.close()
 
+
 app.dependency_overrides[get_db] = override_get_db
+
 
 @pytest.fixture(scope="function")
 def mock_ml_model():
@@ -108,8 +111,11 @@ def mock_ml_model():
     ):
         yield
 
+
 @pytest.fixture(name="client")
-def client_fixture(db_session, mock_ml_model): # client_fixture now depends on db_session and mock_ml_model
+def client_fixture(
+    db_session, mock_ml_model
+):  # client_fixture now depends on db_session and mock_ml_model
     with TestClient(app) as client:
         yield client
 
@@ -364,6 +370,7 @@ async def test_lifespan_model_loaded_successfully(
     from fastapi import FastAPI
 
     from api.app.main import lifespan
+
     test_app = FastAPI(lifespan=lifespan)
 
     async with lifespan(test_app):
@@ -388,6 +395,7 @@ async def test_lifespan_model_not_found(mock_path_exists):
     from fastapi import FastAPI
 
     from api.app.main import lifespan
+
     test_app = FastAPI(lifespan=lifespan)
 
     with pytest.raises(RuntimeError, match="Model file not found"):

@@ -36,7 +36,9 @@ def main():
 
     data = resp.json()
     # Save API response (truncated) for debugging
-    (root / "temp_api_response.json").write_text(json.dumps(data)[:2000], encoding="utf-8")
+    (root / "temp_api_response.json").write_text(
+        json.dumps(data)[:2000], encoding="utf-8"
+    )
 
     # Save Excel report
     excel_b64 = data.get("excel_base64")
@@ -51,7 +53,9 @@ def main():
         emp_id = item.get("employee_id")
         img_b64 = item.get("img_base64")
         if img_b64 and emp_id is not None:
-            (images_dir / f"employee_{emp_id}.png").write_bytes(base64.b64decode(img_b64))
+            (images_dir / f"employee_{emp_id}.png").write_bytes(
+                base64.b64decode(img_b64)
+            )
     print(f"Saved {len(data.get('shap_images', []))} SHAP images to: {images_dir}")
 
 

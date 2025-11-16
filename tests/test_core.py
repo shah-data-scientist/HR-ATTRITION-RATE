@@ -222,7 +222,8 @@ class TestPydanticSchemas:
     def test_batch_prediction_input(self, sample_raw_employee_data):
         """Test batch prediction input schema."""
         from core.schema import RawBatchPredictionInput
+
         employee = EmployeeInputSchema(**sample_raw_employee_data)
         # Test that employee schema validates correctly
-        assert employee.id_employee == sample_raw_employee_data['id_employee']
-        assert employee.age == sample_raw_employee_data['age']
+        assert employee.id_employee == sample_raw_employee_data["id_employee"]
+        assert employee.age == sample_raw_employee_data["age"]

@@ -8,6 +8,7 @@ import base64
 import io
 import zipfile
 import matplotlib
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import joblib
@@ -24,11 +25,17 @@ from typing import Optional
 
 # Database imports
 from database.database import get_db
-from database.models import Employee, ModelInput, ModelOutput, PredictionTraceability, Job
+from database.models import (
+    Employee,
+    ModelInput,
+    ModelOutput,
+    PredictionTraceability,
+    Job,
+)
 
 # Core imports - using canonical schemas and processing
 from core.schema import (
-    ProcessedBatchPredictionInput, # Renamed from BatchPredictionInput
+    ProcessedBatchPredictionInput,  # Renamed from BatchPredictionInput
     BatchPredictionOutput,
     PredictionOutput,
     EvalInputSchema,
@@ -46,6 +53,7 @@ logger = logging.getLogger("uvicorn.error")
 # Define risk categories for Excel report and HTML visualization
 RISK_THRESHOLDS = {"Low": (0.0, 0.3), "Medium": (0.3, 0.7), "High": (0.7, 1.0)}
 
+
 # Optional local toggle to skip DB writes (useful when Postgres isn't available)
 def _is_db_disabled() -> bool:
     return os.getenv("DISABLE_DB", "0") == "1"
@@ -61,6 +69,7 @@ def _db_ok(db: Optional[Session]) -> bool:
     except Exception:
         return False
 
+
 # --- Global Model and Preprocessor ---
 model = None
 expected_model_columns = None
@@ -74,7 +83,11 @@ def init_model_for_cli():
     if model is not None and explainer is not None:
         return
     model_path = os.path.join(
-        os.path.dirname(__file__), "..", "..", "outputs", "employee_attrition_pipeline.pkl"
+        os.path.dirname(__file__),
+        "..",
+        "..",
+        "outputs",
+        "employee_attrition_pipeline.pkl",
     )
     if not os.path.exists(model_path):
         raise RuntimeError(
@@ -83,7 +96,9 @@ def init_model_for_cli():
     model = joblib.load(model_path)
     expected_model_columns = get_expected_columns_from_pipeline(model)
 
-    x_train_path = os.path.join(os.path.dirname(__file__), "..", "..", "outputs", "X_train.parquet")
+    x_train_path = os.path.join(
+        os.path.dirname(__file__), "..", "..", "outputs", "X_train.parquet"
+    )
     if not os.path.exists(x_train_path):
         raise RuntimeError(
             f"X_train file not found at {x_train_path}. SHAP explainer cannot be initialized."
@@ -94,7 +109,9 @@ def init_model_for_cli():
     x_train_transformed = preprocessor.transform(x_train_for_shap)
     expected_model_columns_for_shap = preprocessor.get_feature_names_out()
     if not isinstance(x_train_transformed, pd.DataFrame):
-        x_train_transformed = pd.DataFrame(x_train_transformed, columns=expected_model_columns_for_shap)
+        x_train_transformed = pd.DataFrame(
+            x_train_transformed, columns=expected_model_columns_for_shap
+        )
     explainer = shap.LinearExplainer(ml_model, x_train_transformed)
 
 
@@ -207,7 +224,9 @@ def get_risk_category(probability: float, threshold: float = 0.5) -> str:
     ):  # Close to threshold AND above minimum for Medium
         return "Medium"
     # Close to threshold but below min_medium_prob
-    return "Low"  # Default to Low if not High, not clearly Low, and below min_medium_prob
+    return (
+        "Low"  # Default to Low if not High, not clearly Low, and below min_medium_prob
+    )
 
 
 def generate_predictions(
@@ -234,11 +253,13 @@ def generate_predictions(
 
     # --- Data Merging Logic ---
     # 1. Create id_employee for eval_df from eval_number
-    eval_df["id_employee"] = eval_df["eval_number"].str.extract(r'E_(\d+)').astype(int)
+    eval_df["id_employee"] = eval_df["eval_number"].str.extract(r"E_(\d+)").astype(int)
 
     # 2. Merge sirh_df and sondage_df
     sondage_df_renamed = sondage_df.rename(columns={"code_sondage": "id_employee"})
-    merged_sirh_sondage = sirh_df.merge(sondage_df_renamed, on="id_employee", how="outer")
+    merged_sirh_sondage = sirh_df.merge(
+        sondage_df_renamed, on="id_employee", how="outer"
+    )
 
     # 3. Merge with eval_df
     input_df = merged_sirh_sondage.merge(
@@ -259,7 +280,9 @@ def generate_predictions(
     try:
         # Make predictions
         prediction_proba_raw = model.predict_proba(data_for_prediction)[:, 1]
-        predictions_binary = (prediction_proba_raw >= 0.5).astype(int)  # default threshold 0.5
+        predictions_binary = (prediction_proba_raw >= 0.5).astype(
+            int
+        )  # default threshold 0.5
 
         # Calculate log-odds for SHAP
         log_odds = np.log(
@@ -286,17 +309,20 @@ def generate_predictions(
 
             if compute_shap:
                 # Transform the single row for SHAP explanation
-                single_employee_data_transformed = model.named_steps["preprocessor"].transform(
-                    data_for_prediction.iloc[[i]]
-                )
+                single_employee_data_transformed = model.named_steps[
+                    "preprocessor"
+                ].transform(data_for_prediction.iloc[[i]])
 
                 # Ensure it's a DataFrame for SHAP explainer
                 if not isinstance(single_employee_data_transformed, pd.DataFrame):
                     single_employee_data_transformed = pd.DataFrame(
-                        single_employee_data_transformed, columns=expected_model_columns_for_shap
+                        single_employee_data_transformed,
+                        columns=expected_model_columns_for_shap,
                     )
 
-                shap_values_instance = explainer.shap_values(single_employee_data_transformed)[0]
+                shap_values_instance = explainer.shap_values(
+                    single_employee_data_transformed
+                )[0]
                 base_value_instance = float(explainer.expected_value)
                 feature_names_for_instance = list(expected_model_columns_for_shap)
 
@@ -306,10 +332,15 @@ def generate_predictions(
                 employee_data_for_db = {
                     k: v
                     for k, v in raw_employee_data.items()
-                    if k != "id_employee" and k in [col.name for col in Employee.__table__.columns]
+                    if k != "id_employee"
+                    and k in [col.name for col in Employee.__table__.columns]
                 }
 
-                employee_db = db.query(Employee).filter(Employee.id_employee == employee_id).first()
+                employee_db = (
+                    db.query(Employee)
+                    .filter(Employee.id_employee == employee_id)
+                    .first()
+                )
 
                 if not employee_db:
                     employee_db = Employee(
@@ -378,7 +409,11 @@ def generate_predictions(
                     risk_category=risk_cat,
                     message=f"Employee {employee_id} is predicted to {pred_label} with {prob:.2%} attrition risk (Risk: {risk_cat}).",
                     trace_id=trace_id,
-                    shap_values=(shap_values_instance.tolist() if shap_values_instance is not None else None),
+                    shap_values=(
+                        shap_values_instance.tolist()
+                        if shap_values_instance is not None
+                        else None
+                    ),
                     base_value=base_value_instance,
                     feature_names=feature_names_for_instance,
                 )
@@ -397,8 +432,7 @@ def generate_predictions(
 
 @app.get("/", summary="Root endpoint", response_model=dict[str, str])
 async def read_root():
-    """Provides basic information about the API.
-    """
+    """Provides basic information about the API."""
     return {
         "message": "Welcome to the Employee Attrition Prediction API!",
         "version": app.version,
@@ -412,15 +446,29 @@ async def health_check():
     Health check endpoint to verify API status.
     Returns a simple message indicating the API is healthy.
     """
-    return {"status": "ok", "message": "API is healthy", "db_disabled": str(_is_db_disabled())}
+    return {
+        "status": "ok",
+        "message": "API is healthy",
+        "db_disabled": str(_is_db_disabled()),
+    }
 
 
-@app.post("/jobs/report", summary="Enqueue report-generation job", response_model=dict[str, str])
-async def create_report_job(batch_input: RawBatchPredictionInput, db: Optional[Session] = Depends(get_db)):
+@app.post(
+    "/jobs/report",
+    summary="Enqueue report-generation job",
+    response_model=dict[str, str],
+)
+async def create_report_job(
+    batch_input: RawBatchPredictionInput, db: Optional[Session] = Depends(get_db)
+):
     if _is_db_disabled() or db is None:
-        raise HTTPException(status_code=503, detail="Database is disabled; jobs are unavailable.")
+        raise HTTPException(
+            status_code=503, detail="Database is disabled; jobs are unavailable."
+        )
     try:
-        job = Job(job_type="report", status="queued", payload_json=batch_input.model_dump())
+        job = Job(
+            job_type="report", status="queued", payload_json=batch_input.model_dump()
+        )
         db.add(job)
         db.commit()
         db.refresh(job)
@@ -432,7 +480,9 @@ async def create_report_job(batch_input: RawBatchPredictionInput, db: Optional[S
 @app.get("/jobs/{job_id}", summary="Get job status", response_model=dict)
 async def get_job_status(job_id: str, db: Optional[Session] = Depends(get_db)):
     if _is_db_disabled() or db is None:
-        raise HTTPException(status_code=503, detail="Database is disabled; jobs are unavailable.")
+        raise HTTPException(
+            status_code=503, detail="Database is disabled; jobs are unavailable."
+        )
     job = db.query(Job).filter(Job.job_id == job_id).first()
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
@@ -448,7 +498,9 @@ async def get_job_status(job_id: str, db: Optional[Session] = Depends(get_db)):
 @app.get("/jobs/{job_id}/result", summary="Get job result", response_model=dict)
 async def get_job_result(job_id: str, db: Optional[Session] = Depends(get_db)):
     if _is_db_disabled() or db is None:
-        raise HTTPException(status_code=503, detail="Database is disabled; jobs are unavailable.")
+        raise HTTPException(
+            status_code=503, detail="Database is disabled; jobs are unavailable."
+        )
     job = db.query(Job).filter(Job.job_id == job_id).first()
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
@@ -461,7 +513,10 @@ async def get_job_result(job_id: str, db: Optional[Session] = Depends(get_db)):
 async def db_health(db: Optional[Session] = Depends(get_db)):
     """Check database connectivity and return status."""
     if _is_db_disabled() or db is None:
-        return {"status": "disabled", "message": "Database usage is disabled via DISABLE_DB=1"}
+        return {
+            "status": "disabled",
+            "message": "Database usage is disabled via DISABLE_DB=1",
+        }
     try:
         db.execute(text("SELECT 1"))
         return {"status": "ok", "message": "Database connection successful"}
@@ -475,13 +530,17 @@ async def db_health(db: Optional[Session] = Depends(get_db)):
     summary="Predict attrition risk for a batch of employees",
 )
 async def predict_attrition(
-    batch_input: RawBatchPredictionInput, request: Request, db: Optional[Session] = Depends(get_db)
+    batch_input: RawBatchPredictionInput,
+    request: Request,
+    db: Optional[Session] = Depends(get_db),
 ):
     """Predicts the attrition risk for a list of employees based on their features.
     All model inputs, outputs, and prediction traceability are recorded in the database.
     """
     # Fast path: skip SHAP for quick predictions and DB writes
-    predictions_output = generate_predictions(batch_input, request, db, compute_shap=False)
+    predictions_output = generate_predictions(
+        batch_input, request, db, compute_shap=False
+    )
     return BatchPredictionOutput(predictions=predictions_output)
 
 
@@ -490,7 +549,9 @@ async def predict_attrition(
     summary="Predict and generate report artifacts (Excel, SHAP images)",
 )
 async def predict_attrition_report(
-    batch_input: RawBatchPredictionInput, request: Request, db: Optional[Session] = Depends(get_db)
+    batch_input: RawBatchPredictionInput,
+    request: Request,
+    db: Optional[Session] = Depends(get_db),
 ):
     """Runs prediction and returns:
     - predictions: same as /predict
@@ -522,32 +583,44 @@ async def predict_attrition_report(
                 if len(p.feature_names) == len(p.shap_values)
                 else [f"Feature {i}" for i in range(len(p.shap_values))]
             )
-            df = pd.DataFrame({
-                "Feature": feature_names,
-                "Coefficient": p.shap_values,
-            })
+            df = pd.DataFrame(
+                {
+                    "Feature": feature_names,
+                    "Coefficient": p.shap_values,
+                }
+            )
             df["Employee_ID"] = p.id_employee
             df["Prediction"] = p.prediction
             features_frames.append(df)
-    features_df = pd.concat(features_frames, ignore_index=True) if features_frames else pd.DataFrame()
+    features_df = (
+        pd.concat(features_frames, ignore_index=True)
+        if features_frames
+        else pd.DataFrame()
+    )
 
     # Build Metrics sheet
     total = len(predictions_output)
     predicted_leave = sum(1 for p in predictions_output if p.prediction == "Leave")
     predicted_stay = sum(1 for p in predictions_output if p.prediction == "Stay")
-    metrics_df = pd.DataFrame({
-        "Metric": ["Total Employees Processed", "Predicted to Leave", "Predicted to Stay"],
-        "Value": [total, predicted_leave, predicted_stay],
-    })
+    metrics_df = pd.DataFrame(
+        {
+            "Metric": [
+                "Total Employees Processed",
+                "Predicted to Leave",
+                "Predicted to Stay",
+            ],
+            "Value": [total, predicted_leave, predicted_stay],
+        }
+    )
 
     # Write Excel to bytes
     excel_buffer = io.BytesIO()
     with pd.ExcelWriter(excel_buffer, engine="openpyxl") as writer:
         summary_df.to_excel(writer, sheet_name="Summary", index=False)
         if not features_df.empty:
-            features_df[["Employee_ID", "Feature", "Coefficient", "Prediction"]].to_excel(
-                writer, sheet_name="Features", index=False
-            )
+            features_df[
+                ["Employee_ID", "Feature", "Coefficient", "Prediction"]
+            ].to_excel(writer, sheet_name="Features", index=False)
         metrics_df.to_excel(writer, sheet_name="Metrics", index=False)
     excel_buffer.seek(0)
     excel_b64 = base64.b64encode(excel_buffer.read()).decode("utf-8")
@@ -558,7 +631,8 @@ async def predict_attrition_report(
         if p.shap_values is None or p.base_value is None:
             continue
         feature_names = (
-            p.feature_names if p.feature_names and len(p.feature_names) == len(p.shap_values)
+            p.feature_names
+            if p.feature_names and len(p.feature_names) == len(p.shap_values)
             else [f"Feature {i}" for i in range(len(p.shap_values))]
         )
         explanation = shap.Explanation(
@@ -575,13 +649,15 @@ async def predict_attrition_report(
         plt.close(fig)
         img_str = base64.b64encode(buf.getvalue()).decode("utf-8")
 
-        shap_images.append({
-            "employee_id": p.id_employee,
-            "risk_category": p.risk_category,
-            "attrition_prob": float(p.probability),
-            "prediction_type": p.prediction,
-            "img_base64": img_str,
-        })
+        shap_images.append(
+            {
+                "employee_id": p.id_employee,
+                "risk_category": p.risk_category,
+                "attrition_prob": float(p.probability),
+                "prediction_type": p.prediction,
+                "img_base64": img_str,
+            }
+        )
 
     return {
         "predictions": [p.model_dump() for p in predictions_output],
@@ -595,7 +671,9 @@ async def predict_attrition_report(
     summary="Predict and return Excel report only",
 )
 async def predict_excel(
-    batch_input: RawBatchPredictionInput, request: Request, db: Optional[Session] = Depends(get_db)
+    batch_input: RawBatchPredictionInput,
+    request: Request,
+    db: Optional[Session] = Depends(get_db),
 ):
     """Runs prediction and returns only the Excel report as base64."""
     predictions_output = generate_predictions(batch_input, request, db)
@@ -623,23 +701,33 @@ async def predict_excel(
             df["Employee_ID"] = p.id_employee
             df["Prediction"] = p.prediction
             features_frames.append(df)
-    features_df = pd.concat(features_frames, ignore_index=True) if features_frames else pd.DataFrame()
+    features_df = (
+        pd.concat(features_frames, ignore_index=True)
+        if features_frames
+        else pd.DataFrame()
+    )
 
     total = len(predictions_output)
     predicted_leave = sum(1 for p in predictions_output if p.prediction == "Leave")
     predicted_stay = sum(1 for p in predictions_output if p.prediction == "Stay")
-    metrics_df = pd.DataFrame({
-        "Metric": ["Total Employees Processed", "Predicted to Leave", "Predicted to Stay"],
-        "Value": [total, predicted_leave, predicted_stay],
-    })
+    metrics_df = pd.DataFrame(
+        {
+            "Metric": [
+                "Total Employees Processed",
+                "Predicted to Leave",
+                "Predicted to Stay",
+            ],
+            "Value": [total, predicted_leave, predicted_stay],
+        }
+    )
 
     excel_buffer = io.BytesIO()
     with pd.ExcelWriter(excel_buffer, engine="openpyxl") as writer:
         summary_df.to_excel(writer, sheet_name="Summary", index=False)
         if not features_df.empty:
-            features_df[["Employee_ID", "Feature", "Coefficient", "Prediction"]].to_excel(
-                writer, sheet_name="Features", index=False
-            )
+            features_df[
+                ["Employee_ID", "Feature", "Coefficient", "Prediction"]
+            ].to_excel(writer, sheet_name="Features", index=False)
         metrics_df.to_excel(writer, sheet_name="Metrics", index=False)
     excel_buffer.seek(0)
     excel_b64 = base64.b64encode(excel_buffer.read()).decode("utf-8")
@@ -652,7 +740,9 @@ async def predict_excel(
     summary="Predict and return SHAP waterfall plots only",
 )
 async def predict_shap_images(
-    batch_input: RawBatchPredictionInput, request: Request, db: Optional[Session] = Depends(get_db)
+    batch_input: RawBatchPredictionInput,
+    request: Request,
+    db: Optional[Session] = Depends(get_db),
 ):
     """Runs prediction and returns only SHAP waterfall images as base64 list."""
     predictions_output = generate_predictions(batch_input, request, db)
@@ -662,7 +752,8 @@ async def predict_shap_images(
         if p.shap_values is None or p.base_value is None:
             continue
         feature_names = (
-            p.feature_names if p.feature_names and len(p.feature_names) == len(p.shap_values)
+            p.feature_names
+            if p.feature_names and len(p.feature_names) == len(p.shap_values)
             else [f"Feature {i}" for i in range(len(p.shap_values))]
         )
         explanation = shap.Explanation(
@@ -679,12 +770,14 @@ async def predict_shap_images(
         plt.close(fig)
         img_str = base64.b64encode(buf.getvalue()).decode("utf-8")
 
-        shap_images.append({
-            "employee_id": p.id_employee,
-            "risk_category": p.risk_category,
-            "attrition_prob": float(p.probability),
-            "prediction_type": p.prediction,
-            "img_base64": img_str,
-        })
+        shap_images.append(
+            {
+                "employee_id": p.id_employee,
+                "risk_category": p.risk_category,
+                "attrition_prob": float(p.probability),
+                "prediction_type": p.prediction,
+                "img_base64": img_str,
+            }
+        )
 
     return {"shap_images": shap_images}

@@ -1,4 +1,5 @@
 """Quick test for download endpoints"""
+
 import httpx
 import json
 import base64
@@ -6,11 +7,13 @@ import csv
 
 API_BASE_URL = "http://localhost:8001"
 
+
 # Load test data as list of dicts (matching RawBatchPredictionInput schema)
 def load_csv_as_dicts(filepath):
-    with open(filepath, 'r', encoding='utf-8') as f:
-        reader = csv.DictReader(f, delimiter=';')
+    with open(filepath, "r", encoding="utf-8") as f:
+        reader = csv.DictReader(f, delimiter=";")
         return [row for row in reader]
+
 
 eval_data = load_csv_as_dicts("data/extrait_eval.csv")
 sirh_data = load_csv_as_dicts("data/extrait_sirh.csv")

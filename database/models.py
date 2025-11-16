@@ -11,12 +11,16 @@ class Job(Base):
 
     job_id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     job_type = Column(String, nullable=False)  # e.g., 'report'
-    status = Column(String, nullable=False, default="queued")  # queued|processing|completed|failed
+    status = Column(
+        String, nullable=False, default="queued"
+    )  # queued|processing|completed|failed
     payload_json = Column(JSON, nullable=False)
     result_json = Column(JSON, nullable=True)
     error = Column(String, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), onupdate=func.now(), server_default=func.now())
+    updated_at = Column(
+        DateTime(timezone=True), onupdate=func.now(), server_default=func.now()
+    )
 
 
 class Employee(Base):
@@ -44,7 +48,9 @@ class Employee(Base):
     niveau_education = Column(Integer, nullable=True)
     domaine_etude = Column(String, nullable=True)
     ayant_enfants = Column(String, nullable=True)  # Raw string ('Y'/'N', 'Oui'/'Non')
-    frequence_deplacement = Column(String, nullable=True)  # Raw string ('Occasionnel', 'Frequent', etc.)
+    frequence_deplacement = Column(
+        String, nullable=True
+    )  # Raw string ('Occasionnel', 'Frequent', etc.)
     annees_depuis_la_derniere_promotion = Column(Integer, nullable=True)
     annes_sous_responsable_actuel = Column(Integer, nullable=True)
     satisfaction_employee_environnement = Column(Float, nullable=True)
@@ -97,7 +103,7 @@ class ModelOutput(Base):
     risk_category = Column(String, nullable=False)
     prediction_label = Column(String, nullable=False)
     log_odds = Column(Float, nullable=False)
-    threshold = Column(Float, nullable=True) # Added threshold column
+    threshold = Column(Float, nullable=True)  # Added threshold column
     prediction_timestamp = Column(DateTime(timezone=True), server_default=func.now())
 
     trace = relationship(

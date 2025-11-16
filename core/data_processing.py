@@ -42,13 +42,17 @@ def clean_raw_input(df: pd.DataFrame) -> pd.DataFrame:
             df["ayant_enfants"]
             .astype(str)
             .str.lower()
-            .replace({"y": "oui", "n": "non"}) # Standardize to 'oui'/'non'
+            .replace({"y": "oui", "n": "non"})  # Standardize to 'oui'/'non'
             .astype(str)
         )
 
     # 3. Clean heures_supplementaires: "Oui"/"Non" → 1/0
     # Handle multiple possible column names (train.py checks for variants)
-    for col in ["heures_supplementaires", "heure_supplementaires", "heures_supplémentaires"]:
+    for col in [
+        "heures_supplementaires",
+        "heure_supplementaires",
+        "heures_supplémentaires",
+    ]:
         if col in df.columns:
             df[col] = (
                 df[col]
@@ -75,16 +79,18 @@ def clean_raw_input(df: pd.DataFrame) -> pd.DataFrame:
             )
             # Standardize to the typo version (matches train.py output)
             if col == "augmentation_salaire_precedente":
-                df.rename(columns={col: "augementation_salaire_precedente"}, inplace=True)
+                df.rename(
+                    columns={col: "augementation_salaire_precedente"}, inplace=True
+                )
 
     # 4. Extract id_employee from eval_number if needed
     if "eval_number" in df.columns and "id_employee" not in df.columns:
         df["id_employee"] = (
-            df["eval_number"]
-            .astype(str)
-            .str.replace("E_", "", regex=False)
+            df["eval_number"].astype(str).str.replace("E_", "", regex=False)
         )
-        df["id_employee"] = pd.to_numeric(df["id_employee"], errors="coerce").astype("Int64")
+        df["id_employee"] = pd.to_numeric(df["id_employee"], errors="coerce").astype(
+            "Int64"
+        )
 
     # 5a. Transform frequence_deplacement: categorical → int (0=Rare, 1=Frequent, 2=Very Frequent)
     if "frequence_deplacement" in df.columns:
@@ -111,13 +117,19 @@ def clean_raw_input(df: pd.DataFrame) -> pd.DataFrame:
             .replace(freq_mapping)
             .infer_objects(copy=False)
         )
-        df["frequence_deplacement"] = pd.to_numeric(
-            df["frequence_deplacement"], errors="coerce"
-        ).fillna(0).astype("int64")
+        df["frequence_deplacement"] = (
+            pd.to_numeric(df["frequence_deplacement"], errors="coerce")
+            .fillna(0)
+            .astype("int64")
+        )
 
     # 5b. Clamp nb_formations_suivies to [0, 3] to match model training
     if "nb_formations_suivies" in df.columns:
-        df["nb_formations_suivies"] = pd.to_numeric(df["nb_formations_suivies"], errors="coerce").fillna(0).astype(int)
+        df["nb_formations_suivies"] = (
+            pd.to_numeric(df["nb_formations_suivies"], errors="coerce")
+            .fillna(0)
+            .astype(int)
+        )
         df["nb_formations_suivies"] = df["nb_formations_suivies"].clip(lower=0, upper=3)
 
     # 6. Drop unnecessary columns (ayant_enfants NOT dropped - keep for DB but not used in model)
@@ -160,16 +172,12 @@ def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
         "satisfaction_employee_equilibre_pro_perso",
     ]
     if set(sat_cols).issubset(df.columns):
-        df["total_satisfaction"] = (
-            df[sat_cols[0]] * df[sat_cols[1]] * df[sat_cols[2]]
-        )
+        df["total_satisfaction"] = df[sat_cols[0]] * df[sat_cols[1]] * df[sat_cols[2]]
     else:
         df["total_satisfaction"] = 0
 
     # Feature 3: Work mobility (years in role / years in company)
-    if {"annees_dans_le_poste_actuel", "annees_dans_l_entreprise"}.issubset(
-        df.columns
-    ):
+    if {"annees_dans_le_poste_actuel", "annees_dans_l_entreprise"}.issubset(df.columns):
         denom = df["annees_dans_l_entreprise"].replace(0, np.nan)
         df["work_mobility"] = (df["annees_dans_le_poste_actuel"] / denom).fillna(0)
     else:

@@ -71,4 +71,6 @@ print("\nNOTE: This test validates the RAW input schema.")
 print("The API will clean and transform this data before model inference.")
 print("  - genre: 'Homme' -> 1, 'Femme' -> 0")
 print("  - heure_supplementaires: 'Oui' -> 1, 'Non' -> 0")
-print("  - Then add engineered features: improvement_evaluation, total_satisfaction, work_mobility")
+print(
+    "  - Then add engineered features: improvement_evaluation, total_satisfaction, work_mobility"
+)

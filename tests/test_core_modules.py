@@ -57,7 +57,9 @@ print(f"   Columns: {df.columns.tolist()[:5]}...")
 df_processed = clean_and_engineer_features(df)
 print(f"\n2. After cleaning & engineering: {df_processed.shape}")
 print(f"   Engineered features added:")
-print(f"   - improvement_evaluation: {df_processed['improvement_evaluation'].values[0]}")
+print(
+    f"   - improvement_evaluation: {df_processed['improvement_evaluation'].values[0]}"
+)
 print(f"   - total_satisfaction: {df_processed['total_satisfaction'].values[0]}")
 print(f"   - work_mobility: {df_processed['work_mobility'].values[0]}")
 

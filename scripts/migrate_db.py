@@ -52,9 +52,11 @@ def alter_ayant_enfants_to_varchar(engine) -> None:
     if current and current.lower() in {"integer", "smallint", "bigint"}:
         print("Altering employees.ayant_enfants to VARCHAR ...")
         with engine.begin() as conn:
-            conn.execute(text(
-                "ALTER TABLE employees ALTER COLUMN ayant_enfants TYPE varchar USING ayant_enfants::varchar"
-            ))
+            conn.execute(
+                text(
+                    "ALTER TABLE employees ALTER COLUMN ayant_enfants TYPE varchar USING ayant_enfants::varchar"
+                )
+            )
         print("Done.")
     else:
         print("No change required for employees.ayant_enfants.")
@@ -76,9 +78,11 @@ def ensure_frequence_deplacement_varchar(engine) -> None:
     if current and current.lower() not in {"character varying", "text", "varchar"}:
         print("Altering employees.frequence_deplacement to VARCHAR ...")
         with engine.begin() as conn:
-            conn.execute(text(
-                "ALTER TABLE employees ALTER COLUMN frequence_deplacement TYPE varchar USING frequence_deplacement::varchar"
-            ))
+            conn.execute(
+                text(
+                    "ALTER TABLE employees ALTER COLUMN frequence_deplacement TYPE varchar USING frequence_deplacement::varchar"
+                )
+            )
         print("Done.")
     else:
         print("No change required for employees.frequence_deplacement.")
@@ -90,9 +94,11 @@ def ensure_genre_varchar(engine) -> None:
     if current and current.lower() in {"integer", "smallint", "bigint"}:
         print("Altering employees.genre to VARCHAR ...")
         with engine.begin() as conn:
-            conn.execute(text(
-                "ALTER TABLE employees ALTER COLUMN genre TYPE varchar USING genre::varchar"
-            ))
+            conn.execute(
+                text(
+                    "ALTER TABLE employees ALTER COLUMN genre TYPE varchar USING genre::varchar"
+                )
+            )
         print("Done.")
     else:
         print("No change required for employees.genre.")

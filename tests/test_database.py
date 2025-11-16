@@ -24,9 +24,7 @@ class TestEmployeeModel:
         test_db_session.add(employee)
         test_db_session.commit()
 
-        retrieved = (
-            test_db_session.query(Employee).filter_by(id_employee=10001).first()
-        )
+        retrieved = test_db_session.query(Employee).filter_by(id_employee=10001).first()
         assert retrieved is not None
         assert retrieved.age == 35
         assert retrieved.departement == "IT"
@@ -56,9 +54,7 @@ class TestEmployeeModel:
         test_db_session.add(employee)
         test_db_session.commit()
 
-        retrieved = (
-            test_db_session.query(Employee).filter_by(id_employee=10002).first()
-        )
+        retrieved = test_db_session.query(Employee).filter_by(id_employee=10002).first()
         assert retrieved.improvement_evaluation == 1.0
         assert retrieved.total_satisfaction == 36.0
         assert retrieved.work_mobility == 0.6
@@ -120,9 +116,7 @@ class TestModelInputOutput:
 class TestPredictionTraceability:
     """Test PredictionTraceability model and relationships."""
 
-    def test_create_full_prediction_trace(
-        self, test_db_session, sample_employee_in_db
-    ):
+    def test_create_full_prediction_trace(self, test_db_session, sample_employee_in_db):
         """Test creating a complete prediction trace."""
         # 1. Create ModelInput
         features = {"age": 35}
@@ -207,9 +201,7 @@ class TestDatabaseIntegrity:
         """Test that deleting input/output doesn't break traceability (if configured)."""
         # This test depends on cascade settings in models
         # For now, just verify the structure exists
-        employee = Employee(
-            id_employee=10003, age=30, date_ingestion=datetime.now()
-        )
+        employee = Employee(id_employee=10003, age=30, date_ingestion=datetime.now())
         test_db_session.add(employee)
         test_db_session.commit()
 
@@ -225,9 +217,7 @@ class TestDatabaseIntegrity:
 
     def test_query_predictions_for_employee(self, test_db_session):
         """Test querying all predictions for a specific employee."""
-        employee = Employee(
-            id_employee=10004, age=40, date_ingestion=datetime.now()
-        )
+        employee = Employee(id_employee=10004, age=40, date_ingestion=datetime.now())
         test_db_session.add(employee)
         test_db_session.commit()
 

@@ -1,11 +1,10 @@
-# Dockerfile for Streamlit UI
 FROM python:3.13-slim
 
 WORKDIR /app
 
 # Install system dependencies including Poetry
 RUN apt-get update && apt-get install -y \
-    gcc \
+    build-essential \
     curl \
     && rm -rf /var/lib/apt/lists/* \
     && curl -sSL https://install.python-poetry.org | python3 - \
@@ -17,23 +16,28 @@ ENV POETRY_NO_INTERACTION=1 \
     POETRY_VIRTUALENVS_CREATE=true \
     POETRY_CACHE_DIR=/tmp/poetry_cache
 
-# Copy dependency files
+# Copy Poetry configuration files
 COPY pyproject.toml poetry.lock ./
 
 # Install dependencies using Poetry (no dev dependencies)
 RUN poetry install --no-root --without dev && rm -rf $POETRY_CACHE_DIR
 
 # Copy application code
-COPY ui ./ui
-COPY data ./data
+COPY api/ ./api/
+COPY core/ ./core/
+COPY database/ ./database/
+COPY outputs/ ./outputs/
+COPY data/ ./data/
 
-# Expose port
-EXPOSE 8501
+# Create necessary directories
+RUN mkdir -p /app/temp /app/shap_images
+
+# Expose Hugging Face default port
+EXPOSE 7860
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD curl -f http://localhost:8501/_stcore/health || exit 1
+    CMD curl -f http://localhost:7860/health || exit 1
 
-# Run Streamlit using Poetry
-CMD ["poetry", "run", "streamlit", "run", "ui/app.py", "--server.port=8501", "--server.address=0.0.0.0"]
-
+# Run API on port 7860 using Poetry (Hugging Face requirement)
+CMD ["poetry", "run", "uvicorn", "api.app.main:app", "--host", "0.0.0.0", "--port", "7860", "--workers", "1"]

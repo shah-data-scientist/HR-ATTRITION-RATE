@@ -10,6 +10,7 @@ import base64
 import zipfile
 from typing import Any, Dict
 import time
+
 # --- Configuration ---
 REQUIRED_FILES = ["extrait_eval.csv", "extrait_sirh.csv", "extrait_sondage.csv"]
 
@@ -28,6 +29,7 @@ def _check_api_health(base_url: str) -> tuple[bool, str]:
         return False, f"Network error: {e}"
     except Exception as e:
         return False, f"Unexpected error: {e}"
+
 
 # --- Session State Initialization (minimal) ---
 if "prediction_triggered" not in st.session_state:
@@ -54,7 +56,7 @@ if "job_shap_zip_bytes" not in st.session_state:
 
 def get_project_root():
     """Returns the absolute path to the project root."""
-    return os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+    return os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
 
 def _load_local_csv_files():
@@ -78,8 +80,10 @@ def _load_local_csv_files():
 
         return eval_file, sirh_file, sondage_file
     except FileNotFoundError as e:
-        st.error(f"Required data file not found: {e}. Please ensure 'data' directory "
-                 "contains 'extrait_eval.csv', 'extrait_sirh.csv', and 'extrait_sondage.csv'.")
+        st.error(
+            f"Required data file not found: {e}. Please ensure 'data' directory "
+            "contains 'extrait_eval.csv', 'extrait_sirh.csv', and 'extrait_sondage.csv'."
+        )
         return None, None, None
 
 
@@ -101,15 +105,21 @@ def _call_prediction_api(
         return response.json()
     except httpx.TimeoutException as e:
         print(f"API request timed out: {e}")
-        st.error(f"The prediction API took too long to respond (timeout). Please try again or check the API server status.")
+        st.error(
+            f"The prediction API took too long to respond (timeout). Please try again or check the API server status."
+        )
         return {"predictions": []}
     except httpx.RequestError as e:
         print(f"Network error while connecting to API: {e}")
-        st.error(f"Network error while connecting to API: {e}. Please ensure the API server is running and accessible.")
+        st.error(
+            f"Network error while connecting to API: {e}. Please ensure the API server is running and accessible."
+        )
         return {"predictions": []}
     except httpx.HTTPStatusError as e:
         print(f"API returned an error: {e.response.status_code} - {e.response.text}")
-        st.error(f"API returned an error: {e.response.status_code} - {e.response.text}. Please check the API logs for details.")
+        st.error(
+            f"API returned an error: {e.response.status_code} - {e.response.text}. Please check the API logs for details."
+        )
         return {"predictions": []}
     except Exception as e:
         print(f"An unexpected error occurred during API call: {e}")
@@ -133,7 +143,9 @@ def _call_predict_excel_api(payload: Dict[str, Any]) -> bytes | None:
 
 def _call_predict_shap_images_api(payload: Dict[str, Any]) -> bytes | None:
     try:
-        resp = httpx.post(f"{API_BASE_URL}/predict_shap_images", json=payload, timeout=180.0)
+        resp = httpx.post(
+            f"{API_BASE_URL}/predict_shap_images", json=payload, timeout=180.0
+        )
         resp.raise_for_status()
         items = resp.json().get("shap_images", [])
         if not items:
@@ -217,7 +229,7 @@ def _handle_file_uploads_and_predict() -> None:
     )
 
     eval_file, sirh_file, sondage_file = None, None, None
-    files_source = "uploaded" # To track if files came from uploader or local
+    files_source = "uploaded"  # To track if files came from uploader or local
 
     if uploaded_files:
         if len(uploaded_files) != len(REQUIRED_FILES):
@@ -238,7 +250,9 @@ def _handle_file_uploads_and_predict() -> None:
         sondage_file = file_map.get("extrait_sondage.csv")
     else:
         # If no files uploaded, try to load from local data directory for testing
-        st.info("No files uploaded. Attempting to load from local 'data' directory for testing.")
+        st.info(
+            "No files uploaded. Attempting to load from local 'data' directory for testing."
+        )
         eval_file, sirh_file, sondage_file = _load_local_csv_files()
         files_source = "local"
 
@@ -260,10 +274,12 @@ def _handle_file_uploads_and_predict() -> None:
                     api_response = _call_prediction_api(
                         eval_data_for_api, sirh_data_for_api, sondage_data_for_api
                     )
-                    
+
                     # Optionally save API response for debugging
                     try:
-                        temp_api_response_path = os.path.join(get_project_root(), "temp_api_response.json")
+                        temp_api_response_path = os.path.join(
+                            get_project_root(), "temp_api_response.json"
+                        )
                         with open(temp_api_response_path, "w") as f:
                             json.dump(api_response, f, indent=4)
                         st.caption(f"Saved API response to: {temp_api_response_path}")
@@ -277,20 +293,24 @@ def _handle_file_uploads_and_predict() -> None:
                             "sirh_data": sirh_data_for_api,
                             "sondage_data": sondage_data_for_api,
                         }
-                        
+
                         # Minimal table for display only (no local processing)
-                        report_data = pd.DataFrame([
-                            {
-                                "id_employee": p.get("id_employee"),
-                                "prediction": p.get("prediction"),
-                                "probability": p.get("probability"),
-                                "risk_category": p.get("risk_category"),
-                            }
-                            for p in predictions_data
-                        ])
+                        report_data = pd.DataFrame(
+                            [
+                                {
+                                    "id_employee": p.get("id_employee"),
+                                    "prediction": p.get("prediction"),
+                                    "probability": p.get("probability"),
+                                    "risk_category": p.get("risk_category"),
+                                }
+                                for p in predictions_data
+                            ]
+                        )
                         # Format probability as percentage for display
                         if "probability" in report_data.columns:
-                            report_data["probability"] = (report_data["probability"].astype(float) * 100).round(1)
+                            report_data["probability"] = (
+                                report_data["probability"].astype(float) * 100
+                            ).round(1)
                         st.session_state.report_data = report_data
                         st.session_state.prediction_triggered = True
                         st.success("Predictions received successfully!")
@@ -346,12 +366,14 @@ def main() -> None:
 
         report_data = st.session_state.report_data
         st.dataframe(
-            report_data.rename(columns={
-                "id_employee": "Employee ID",
-                "prediction": "Prediction",
-                "probability": "Probability (%)",
-                "risk_category": "Risk Category",
-            }),
+            report_data.rename(
+                columns={
+                    "id_employee": "Employee ID",
+                    "prediction": "Prediction",
+                    "probability": "Probability (%)",
+                    "risk_category": "Risk Category",
+                }
+            ),
             use_container_width=True,
         )
         st.success("Predictions retrieved from API.")
@@ -364,10 +386,14 @@ def main() -> None:
             if st.button("Generate Excel Report"):
                 if st.session_state.last_payload:
                     with st.spinner("Generating Excel report via API..."):
-                        excel_bytes = _call_predict_excel_api(st.session_state.last_payload)
+                        excel_bytes = _call_predict_excel_api(
+                            st.session_state.last_payload
+                        )
                         st.session_state.excel_report_bytes = excel_bytes
                 else:
-                    st.warning("No input payload available. Please run a prediction first.")
+                    st.warning(
+                        "No input payload available. Please run a prediction first."
+                    )
             if st.session_state.excel_report_bytes:
                 st.download_button(
                     label="Download Excel Report",
@@ -379,10 +405,14 @@ def main() -> None:
             if st.button("Generate SHAP Images (ZIP)"):
                 if st.session_state.last_payload:
                     with st.spinner("Generating SHAP images via API..."):
-                        zip_bytes = _call_predict_shap_images_api(st.session_state.last_payload)
+                        zip_bytes = _call_predict_shap_images_api(
+                            st.session_state.last_payload
+                        )
                         st.session_state.shap_zip_bytes = zip_bytes
                 else:
-                    st.warning("No input payload available. Please run a prediction first.")
+                    st.warning(
+                        "No input payload available. Please run a prediction first."
+                    )
             if st.session_state.shap_zip_bytes:
                 st.download_button(
                     label="Download SHAP Images (ZIP)",
@@ -413,11 +443,15 @@ def main() -> None:
                             if status:
                                 st.session_state.job_status = status.get("status")
                                 st.session_state.job_error = status.get("error")
-                                status_placeholder.info(f"Job {jid} status: {st.session_state.job_status}")
+                                status_placeholder.info(
+                                    f"Job {jid} status: {st.session_state.job_status}"
+                                )
                                 if st.session_state.job_status == "completed":
                                     with st.spinner("Fetching job result..."):
                                         excel_b, shap_zip_b = _fetch_job_result(jid)
-                                        st.session_state.job_excel_report_bytes = excel_b
+                                        st.session_state.job_excel_report_bytes = (
+                                            excel_b
+                                        )
                                         st.session_state.job_shap_zip_bytes = shap_zip_b
                                     break
                                 if st.session_state.job_status == "failed":

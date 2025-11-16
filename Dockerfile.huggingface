@@ -1,0 +1,72 @@
+FROM python:3.13-slim
+
+WORKDIR /app
+
+# Install system dependencies including Poetry and supervisor
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    curl \
+    supervisor \
+    && rm -rf /var/lib/apt/lists/* \
+    && curl -sSL https://install.python-poetry.org | python3 - \
+    && ln -s /root/.local/bin/poetry /usr/local/bin/poetry
+
+# Configure Poetry
+ENV POETRY_NO_INTERACTION=1 \
+    POETRY_VIRTUALENVS_IN_PROJECT=true \
+    POETRY_VIRTUALENVS_CREATE=true \
+    POETRY_CACHE_DIR=/tmp/poetry_cache
+
+# Copy Poetry configuration files
+COPY pyproject.toml poetry.lock ./
+
+# Install dependencies using Poetry (no dev dependencies)
+RUN poetry install --no-root --without dev && rm -rf $POETRY_CACHE_DIR
+
+# Copy all application code
+COPY api/ ./api/
+COPY core/ ./core/
+COPY database/ ./database/
+COPY outputs/ ./outputs/
+COPY data/ ./data/
+COPY scripts/utils.py ./utils.py
+COPY ui/app.py ./ui/app.py
+COPY .streamlit/ ./.streamlit/
+
+# Create necessary directories
+RUN mkdir -p /app/temp /app/shap_images /app/db_data /var/log/supervisor
+
+# Create supervisor configuration
+RUN echo '[supervisord]\n\
+nodaemon=true\n\
+logfile=/var/log/supervisor/supervisord.log\n\
+pidfile=/var/run/supervisord.pid\n\
+\n\
+[program:fastapi]\n\
+command=poetry run uvicorn api.app.main:app --host 0.0.0.0 --port 8001\n\
+directory=/app\n\
+autostart=true\n\
+autorestart=true\n\
+stdout_logfile=/var/log/supervisor/fastapi.log\n\
+stderr_logfile=/var/log/supervisor/fastapi.err\n\
+\n\
+[program:streamlit]\n\
+command=poetry run streamlit run ui/app.py --server.port=7860 --server.address=0.0.0.0\n\
+directory=/app\n\
+autostart=true\n\
+autorestart=true\n\
+stdout_logfile=/var/log/supervisor/streamlit.log\n\
+stderr_logfile=/var/log/supervisor/streamlit.err\n\
+environment=API_BASE_URL="http://localhost:8001"\n\
+' > /etc/supervisor/conf.d/supervisord.conf
+
+# Environment variables
+ENV DATABASE_URL=sqlite:///db_data/hr_attrition.db \
+    DISABLE_DB=false \
+    API_BASE_URL=http://localhost:8001
+
+# Expose Hugging Face default port (Streamlit UI)
+EXPOSE 7860
+
+# Initialize database and start services
+CMD poetry run python -m database.init_db && supervisord -c /etc/supervisor/conf.d/supervisord.conf

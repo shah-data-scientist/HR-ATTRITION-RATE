@@ -8,17 +8,20 @@ import io
 import json
 
 # Add the project root to the sys.path to allow importing modules from the project
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..')))
+sys.path.insert(
+    0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
+)
 
 # Assuming create_synthetic_data.py is in the root of the project
 # from create_synthetic_data import create_synthetic_data
 
 client = TestClient(app)
 
+
 @pytest.fixture(scope="module")
 def synthetic_data():
     """Loads synthetic data for testing."""
-    data_dir = os.path.join(os.path.dirname(__file__), '..', '..', 'data')
+    data_dir = os.path.join(os.path.dirname(__file__), "..", "..", "data")
 
     eval_file_path = os.path.join(data_dir, "extrait_eval.csv")
     sirh_file_path = os.path.join(data_dir, "extrait_sirh.csv")
@@ -37,6 +40,7 @@ def synthetic_data():
         "sirh_data": sirh_data_for_api,
         "sondage_data": sondage_data_for_api,
     }
+
 
 def test_predict_attrition_with_raw_data(synthetic_data):
     """

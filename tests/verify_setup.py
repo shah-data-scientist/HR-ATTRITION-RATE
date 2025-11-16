@@ -14,30 +14,35 @@ import sys
 from pathlib import Path
 
 # Colors for terminal output
-GREEN = '\033[92m'
-RED = '\033[91m'
-YELLOW = '\033[93m'
-RESET = '\033[0m'
+GREEN = "\033[92m"
+RED = "\033[91m"
+YELLOW = "\033[93m"
+RESET = "\033[0m"
+
 
 def print_success(msg):
     print(f"{GREEN}✓{RESET} {msg}")
 
+
 def print_error(msg):
     print(f"{RED}✗{RESET} {msg}")
+
 
 def print_warning(msg):
     print(f"{YELLOW}⚠{RESET} {msg}")
 
+
 def check_imports():
     """Test that all required modules can be imported."""
     print("\n=== Testing Module Imports ===")
-    
+
     # Add project root to Python path
     import sys
+
     project_root = os.getcwd()
     if project_root not in sys.path:
         sys.path.insert(0, project_root)
-    
+
     modules_to_test = [
         ("core.data_processing", "Core data processing"),
         ("core.preprocess", "Core preprocessing"),
@@ -48,7 +53,7 @@ def check_imports():
         ("api.app.main", "API main application"),
         ("ui.app", "Streamlit UI"),
     ]
-    
+
     all_passed = True
     for module_name, description in modules_to_test:
         try:
@@ -57,13 +62,14 @@ def check_imports():
         except Exception as e:
             print_error(f"{description}: {module_name} - {str(e)}")
             all_passed = False
-    
+
     return all_passed
+
 
 def check_files():
     """Check that required files exist."""
     print("\n=== Checking Required Files ===")
-    
+
     files_to_check = [
         ("outputs/employee_attrition_pipeline.pkl", "Trained model"),
         ("outputs/X_train.parquet", "Training data for SHAP"),
@@ -75,7 +81,7 @@ def check_files():
         ("Dockerfile.api", "API Dockerfile"),
         ("Dockerfile.streamlit", "UI Dockerfile"),
     ]
-    
+
     all_passed = True
     for filepath, description in files_to_check:
         if os.path.exists(filepath):
@@ -87,40 +93,44 @@ def check_files():
         else:
             print_error(f"{description}: {filepath} (not found)")
             all_passed = False
-    
+
     return all_passed
+
 
 def check_scripts():
     """Check that startup scripts exist and are executable."""
     print("\n=== Checking Startup Scripts ===")
-    
+
     scripts = [
         ("scripts/start-api.sh", True),
         ("scripts/start-ui.sh", True),
         ("scripts/start-api.bat", False),
         ("scripts/start-ui.bat", False),
     ]
-    
+
     all_passed = True
     for script_path, should_be_executable in scripts:
         if os.path.exists(script_path):
-            if should_be_executable and os.name != 'nt':  # Not Windows
+            if should_be_executable and os.name != "nt":  # Not Windows
                 if os.access(script_path, os.X_OK):
                     print_success(f"{script_path} (executable)")
                 else:
-                    print_warning(f"{script_path} (not executable - run: chmod +x {script_path})")
+                    print_warning(
+                        f"{script_path} (not executable - run: chmod +x {script_path})"
+                    )
             else:
                 print_success(f"{script_path}")
         else:
             print_error(f"{script_path} (not found)")
             all_passed = False
-    
+
     return all_passed
+
 
 def check_documentation():
     """Check that documentation files exist."""
     print("\n=== Checking Documentation ===")
-    
+
     docs = [
         ("README.md", "Main documentation"),
         ("QUICKSTART.md", "Quick start guide"),
@@ -128,7 +138,7 @@ def check_documentation():
         ("DEPLOYMENT.md", "Deployment guide"),
         ("docs/ARCHITECTURE.md", "Architecture documentation"),
     ]
-    
+
     all_passed = True
     for doc_path, description in docs:
         if os.path.exists(doc_path):
@@ -136,39 +146,43 @@ def check_documentation():
         else:
             print_error(f"{description}: {doc_path} (not found)")
             all_passed = False
-    
+
     return all_passed
+
 
 def check_environment():
     """Check environment configuration."""
     print("\n=== Checking Environment Configuration ===")
-    
+
     if os.path.exists(".env"):
         print_success(".env file exists")
         print_warning("Remember: Never commit .env to version control!")
     else:
         print_warning(".env file not found (copy .env.example to .env)")
-    
+
     if os.path.exists(".env.example"):
         print_success(".env.example template exists")
     else:
         print_error(".env.example template not found")
         return False
-    
+
     return True
+
 
 def check_api_configuration():
     """Verify API can be configured."""
     print("\n=== Checking API Configuration ===")
-    
+
     try:
         # Add project root to path
         import sys
+
         project_root = os.getcwd()
         if project_root not in sys.path:
             sys.path.insert(0, project_root)
-            
+
         from api.app.main import app
+
         print_success(f"API Title: {app.title}")
         print_success(f"API Version: {app.version}")
         print_success("API can be imported and configured")
@@ -177,18 +191,19 @@ def check_api_configuration():
         print_error(f"API configuration failed: {e}")
         return False
 
+
 def main():
     """Run all verification checks."""
     print("=" * 60)
     print("HR Attrition Rate - Setup Verification")
     print("=" * 60)
-    
+
     # Change to project root if needed
     script_dir = Path(__file__).parent
-    project_root = script_dir.parent if script_dir.name == 'tests' else script_dir
+    project_root = script_dir.parent if script_dir.name == "tests" else script_dir
     os.chdir(project_root)
     print(f"\nProject root: {os.getcwd()}")
-    
+
     results = {
         "Imports": check_imports(),
         "Files": check_files(),
@@ -197,11 +212,11 @@ def main():
         "Environment": check_environment(),
         "API Configuration": check_api_configuration(),
     }
-    
+
     print("\n" + "=" * 60)
     print("=== Verification Summary ===")
     print("=" * 60)
-    
+
     all_passed = True
     for check_name, passed in results.items():
         if passed:
@@ -209,9 +224,9 @@ def main():
         else:
             print_error(f"{check_name}: FAILED")
             all_passed = False
-    
+
     print("=" * 60)
-    
+
     if all_passed:
         print_success("\n🎉 All checks passed! Your setup looks good.")
         print("\nNext steps:")
@@ -229,6 +244,7 @@ def main():
         print("- DEVELOPMENT.md for development details")
         print("- docs/archive/ for additional troubleshooting")
         return 1
+
 
 if __name__ == "__main__":
     sys.exit(main())
