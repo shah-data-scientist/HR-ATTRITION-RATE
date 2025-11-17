@@ -20,6 +20,12 @@ def client():
 
 
 @pytest.fixture
+def auth_headers():
+    """Authentication headers for API requests"""
+    return {"X-API-Key": "test_api_key_for_pytest", "X-User-ID": "test_user"}
+
+
+@pytest.fixture
 def sample_employee_data():
     return {
         "id_employee": 1,
@@ -172,17 +178,17 @@ class TestIsDbDisabled:
 class TestExcelGenerationErrors:
     """Test Excel generation error paths"""
 
-    def test_predict_excel_with_invalid_data_structure(self, client):
+    def test_predict_excel_with_invalid_data_structure(self, client, auth_headers):
         """Test Excel generation with invalid data structure"""
         payload = {
             "eval_data": "invalid",  # Should be list
             "sirh_data": [],
             "sondage_data": [],
         }
-        response = client.post("/predict_excel", json=payload)
+        response = client.post("/predict_excel", headers=auth_headers, json=payload)
         assert response.status_code in [422, 500]
 
-    def test_predict_excel_with_missing_required_fields(self, client):
+    def test_predict_excel_with_missing_required_fields(self, client, auth_headers):
         """Test Excel generation with missing required fields"""
         payload = {
             "eval_data": [
@@ -191,17 +197,17 @@ class TestExcelGenerationErrors:
             "sirh_data": [{"id_employee": 1}],
             "sondage_data": [{"id_employee": 1}],
         }
-        response = client.post("/predict_excel", json=payload)
+        response = client.post("/predict_excel", headers=auth_headers, json=payload)
         assert response.status_code in [422, 500]
 
-    def test_predict_excel_with_mismatched_ids(self, client, sample_employee_data):
+    def test_predict_excel_with_mismatched_ids(self, client, auth_headers, sample_employee_data):
         """Test Excel generation when IDs don't match across datasets"""
         data1 = dict(sample_employee_data, id_employee=1)
         data2 = dict(sample_employee_data, id_employee=2)
         data3 = dict(sample_employee_data, id_employee=3)
 
         payload = {"eval_data": [data1], "sirh_data": [data2], "sondage_data": [data3]}
-        response = client.post("/predict_excel", json=payload)
+        response = client.post("/predict_excel", headers=auth_headers, json=payload)
         # Should handle gracefully
         assert response.status_code in [200, 422, 500]
 
@@ -209,21 +215,21 @@ class TestExcelGenerationErrors:
 class TestShapCalculationBranches:
     """Test SHAP calculation branches"""
 
-    def test_predict_shap_with_single_employee(self, client, sample_employee_data):
+    def test_predict_shap_with_single_employee(self, client, auth_headers, sample_employee_data):
         """Test SHAP image generation with single employee"""
         payload = {
             "eval_data": [sample_employee_data],
             "sirh_data": [sample_employee_data],
             "sondage_data": [sample_employee_data],
         }
-        response = client.post("/predict_shap_images", json=payload)
+        response = client.post("/predict_shap_images", headers=auth_headers, json=payload)
         assert response.status_code in [200, 422, 500]
 
         if response.status_code == 200:
             data = response.json()
             assert "shap_images" in data or "error" in data
 
-    def test_predict_shap_with_multiple_employees(self, client, sample_employee_data):
+    def test_predict_shap_with_multiple_employees(self, client, auth_headers, sample_employee_data):
         """Test SHAP with multiple employees"""
         employees = [dict(sample_employee_data, id_employee=i) for i in range(1, 4)]
         payload = {
@@ -231,16 +237,16 @@ class TestShapCalculationBranches:
             "sirh_data": employees,
             "sondage_data": employees,
         }
-        response = client.post("/predict_shap_images", json=payload)
+        response = client.post("/predict_shap_images", headers=auth_headers, json=payload)
         assert response.status_code in [200, 422, 500]
 
-    def test_predict_shap_with_invalid_data(self, client):
+    def test_predict_shap_with_invalid_data(self, client, auth_headers):
         """Test SHAP with invalid data"""
         payload = {"eval_data": [], "sirh_data": [], "sondage_data": []}
-        response = client.post("/predict_shap_images", json=payload)
+        response = client.post("/predict_shap_images", headers=auth_headers, json=payload)
         assert response.status_code in [422, 500, 503]
 
-    def test_predict_shap_with_extreme_values(self, client, sample_employee_data):
+    def test_predict_shap_with_extreme_values(self, client, auth_headers, sample_employee_data):
         """Test SHAP with extreme values"""
         extreme_data = dict(sample_employee_data)
         extreme_data["age"] = 65
@@ -252,41 +258,44 @@ class TestShapCalculationBranches:
             "sirh_data": [extreme_data],
             "sondage_data": [extreme_data],
         }
-        response = client.post("/predict_shap_images", json=payload)
+        response = client.post("/predict_shap_images", headers=auth_headers, json=payload)
         assert response.status_code in [200, 422, 500]
 
 
 class TestJobQueueEndpoints:
     """Test job queue endpoints (may be unimplemented)"""
 
-    def test_job_status_endpoint_exists(self, client):
+    @patch.dict(os.environ, {"DISABLE_DB": "1"})
+    def test_job_status_endpoint_exists(self, client, auth_headers):
         """Test if job status endpoint exists"""
-        response = client.get("/jobs/test-job-id")
+        response = client.get("/jobs/test-job-id", headers=auth_headers)
         # May be 404 if not implemented, or 400/422 for invalid job ID, or 503 if DB disabled
         assert response.status_code in [200, 400, 404, 422, 500, 503]
 
-    def test_list_jobs_endpoint(self, client):
+    @patch.dict(os.environ, {"DISABLE_DB": "1"})
+    def test_list_jobs_endpoint(self, client, auth_headers):
         """Test list jobs endpoint"""
-        response = client.get("/jobs")
+        response = client.get("/jobs", headers=auth_headers)
         # May be 404 if not implemented, or 503 if DB disabled
         assert response.status_code in [200, 404, 500, 503]
 
-    def test_submit_job_endpoint(self, client, sample_employee_data):
+    def test_submit_job_endpoint(self, client, auth_headers, sample_employee_data):
         """Test submit job endpoint"""
         payload = {
             "eval_data": [sample_employee_data],
             "sirh_data": [sample_employee_data],
             "sondage_data": [sample_employee_data],
         }
-        response = client.post("/jobs/submit", json=payload)
+        response = client.post("/jobs/submit", headers=auth_headers, json=payload)
         # May be 404 if not implemented, or 201 if created
         assert response.status_code in [200, 201, 404, 405, 422, 500]
 
-    def test_get_job_report_endpoint(self, client):
+    @patch.dict(os.environ, {"DISABLE_DB": "1"})
+    def test_get_job_report_endpoint(self, client, auth_headers):
         """Test get job report endpoint"""
-        response = client.get("/jobs/test-job-id/report")
-        # May be 404 if not implemented or job not found
-        assert response.status_code in [200, 404, 422, 500]
+        response = client.get("/jobs/test-job-id/report", headers=auth_headers)
+        # May be 404 if not implemented or job not found, or 503 if DB disabled
+        assert response.status_code in [200, 404, 422, 500, 503]
 
 
 class TestModelLoadingEdgeCases:
@@ -330,59 +339,59 @@ class TestPredictionWithDatabaseDisabled:
     """Test predictions with database disabled"""
 
     @patch.dict(os.environ, {"DISABLE_DB": "1"})
-    def test_predict_with_db_disabled(self, client, sample_employee_data):
+    def test_predict_with_db_disabled(self, client, auth_headers, sample_employee_data):
         """Test prediction when database is disabled"""
         payload = {
             "eval_data": [sample_employee_data],
             "sirh_data": [sample_employee_data],
             "sondage_data": [sample_employee_data],
         }
-        response = client.post("/predict", json=payload)
+        response = client.post("/predict", headers=auth_headers, json=payload)
         assert response.status_code in [200, 422, 500]
 
     @patch.dict(os.environ, {"DISABLE_DB": "1"})
-    def test_predict_excel_with_db_disabled(self, client, sample_employee_data):
+    def test_predict_excel_with_db_disabled(self, client, auth_headers, sample_employee_data):
         """Test Excel generation when database is disabled"""
         payload = {
             "eval_data": [sample_employee_data],
             "sirh_data": [sample_employee_data],
             "sondage_data": [sample_employee_data],
         }
-        response = client.post("/predict_excel", json=payload)
+        response = client.post("/predict_excel", headers=auth_headers, json=payload)
         assert response.status_code in [200, 422, 500]
 
 
 class TestPredictionErrorPaths:
     """Test various error paths in prediction"""
 
-    def test_predict_with_none_values(self, client, sample_employee_data):
+    def test_predict_with_none_values(self, client, auth_headers, sample_employee_data):
         """Test prediction with None values"""
         data = dict(sample_employee_data)
         data["genre"] = None
         data["ayant_enfants"] = None
 
         payload = {"eval_data": [data], "sirh_data": [data], "sondage_data": [data]}
-        response = client.post("/predict", json=payload)
+        response = client.post("/predict", headers=auth_headers, json=payload)
         assert response.status_code in [200, 422, 500]
 
-    def test_predict_with_empty_strings(self, client, sample_employee_data):
+    def test_predict_with_empty_strings(self, client, auth_headers, sample_employee_data):
         """Test prediction with empty strings"""
         data = dict(sample_employee_data)
         data["departement"] = ""
         data["poste"] = ""
 
         payload = {"eval_data": [data], "sirh_data": [data], "sondage_data": [data]}
-        response = client.post("/predict", json=payload)
+        response = client.post("/predict", headers=auth_headers, json=payload)
         assert response.status_code in [200, 422, 500]
 
-    def test_predict_with_invalid_numeric_types(self, client, sample_employee_data):
+    def test_predict_with_invalid_numeric_types(self, client, auth_headers, sample_employee_data):
         """Test prediction with invalid numeric types"""
         data = dict(sample_employee_data)
         data["age"] = "not_a_number"
         data["revenu_mensuel"] = "invalid"
 
         payload = {"eval_data": [data], "sirh_data": [data], "sondage_data": [data]}
-        response = client.post("/predict", json=payload)
+        response = client.post("/predict", headers=auth_headers, json=payload)
         assert response.status_code in [422, 500]
 
 
