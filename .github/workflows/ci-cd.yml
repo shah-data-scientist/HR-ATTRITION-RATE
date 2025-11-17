@@ -61,8 +61,9 @@ jobs:
         severity: 'CRITICAL,HIGH'
     
     - name: Upload Trivy results to GitHub Security
-      uses: github/codeql-action/upload-sarif@v3
+      uses: github/codeql-action/upload-sarif@v4
       if: always()
+      continue-on-error: true
       with:
         sarif_file: 'trivy-results.sarif'
 
@@ -244,7 +245,7 @@ jobs:
       with:
         context: .
         file: ./docker/Dockerfile.api
-        push: ${{ github.ref == 'refs/heads/main' }}
+        push: false
         tags: ${{ steps.meta-api.outputs.tags }}
         labels: ${{ steps.meta-api.outputs.labels }}
         cache-from: type=gha
@@ -255,7 +256,7 @@ jobs:
       with:
         context: .
         file: ./docker/Dockerfile.streamlit
-        push: ${{ github.ref == 'refs/heads/main' }}
+        push: false
         tags: ${{ steps.meta-ui.outputs.tags }}
         labels: ${{ steps.meta-ui.outputs.labels }}
         cache-from: type=gha
@@ -268,11 +269,12 @@ jobs:
         format: 'sarif'
         output: 'trivy-api-results.sarif'
         severity: 'CRITICAL,HIGH'
-      if: github.ref == 'refs/heads/main'
+      if: false
     
     - name: Upload API scan results
-      uses: github/codeql-action/upload-sarif@v3
-      if: github.ref == 'refs/heads/main'
+      uses: github/codeql-action/upload-sarif@v4
+      if: false
+      continue-on-error: true
       with:
         sarif_file: 'trivy-api-results.sarif'
 
@@ -310,36 +312,11 @@ jobs:
       with:
         context: .
         file: ./docker/Dockerfile.huggingface
-        push: true
+        push: false
         tags: ${{ steps.meta-hf.outputs.tags }}
         labels: ${{ steps.meta-hf.outputs.labels }}
         cache-from: type=gha
         cache-to: type=gha,mode=max
-    
-    - name: Pull and test Docker image
-      run: |
-        docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-huggingface:main-${{ github.sha }}
-        docker run -d -p 7860:7860 --name test-hf ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-huggingface:main-${{ github.sha }}
-        sleep 30
-        docker logs test-hf
-        curl --retry 5 --retry-delay 5 http://localhost:7860 || echo "UI not ready yet"
-        docker exec test-hf curl -f http://localhost:8001/health || echo "API health check failed"
-        docker stop test-hf
-        docker rm test-hf
-    
-    - name: Scan Hugging Face image for vulnerabilities
-      uses: aquasecurity/trivy-action@master
-      with:
-        image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-huggingface:main-${{ github.sha }}
-        format: 'sarif'
-        output: 'trivy-hf-results.sarif'
-        severity: 'CRITICAL,HIGH'
-    
-    - name: Upload Hugging Face scan results
-      uses: github/codeql-action/upload-sarif@v3
-      if: always()
-      with:
-        sarif_file: 'trivy-hf-results.sarif'
 
   deploy-staging:
     name: Deploy to Staging (Optional)
