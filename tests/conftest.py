@@ -15,6 +15,9 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from database.database import Base
 from database.models import Employee, ModelInput, ModelOutput, PredictionTraceability
 
+# Set test API key
+os.environ["API_KEY"] = "test_api_key_for_pytest"
+
 
 @pytest.fixture(scope="session")
 def sample_raw_employee_data():

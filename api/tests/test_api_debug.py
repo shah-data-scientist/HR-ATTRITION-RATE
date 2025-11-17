@@ -12,10 +12,16 @@ sys.path.insert(
     0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 )
 
-# Assuming create_synthetic_data.py is in the root of the project
-# from create_synthetic_data import create_synthetic_data
+# Ensure API key is set for tests
+os.environ["API_KEY"] = "test_api_key_for_pytest"
 
 client = TestClient(app)
+
+
+@pytest.fixture
+def auth_headers():
+    """Authentication headers for API requests"""
+    return {"X-API-Key": "test_api_key_for_pytest", "X-User-ID": "test_user"}
 
 
 @pytest.fixture(scope="module")
@@ -42,7 +48,7 @@ def synthetic_data():
     }
 
 
-def test_predict_attrition_with_raw_data(synthetic_data):
+def test_predict_attrition_with_raw_data(synthetic_data, auth_headers):
     """
     Tests the /predict endpoint with raw, unmerged data,
     expecting the API to perform the merging and prediction.
@@ -51,7 +57,7 @@ def test_predict_attrition_with_raw_data(synthetic_data):
     print(f"Synthetic data payload: {json.dumps(synthetic_data, indent=2)}")
 
     with TestClient(app) as client:
-        response = client.post("/predict", json=synthetic_data)
+        response = client.post("/predict", headers=auth_headers, json=synthetic_data)
 
     print("\n--- API Response ---")
     print(f"Status Code: {response.status_code}")

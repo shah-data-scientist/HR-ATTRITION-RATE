@@ -15,13 +15,15 @@ import joblib
 import numpy as np
 import pandas as pd
 import shap  # Import shap
-from fastapi import Depends, FastAPI, HTTPException, status, Request
+from fastapi import Depends, FastAPI, HTTPException, status, Request, Security
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session  # Explicitly import Session for type hinting
 from sqlalchemy import text
 from typing import Optional
 
-# from api.security import get_api_key, API_TOKEN
+# Authentication and security
+from api.auth import get_api_key, get_optional_api_key
+from api.middleware import setup_security_middleware
 
 # Database imports
 from database.database import get_db
@@ -182,19 +184,13 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="Employee Attrition Prediction API",
-    description="API for predicting employee attrition risk based on various features.",
+    description="API for predicting employee attrition risk based on various features. Requires API key authentication.",
     version="1.0.0",
     lifespan=lifespan,
 )
 
-# Add CORS middleware to allow UI to make requests
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  # Allow all origins for local development
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# Setup security middleware (CORS, security headers, logging, etc.)
+setup_security_middleware(app)
 
 
 def get_expected_columns_from_pipeline(pipeline):
@@ -336,10 +332,10 @@ def generate_predictions(
                     if k != "id_employee"
                     and k in [col.name for col in Employee.__table__.columns]
                 }
-                
+
                 # Set user_id from request header (who is making the prediction request)
-                user_id = request.headers.get('X-User-ID', 'demo1')
-                employee_data_for_db['user_id'] = user_id
+                user_id = request.headers.get("X-User-ID", "demo1")
+                employee_data_for_db["user_id"] = user_id
 
                 employee_db = (
                     db.query(Employee)
@@ -411,7 +407,9 @@ def generate_predictions(
                         db.add(new_shap_analysis)
                         db.flush()  # Flush SHAP separately before commit
                     except Exception as e:
-                        logger.error(f"Failed to save SHAP for employee {employee_id}: {type(e).__name__}: {str(e)}")
+                        logger.error(
+                            f"Failed to save SHAP for employee {employee_id}: {type(e).__name__}: {str(e)}"
+                        )
                         # Don't fail the entire prediction if SHAP save fails
 
                 db.commit()
@@ -485,13 +483,18 @@ async def create_report_job(
     batch_input: RawBatchPredictionInput,
     request: Request,
     db: Optional[Session] = Depends(get_db),
+    api_key: str = Security(get_api_key),
 ):
+    """Create an async job to generate reports (Excel + SHAP images).
+
+    **Authentication Required:** Provide X-API-Key header with valid API key.
+    """
     if _is_db_disabled() or db is None:
         raise HTTPException(
             status_code=503, detail="Database is disabled; jobs are unavailable."
         )
     try:
-        user_id = request.headers.get('X-User-ID', 'demo1')
+        user_id = request.headers.get("X-User-ID", "demo1")
         job = Job(
             job_type="report",
             status="queued",
@@ -562,9 +565,12 @@ async def predict_attrition(
     batch_input: RawBatchPredictionInput,
     request: Request,
     db: Optional[Session] = Depends(get_db),
+    api_key: str = Security(get_api_key),
 ):
     """Predicts the attrition risk for a list of employees based on their features.
     All model inputs, outputs, and prediction traceability are recorded in the database.
+
+    **Authentication Required:** Provide X-API-Key header with valid API key.
     """
     # Fast path: skip SHAP for quick predictions and DB writes
     predictions_output = generate_predictions(
@@ -581,13 +587,18 @@ async def predict_attrition_report(
     batch_input: RawBatchPredictionInput,
     request: Request,
     db: Optional[Session] = Depends(get_db),
+    api_key: str = Security(get_api_key),
 ):
     """Runs prediction and returns:
+
+    **Authentication Required:** Provide X-API-Key header with valid API key.
     - predictions: same as /predict
     - excel_base64: Excel workbook (Summary, Features, Metrics) in base64
     - shap_images: list of base64-encoded waterfall plots per employee
     """
-    predictions_output = generate_predictions(batch_input, request, db, compute_shap=True)
+    predictions_output = generate_predictions(
+        batch_input, request, db, compute_shap=True
+    )
 
     # Build Summary sheet
     summary_rows = []
@@ -703,9 +714,15 @@ async def predict_excel(
     batch_input: RawBatchPredictionInput,
     request: Request,
     db: Optional[Session] = Depends(get_db),
+    api_key: str = Security(get_api_key),
 ):
-    """Runs prediction and returns only the Excel report as base64."""
-    predictions_output = generate_predictions(batch_input, request, db, compute_shap=True)
+    """Generate predictions and return Excel report.
+
+    **Authentication Required:** Provide X-API-Key header with valid API key.
+    """
+    predictions_output = generate_predictions(
+        batch_input, request, db, compute_shap=True
+    )
 
     summary_rows = [
         {
@@ -772,9 +789,15 @@ async def predict_shap_images(
     batch_input: RawBatchPredictionInput,
     request: Request,
     db: Optional[Session] = Depends(get_db),
+    api_key: str = Security(get_api_key),
 ):
-    """Runs prediction and returns only SHAP waterfall images as base64 list."""
-    predictions_output = generate_predictions(batch_input, request, db, compute_shap=True)
+    """Runs prediction and returns only SHAP waterfall images as base64 list.
+
+    **Authentication Required:** Provide X-API-Key header with valid API key.
+    """
+    predictions_output = generate_predictions(
+        batch_input, request, db, compute_shap=True
+    )
 
     shap_images = []
     for p in predictions_output:

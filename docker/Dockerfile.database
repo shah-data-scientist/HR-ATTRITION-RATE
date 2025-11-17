@@ -1,43 +1,48 @@
+# Dockerfile for Database Initialization (Production)
 FROM python:3.13-slim
+
+# Metadata
+LABEL maintainer="HR Attrition Team"
+LABEL version="1.0.0"
+LABEL description="Database Initialization Service"
 
 WORKDIR /app
 
-# Install system dependencies including Poetry
-RUN apt-get update && apt-get install -y \
-    build-essential \
-    curl \
+# Install system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
     postgresql-client \
     && rm -rf /var/lib/apt/lists/* \
-    && curl -sSL https://install.python-poetry.org | python3 - \
-    && ln -s /root/.local/bin/poetry /usr/local/bin/poetry
+    && apt-get clean
 
-# Configure Poetry
-ENV POETRY_NO_INTERACTION=1 \
-    POETRY_VIRTUALENVS_IN_PROJECT=true \
-    POETRY_VIRTUALENVS_CREATE=true \
-    POETRY_CACHE_DIR=/tmp/poetry_cache
-
-# Copy Poetry configuration files
-COPY pyproject.toml poetry.lock ./
-
-# Install dependencies using Poetry (no dev dependencies)
-RUN poetry install --no-root --without dev && rm -rf $POETRY_CACHE_DIR
+# Install Python dependencies directly
+RUN pip install --no-cache-dir \
+    "sqlalchemy>=2.0.44,<3.0.0" \
+    "psycopg2-binary>=2.9.11,<3.0.0" \
+    "pandas>=2.2.0,<3.0.0" \
+    "python-dotenv>=1.2.1,<2.0.0"
 
 # Copy database code, data, and scripts
 COPY database/ ./database/
 COPY data/ ./data/
 COPY scripts/ ./scripts/
+COPY core/ ./core/
 
-# Create directory for SQLite database
-RUN mkdir -p /app/db_data
+# Create non-root user and set permissions
+RUN groupadd -r dbuser && useradd -r -g dbuser -u 1002 dbuser \
+    && mkdir -p /app/db_data \
+    && chown -R dbuser:dbuser /app
+
+# Switch to non-root user
+USER dbuser
 
 # Environment variables
-ENV DATABASE_URL=sqlite:///db_data/hr_attrition.db \
-    DISABLE_DB=false
+ENV DATABASE_URL=postgresql://user:password@db:5432/hr_attrition_db \
+    DISABLE_DB=false \
+    PYTHONPATH=/app
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD poetry run python -c "from database.database import engine; engine.connect()" || exit 1
+    CMD python -c "from database.database import engine; engine.connect()" || exit 1
 
 # Initialize database on startup
-CMD ["poetry", "run", "python", "-m", "database.init_db"]
+CMD ["python", "-m", "database.init_db"]

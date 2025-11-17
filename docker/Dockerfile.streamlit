@@ -1,14 +1,19 @@
-# Dockerfile for Streamlit UI
-FROM python:3.13-slim
+# Dockerfile for Streamlit UI (Production)
+# Multi-stage build for smaller, more secure images
+
+# Stage 1: Builder
+FROM python:3.13-slim AS builder
 
 WORKDIR /app
 
-# Install system dependencies including Poetry
-RUN apt-get update && apt-get install -y \
+# Install build dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     curl \
-    && rm -rf /var/lib/apt/lists/* \
-    && curl -sSL https://install.python-poetry.org | python3 - \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Poetry
+RUN curl -sSL https://install.python-poetry.org | python3 - \
     && ln -s /root/.local/bin/poetry /usr/local/bin/poetry
 
 # Configure Poetry
@@ -20,12 +25,44 @@ ENV POETRY_NO_INTERACTION=1 \
 # Copy dependency files
 COPY pyproject.toml poetry.lock ./
 
-# Install dependencies using Poetry (no dev dependencies)
+# Install dependencies (no dev)
 RUN poetry install --no-root --without dev && rm -rf $POETRY_CACHE_DIR
+
+# Stage 2: Runtime
+FROM python:3.13-slim
+
+# Metadata
+LABEL maintainer="HR Attrition Team"
+LABEL version="1.0.0"
+LABEL description="Streamlit HR Attrition UI"
+
+WORKDIR /app
+
+# Install runtime dependencies only
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
+
+# Copy virtual environment from builder
+COPY --from=builder /app/.venv /app/.venv
 
 # Copy application code
 COPY ui ./ui
 COPY data ./data
+
+# Create non-root user
+RUN groupadd -r appuser && useradd -r -g appuser -u 1001 appuser
+
+# Set ownership
+RUN chown -R appuser:appuser /app
+
+# Switch to non-root user
+USER appuser
+
+# Set PATH to use virtual environment
+ENV PATH="/app/.venv/bin:$PATH" \
+    PYTHONPATH=/app
 
 # Expose port
 EXPOSE 8501
@@ -34,6 +71,6 @@ EXPOSE 8501
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
     CMD curl -f http://localhost:8501/_stcore/health || exit 1
 
-# Run Streamlit using Poetry
-CMD ["poetry", "run", "streamlit", "run", "ui/app.py", "--server.port=8501", "--server.address=0.0.0.0"]
+# Run Streamlit
+CMD ["streamlit", "run", "ui/app.py", "--server.port=8501", "--server.address=0.0.0.0", "--server.headless=true", "--browser.gatherUsageStats=false"]
 

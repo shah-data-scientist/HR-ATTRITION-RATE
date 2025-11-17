@@ -17,7 +17,9 @@ class Job(Base):
     payload_json = Column(JSON, nullable=False)
     result_json = Column(JSON, nullable=True)
     error = Column(String, nullable=True)
-    user_id = Column(String(50), nullable=False, default="demo1")  # User who created the job
+    user_id = Column(
+        String(50), nullable=False, default="demo1"
+    )  # User who created the job
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(
         DateTime(timezone=True), onupdate=func.now(), server_default=func.now()
@@ -72,7 +74,9 @@ class Employee(Base):
     improvement_evaluation = Column(Float, nullable=True)  # Engineered feature
     total_satisfaction = Column(Float, nullable=True)  # Engineered feature
     work_mobility = Column(Float, nullable=True)  # Engineered feature
-    user_id = Column(String(50), nullable=False, default="demo1")  # User who created the record
+    user_id = Column(
+        String(50), nullable=False, default="demo1"
+    )  # User who created the record
     date_ingestion = Column(DateTime(timezone=True), server_default=func.now())
 
     # Relationships
@@ -126,16 +130,19 @@ class PredictionTraceability(Base):
 
     model_input = relationship("ModelInput", back_populates="trace")
     model_output = relationship("ModelOutput", back_populates="trace")
-    shap_analysis = relationship(
-        "ShapAnalysis", back_populates="trace", uselist=False
-    )
+    shap_analysis = relationship("ShapAnalysis", back_populates="trace", uselist=False)
 
 
 class ShapAnalysis(Base):
     __tablename__ = "shap_analysis"
 
     shap_id = Column(Integer, primary_key=True, index=True)
-    trace_id = Column(Integer, ForeignKey("predictions_traceability.trace_id"), nullable=False, unique=True)
+    trace_id = Column(
+        Integer,
+        ForeignKey("predictions_traceability.trace_id"),
+        nullable=False,
+        unique=True,
+    )
     shap_values = Column(JSON, nullable=False)  # Array of SHAP values
     base_value = Column(Float, nullable=False)  # Expected value from explainer
     feature_names = Column(JSON, nullable=False)  # Array of feature names

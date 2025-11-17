@@ -2,9 +2,13 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [ main, develop, production-readiness ]
   pull_request:
     branches: [ main, develop ]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
 
 jobs:
   code-quality:
@@ -36,17 +40,39 @@ jobs:
       run: |
         poetry run mypy --ignore-missing-imports api/ core/ database/ ui/ || true
 
+  security-scan:
+    name: Security Scanning
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@master
+      with:
+        scan-type: 'fs'
+        scan-ref: '.'
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+        severity: 'CRITICAL,HIGH'
+    
+    - name: Upload Trivy results to GitHub Security
+      uses: github/codeql-action/upload-sarif@v2
+      if: always()
+      with:
+        sarif_file: 'trivy-results.sarif'
+
   test-with-database:
     name: Run Tests (PostgreSQL)
     runs-on: ubuntu-latest
     
     services:
       postgres:
-        image: postgres:15
+        image: postgres:16-alpine
         env:
-          POSTGRES_USER: user
-          POSTGRES_PASSWORD: password
-          POSTGRES_DB: hr_attrition_db
+          POSTGRES_USER: ${{ secrets.POSTGRES_USER || 'user' }}
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD || 'password' }}
+          POSTGRES_DB: ${{ secrets.POSTGRES_DB || 'hr_attrition_db' }}
         ports:
           - 5432:5432
         options: >-
@@ -74,7 +100,7 @@ jobs:
     
     - name: Initialize database schema
       env:
-        DATABASE_URL: postgresql://user:password@localhost:5432/hr_attrition_db
+        DATABASE_URL: postgresql://${{ secrets.POSTGRES_USER || 'user' }}:${{ secrets.POSTGRES_PASSWORD || 'password' }}@localhost:5432/${{ secrets.POSTGRES_DB || 'hr_attrition_db' }}
       run: |
         poetry run python - <<'PY'
         from database.database import Base, engine
@@ -84,7 +110,8 @@ jobs:
     
     - name: Run pytest with coverage
       env:
-        DATABASE_URL: postgresql://user:password@localhost:5432/hr_attrition_db
+        DATABASE_URL: postgresql://${{ secrets.POSTGRES_USER || 'user' }}:${{ secrets.POSTGRES_PASSWORD || 'password' }}@localhost:5432/${{ secrets.POSTGRES_DB || 'hr_attrition_db' }}
+        API_KEY: ${{ secrets.API_KEY || 'test_api_key' }}
       run: |
         poetry run pytest tests/test_final_push_85.py tests/test_uncovered_paths.py tests/test_coverage_85.py tests/test_api_comprehensive.py tests/test_core.py api/tests/test_api_debug.py --cov=api.app.main --cov=core --cov=database.models --cov-report=term --cov-report=xml -v
     
@@ -119,13 +146,136 @@ jobs:
     - name: Run pytest without database (DISABLE_DB=1)
       env:
         DISABLE_DB: "1"
+        API_KEY: ${{ secrets.API_KEY || 'test_api_key' }}
       run: |
         poetry run pytest tests/test_final_push_85.py tests/test_uncovered_paths.py tests/test_coverage_85.py tests/test_api_comprehensive.py tests/test_core.py api/tests/test_api_debug.py --cov=api.app.main --cov=core --cov-report=term -v
+
+  test-authentication:
+    name: Test Authentication & Security
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.13'
+    
+    - name: Install Poetry
+      run: |
+        curl -sSL https://install.python-poetry.org | python3 -
+        echo "$HOME/.local/bin" >> $GITHUB_PATH
+    
+    - name: Install dependencies
+      run: |
+        poetry install --with dev
+    
+    - name: Test API authentication module
+      env:
+        API_KEY: test_secure_api_key_for_testing
+      run: |
+        poetry run python - <<'PY'
+        import os
+        os.environ['API_KEY'] = 'test_secure_api_key_for_testing'
+        from api.auth import verify_password, get_password_hash, generate_api_key
+        
+        # Test password hashing
+        password = "test_password_123"
+        hashed = get_password_hash(password)
+        assert verify_password(password, hashed), "Password verification failed"
+        assert not verify_password("wrong_password", hashed), "Should reject wrong password"
+        
+        # Test API key generation
+        api_key = generate_api_key()
+        assert len(api_key) == 64, "API key should be 64 chars (32 bytes hex)"
+        
+        print("✅ Authentication tests passed")
+        PY
+
+  build-docker-images:
+    name: Build Docker Images
+    runs-on: ubuntu-latest
+    needs: [code-quality, security-scan, test-with-database, test-no-database, test-authentication]
+    if: github.event_name == 'push'
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+    
+    - name: Log in to GitHub Container Registry
+      if: github.ref == 'refs/heads/main'
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Extract metadata for API
+      id: meta-api
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-api
+        tags: |
+          type=ref,event=branch
+          type=sha,prefix={{branch}}-
+          type=semver,pattern={{version}}
+          type=semver,pattern={{major}}.{{minor}}
+    
+    - name: Extract metadata for UI
+      id: meta-ui
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-ui
+        tags: |
+          type=ref,event=branch
+          type=sha,prefix={{branch}}-
+          type=semver,pattern={{version}}
+          type=semver,pattern={{major}}.{{minor}}
+    
+    - name: Build API Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: ./docker/Dockerfile.api
+        push: ${{ github.ref == 'refs/heads/main' }}
+        tags: ${{ steps.meta-api.outputs.tags }}
+        labels: ${{ steps.meta-api.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+    
+    - name: Build UI Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: ./docker/Dockerfile.streamlit
+        push: ${{ github.ref == 'refs/heads/main' }}
+        tags: ${{ steps.meta-ui.outputs.tags }}
+        labels: ${{ steps.meta-ui.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+    
+    - name: Scan API image for vulnerabilities
+      uses: aquasecurity/trivy-action@master
+      with:
+        image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-api:${{ github.ref_name }}-${{ github.sha }}
+        format: 'sarif'
+        output: 'trivy-api-results.sarif'
+        severity: 'CRITICAL,HIGH'
+      if: github.ref == 'refs/heads/main'
+    
+    - name: Upload API scan results
+      uses: github/codeql-action/upload-sarif@v2
+      if: github.ref == 'refs/heads/main'
+      with:
+        sarif_file: 'trivy-api-results.sarif'
 
   docker-huggingface:
     name: Build Hugging Face Docker Image
     runs-on: ubuntu-latest
-    needs: [code-quality, test-with-database, test-no-database]
+    needs: [code-quality, security-scan, test-with-database, test-no-database, test-authentication]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     
     steps:
@@ -134,27 +284,129 @@ jobs:
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
     
-    - name: Build Hugging Face Docker image
-      run: |
-        docker build -f docker/Dockerfile.huggingface -t hr-attrition-hf:${{ github.sha }} .
+    - name: Log in to GitHub Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
     
-    - name: Test Docker image
+    - name: Extract metadata for Hugging Face image
+      id: meta-hf
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-huggingface
+        tags: |
+          type=ref,event=branch
+          type=sha,prefix={{branch}}-
+          type=raw,value=latest,enable={{is_default_branch}}
+    
+    - name: Build Hugging Face Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: ./docker/Dockerfile.huggingface
+        push: true
+        tags: ${{ steps.meta-hf.outputs.tags }}
+        labels: ${{ steps.meta-hf.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+    
+    - name: Pull and test Docker image
       run: |
-        docker run -d -p 7860:7860 --name test-hf hr-attrition-hf:${{ github.sha }}
-        sleep 20
+        docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-huggingface:main-${{ github.sha }}
+        docker run -d -p 7860:7860 --name test-hf ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-huggingface:main-${{ github.sha }}
+        sleep 30
         docker logs test-hf
-        curl --retry 5 --retry-delay 3 http://localhost:7860 || echo "UI not ready yet"
+        curl --retry 5 --retry-delay 5 http://localhost:7860 || echo "UI not ready yet"
         docker exec test-hf curl -f http://localhost:8001/health || echo "API health check failed"
         docker stop test-hf
         docker rm test-hf
     
-    - name: Save Docker image as artifact
-      run: |
-        docker save hr-attrition-hf:${{ github.sha }} | gzip > hr-attrition-hf.tar.gz
-    
-    - name: Upload Docker image artifact
-      uses: actions/upload-artifact@v4
+    - name: Scan Hugging Face image for vulnerabilities
+      uses: aquasecurity/trivy-action@master
       with:
-        name: hr-attrition-hf-image
-        path: hr-attrition-hf.tar.gz
-        retention-days: 7
+        image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-huggingface:main-${{ github.sha }}
+        format: 'sarif'
+        output: 'trivy-hf-results.sarif'
+        severity: 'CRITICAL,HIGH'
+    
+    - name: Upload Hugging Face scan results
+      uses: github/codeql-action/upload-sarif@v2
+      if: always()
+      with:
+        sarif_file: 'trivy-hf-results.sarif'
+
+  deploy-staging:
+    name: Deploy to Staging (Optional)
+    runs-on: ubuntu-latest
+    needs: [build-docker-images]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment:
+      name: staging
+      url: https://staging.yourdomain.com
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Deploy to staging server
+      run: |
+        echo "🚀 Deployment to staging would happen here"
+        echo "Example: SSH to server and run docker-compose pull && docker-compose up -d"
+        echo ""
+        echo "Required secrets for actual deployment:"
+        echo "  - STAGING_HOST: SSH host"
+        echo "  - STAGING_USER: SSH username"
+        echo "  - STAGING_SSH_KEY: SSH private key"
+        echo "  - STAGING_ENV_FILE: Environment variables"
+    
+    # Uncomment and configure when ready to deploy
+    # - name: Deploy via SSH
+    #   uses: appleboy/ssh-action@v1.0.0
+    #   with:
+    #     host: ${{ secrets.STAGING_HOST }}
+    #     username: ${{ secrets.STAGING_USER }}
+    #     key: ${{ secrets.STAGING_SSH_KEY }}
+    #     script: |
+    #       cd /opt/hr-attrition
+    #       echo "${{ secrets.STAGING_ENV_FILE }}" > .env
+    #       docker-compose -f docker-compose.prod.yml pull
+    #       docker-compose -f docker-compose.prod.yml up -d
+    #       docker-compose -f docker-compose.prod.yml logs --tail=50
+
+  deploy-production:
+    name: Deploy to Production (Manual Approval)
+    runs-on: ubuntu-latest
+    needs: [deploy-staging]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment:
+      name: production
+      url: https://yourdomain.com
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Deploy to production server
+      run: |
+        echo "🚀 Production deployment would happen here"
+        echo "This requires manual approval in GitHub Actions"
+        echo ""
+        echo "Required secrets for actual deployment:"
+        echo "  - PROD_HOST: SSH host"
+        echo "  - PROD_USER: SSH username"
+        echo "  - PROD_SSH_KEY: SSH private key"
+        echo "  - PROD_ENV_FILE: Environment variables"
+    
+    # Uncomment and configure when ready to deploy
+    # - name: Deploy via SSH
+    #   uses: appleboy/ssh-action@v1.0.0
+    #   with:
+    #     host: ${{ secrets.PROD_HOST }}
+    #     username: ${{ secrets.PROD_USER }}
+    #     key: ${{ secrets.PROD_SSH_KEY }}
+    #     script: |
+    #       cd /opt/hr-attrition
+    #       echo "${{ secrets.PROD_ENV_FILE }}" > .env
+    #       docker-compose -f docker-compose.prod.yml pull
+    #       docker-compose -f docker-compose.prod.yml up -d --no-deps --build
+    #       docker-compose -f docker-compose.prod.yml logs --tail=50

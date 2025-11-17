@@ -4,37 +4,53 @@ services:
   db:
     image: postgres:16-alpine
     restart: always
+    env_file:
+      - .env
     environment:
-      POSTGRES_DB: hr_attrition_db
-      POSTGRES_USER: user
-      POSTGRES_PASSWORD: password
-    ports:
-      - "5432:5432"
+      POSTGRES_DB: ${POSTGRES_DB:-hr_attrition_db}
+      POSTGRES_USER: ${POSTGRES_USER:-user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
+    # Database port removed - internal only
     volumes:
       - db_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U user -d hr_attrition_db"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-user} -d ${POSTGRES_DB:-hr_attrition_db}"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
     networks:
       - hr_network
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.5'
+          memory: 256M
 
   db_init:
     build:
       context: .
       dockerfile: docker/Dockerfile.database
+    env_file:
+      - .env
     environment:
-      DATABASE_URL: postgresql://user:password@db:5432/hr_attrition_db
+      DATABASE_URL: postgresql://${POSTGRES_USER:-user}:${POSTGRES_PASSWORD:-password}@db:5432/${POSTGRES_DB:-hr_attrition_db}
       DISABLE_DB: "false"
     depends_on:
       db:
         condition: service_healthy
     volumes:
-      - ./data:/app/data
+      - ./data:/app/data:ro
     networks:
       - hr_network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
 
   fastapi_app:
     build:
@@ -42,11 +58,14 @@ services:
       dockerfile: docker/Dockerfile.api
     ports:
       - "8001:8001"
+    env_file:
+      - .env
     environment:
-      DATABASE_URL: postgresql://user:password@db:5432/hr_attrition_db
+      DATABASE_URL: postgresql://${POSTGRES_USER:-user}:${POSTGRES_PASSWORD:-password}@db:5432/${POSTGRES_DB:-hr_attrition_db}
       API_HOST: 0.0.0.0
       API_PORT: 8001
       DISABLE_DB: "false"
+      API_KEY: ${API_KEY:-changeme}
     depends_on:
       db:
         condition: service_healthy
@@ -61,6 +80,14 @@ services:
     restart: unless-stopped
     networks:
       - hr_network
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 1G
+        reservations:
+          cpus: '1.0'
+          memory: 512M
 
   streamlit_app:
     build:
@@ -68,8 +95,11 @@ services:
       dockerfile: docker/Dockerfile.streamlit
     ports:
       - "8501:8501"
+    env_file:
+      - .env
     environment:
       API_BASE_URL: http://fastapi_app:8001
+      API_KEY: ${API_KEY:-changeme}
     depends_on:
       fastapi_app:
         condition: service_healthy
@@ -82,16 +112,26 @@ services:
     restart: unless-stopped
     networks:
       - hr_network
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.5'
+          memory: 256M
 
   worker:
     build:
       context: .
       dockerfile: docker/Dockerfile.api
     command: ["poetry", "run", "python", "-m", "scripts.worker"]
+    env_file:
+      - .env
     environment:
-      DATABASE_URL: postgresql://user:password@db:5432/hr_attrition_db
-      WORKER_POLL_SEC: "2"
-      WORKER_STALE_SEC: "600"
+      DATABASE_URL: postgresql://${POSTGRES_USER:-user}:${POSTGRES_PASSWORD:-password}@db:5432/${POSTGRES_DB:-hr_attrition_db}
+      WORKER_POLL_SEC: ${WORKER_POLL_SEC:-2}
+      WORKER_STALE_SEC: ${WORKER_STALE_SEC:-600}
       DISABLE_DB: "false"
     depends_on:
       db:
@@ -101,6 +141,20 @@ services:
     restart: unless-stopped
     networks:
       - hr_network
+    healthcheck:
+      test: ["CMD", "pgrep", "-f", "scripts.worker"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 1G
+        reservations:
+          cpus: '1.0'
+          memory: 512M
 
 volumes:
   db_data:

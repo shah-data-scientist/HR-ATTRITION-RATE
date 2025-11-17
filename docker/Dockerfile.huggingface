@@ -1,14 +1,16 @@
-FROM python:3.13-slim
+# Multi-stage build for lean Hugging Face deployment
+FROM python:3.13-slim AS builder
 
 WORKDIR /app
 
-# Install system dependencies including Poetry and supervisor
+# Install build dependencies
 RUN apt-get update && apt-get install -y \
     build-essential \
     curl \
-    supervisor \
-    && rm -rf /var/lib/apt/lists/* \
-    && curl -sSL https://install.python-poetry.org | python3 - \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Poetry
+RUN curl -sSL https://install.python-poetry.org | python3 - \
     && ln -s /root/.local/bin/poetry /usr/local/bin/poetry
 
 # Configure Poetry
@@ -17,56 +19,83 @@ ENV POETRY_NO_INTERACTION=1 \
     POETRY_VIRTUALENVS_CREATE=true \
     POETRY_CACHE_DIR=/tmp/poetry_cache
 
-# Copy Poetry configuration files
+# Copy dependency files
 COPY pyproject.toml poetry.lock ./
 
-# Install dependencies using Poetry (no dev dependencies)
+# Install dependencies (no dev, no root)
 RUN poetry install --no-root --without dev && rm -rf $POETRY_CACHE_DIR
 
-# Copy all application code
+# Runtime stage
+FROM python:3.13-slim
+
+WORKDIR /app
+
+# Install only runtime dependencies
+RUN apt-get update && apt-get install -y \
+    supervisor \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy Poetry and virtualenv from builder
+COPY --from=builder /root/.local /root/.local
+COPY --from=builder /app/.venv /app/.venv
+ENV PATH="/root/.local/bin:/app/.venv/bin:$PATH"
+
+# Copy application code
 COPY api/ ./api/
 COPY core/ ./core/
 COPY database/ ./database/
 COPY outputs/ ./outputs/
 COPY data/ ./data/
-COPY scripts/utils.py ./utils.py
+COPY scripts/ ./scripts/
 COPY ui/app.py ./ui/app.py
 COPY .streamlit/ ./.streamlit/
+COPY pyproject.toml poetry.lock ./
 
 # Create necessary directories
 RUN mkdir -p /app/temp /app/shap_images /app/db_data /var/log/supervisor
 
-# Create supervisor configuration
+# Create lean supervisor configuration
 RUN echo '[supervisord]\n\
 nodaemon=true\n\
-logfile=/var/log/supervisor/supervisord.log\n\
-pidfile=/var/run/supervisord.pid\n\
+logfile=/dev/stdout\n\
+logfile_maxbytes=0\n\
+loglevel=info\n\
 \n\
 [program:fastapi]\n\
-command=poetry run uvicorn api.app.main:app --host 0.0.0.0 --port 8001\n\
+command=/app/.venv/bin/uvicorn api.app.main:app --host 0.0.0.0 --port 8001 --workers 2\n\
 directory=/app\n\
 autostart=true\n\
 autorestart=true\n\
-stdout_logfile=/var/log/supervisor/fastapi.log\n\
-stderr_logfile=/var/log/supervisor/fastapi.err\n\
+stdout_logfile=/dev/stdout\n\
+stdout_logfile_maxbytes=0\n\
+stderr_logfile=/dev/stderr\n\
+stderr_logfile_maxbytes=0\n\
 \n\
 [program:streamlit]\n\
-command=poetry run streamlit run ui/app.py --server.port=7860 --server.address=0.0.0.0\n\
+command=/app/.venv/bin/streamlit run ui/app.py --server.port=7860 --server.address=0.0.0.0 --server.headless=true --browser.gatherUsageStats=false\n\
 directory=/app\n\
 autostart=true\n\
 autorestart=true\n\
-stdout_logfile=/var/log/supervisor/streamlit.log\n\
-stderr_logfile=/var/log/supervisor/streamlit.err\n\
+stdout_logfile=/dev/stdout\n\
+stdout_logfile_maxbytes=0\n\
+stderr_logfile=/dev/stderr\n\
+stderr_logfile_maxbytes=0\n\
 environment=API_BASE_URL="http://localhost:8001"\n\
 ' > /etc/supervisor/conf.d/supervisord.conf
 
-# Environment variables
+# Demo environment variables (simplified security for demo)
 ENV DATABASE_URL=sqlite:///db_data/hr_attrition.db \
     DISABLE_DB=false \
-    API_BASE_URL=http://localhost:8001
+    API_BASE_URL=http://localhost:8001 \
+    API_KEY=demo_huggingface_api_key \
+    SECRET_KEY=demo_secret_key_for_huggingface_deployment_min_32_chars
 
-# Expose Hugging Face default port (Streamlit UI)
+# Expose Hugging Face default port
 EXPOSE 7860
 
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD python -c "import requests; requests.get('http://localhost:8001/health', timeout=5)" || exit 1
+
 # Initialize database and start services
-CMD poetry run python -m database.init_db && supervisord -c /etc/supervisor/conf.d/supervisord.conf
+CMD /app/.venv/bin/python -m database.init_db && supervisord -c /etc/supervisor/conf.d/supervisord.conf
