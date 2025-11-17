@@ -4,9 +4,46 @@ This guide covers deploying the HR Attrition Rate application to production envi
 
 ## 🚀 Deployment Options
 
-### Option 1: Docker Compose (Recommended)
+### Option 1: Hugging Face Spaces (Recommended for Demos)
 
-The simplest way to deploy the entire stack.
+**Best for:** Public demos, prototypes, quick sharing
+
+Deploy a unified Docker container with both FastAPI and Streamlit to Hugging Face Spaces.
+
+**Key Features:**
+- 🎯 Single command deployment
+- 🔒 Built-in authentication
+- 📊 Free tier available
+- 🚀 Automatic builds from Git
+- 🌐 Public URL with HTTPS
+
+**Full guide:** See [docs/deployment/HUGGINGFACE_DEPLOYMENT.md](docs/deployment/HUGGINGFACE_DEPLOYMENT.md)
+
+**Quick Start:**
+```powershell
+# Build and test locally first
+docker build -f docker/Dockerfile.huggingface -t hr-attrition-hf:local .
+docker run -d -p 7860:7860 --name test-hf hr-attrition-hf:local
+
+# Push to Hugging Face Space
+git remote add hf https://huggingface.co/spaces/YOUR-USERNAME/hr-attrition-platform
+git push hf main
+```
+
+**What gets deployed:**
+- Unified container with Supervisor managing both services
+- Streamlit UI on port 7860 (main access)
+- FastAPI backend on port 8001 (internal)
+- SQLite database (in-container)
+- Pre-configured demo credentials
+
+---
+
+### Option 2: Docker Compose (Recommended for Production)
+
+**Best for:** Production deployments, full control, scalability
+
+The simplest way to deploy the entire stack with PostgreSQL database.
 
 #### Prerequisites
 
@@ -132,7 +169,9 @@ volumes:
   db_data:
 ```
 
-### Option 2: Cloud Deployment (AWS/Azure/GCP)
+### Option 3: Cloud Deployment (AWS/Azure/GCP)
+
+**Best for:** Enterprise production, high availability, auto-scaling
 
 #### AWS Deployment
 
@@ -247,9 +286,11 @@ volumes:
        --environment-variables DATABASE_URL=<connection-string>
    ```
 
-### Option 3: Kubernetes Deployment
+### Option 4: Kubernetes Deployment
 
-For large-scale production deployments.
+**Best for:** Large-scale production, container orchestration, microservices
+
+For large-scale production deployments with auto-scaling and high availability.
 
 #### Prerequisites
 

@@ -63,10 +63,22 @@ A machine learning-powered system to predict and analyze employee attrition risk
    ```
 
 4. **Run with Docker** (simplest option)
+   
+   **For Development (PostgreSQL, separate services):**
    ```bash
    docker-compose up -d
    ```
-   This starts the database, API, and UI automatically.
+   This starts database, API, UI, and background worker.
+   - API: http://localhost:8001
+   - UI: http://localhost:8501
+   
+   **For Production/Demo (Hugging Face style, unified container):**
+   ```bash
+   docker build -f docker/Dockerfile.huggingface -t hr-attrition-hf .
+   docker run -d -p 7860:7860 hr-attrition-hf
+   ```
+   Single container with SQLite, both services managed by Supervisor.
+   - Access: http://localhost:7860 (Streamlit UI, API on port 8001 internal)
 
 ### Running the Application
 
@@ -488,6 +500,54 @@ Network error while connecting to API: [WinError 10061] No connection could be m
 - Complies with CIS Docker Benchmark
 
 **Trade-off**: Requires careful file permission management
+
+## 📦 Deployment
+
+### Deployment Options
+
+This project supports multiple deployment strategies:
+
+1. **Hugging Face Spaces** (Recommended for demos)
+   - Unified Docker container with Supervisor
+   - SQLite database (no external dependencies)
+   - Free tier available
+   - See [docs/deployment/HUGGINGFACE_DEPLOYMENT.md](docs/deployment/HUGGINGFACE_DEPLOYMENT.md)
+   
+   ```powershell
+   # Quick deploy
+   git remote add hf https://huggingface.co/spaces/YOUR-USERNAME/hr-attrition-platform
+   git push hf main
+   ```
+
+2. **Docker Compose** (Recommended for production)
+   - Separate containers for each service
+   - PostgreSQL database
+   - Background worker for async jobs
+   - See [DEPLOYMENT.md](DEPLOYMENT.md)
+   
+   ```bash
+   docker-compose up -d
+   ```
+
+3. **Cloud Platforms** (AWS/Azure/GCP)
+   - ECS, AKS, or GKE deployment
+   - Managed databases (RDS, Azure Database, Cloud SQL)
+   - See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed guides
+
+4. **Kubernetes** (Enterprise)
+   - Full orchestration with auto-scaling
+   - High availability setup
+   - See [DEPLOYMENT.md](DEPLOYMENT.md)
+
+**Key Differences:**
+
+| Feature | Hugging Face | Docker Compose | Kubernetes |
+|---------|--------------|----------------|------------|
+| Setup Complexity | ⭐ Simple | ⭐⭐ Moderate | ⭐⭐⭐ Complex |
+| Database | SQLite | PostgreSQL | PostgreSQL/Managed |
+| Scalability | Limited | Moderate | Excellent |
+| Cost | Free tier | Self-hosted | Self-hosted/Cloud |
+| Best For | Demos | Production | Enterprise |
 
 ## 🤝 Contributing
 

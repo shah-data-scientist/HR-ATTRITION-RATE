@@ -124,38 +124,111 @@ Apache 2.0
 
 ### 4. Dockerfile Overview
 
-The `docker/Dockerfile.huggingface` includes:
+The `docker/Dockerfile.huggingface` uses a multi-stage build for optimal image size:
 
+**Stage 1: Builder**
+```dockerfile
+FROM python:3.13-slim AS builder
+
+# Install Poetry and build dependencies
+RUN curl -sSL https://install.python-poetry.org | python3 -
+
+# Install Python dependencies
+COPY pyproject.toml poetry.lock ./
+RUN poetry install --no-root --without dev
+```
+
+**Stage 2: Runtime**
 ```dockerfile
 FROM python:3.13-slim
 
-# Install system dependencies + Poetry + Supervisor
-RUN apt-get update && apt-get install -y \
-    build-essential curl supervisor
+# Install Supervisor (process manager)
+RUN apt-get update && apt-get install -y supervisor
 
-# Install Python dependencies via Poetry
-COPY pyproject.toml poetry.lock ./
-RUN poetry install --no-root --without dev
+# Copy virtualenv from builder
+COPY --from=builder /app/.venv /app/.venv
 
 # Copy application code
 COPY api/ core/ database/ ui/ outputs/ data/ scripts/ .streamlit/ ./
 
-# Configure Supervisor to run both API and UI
-# FastAPI on port 8001, Streamlit on port 7860
+# Configure Supervisor to run both services
+# - FastAPI on port 8001 (internal API)
+# - Streamlit on port 7860 (Hugging Face default)
 
-# Initialize database on startup
-CMD poetry run python -m database.init_db && supervisord
+# Expose port 7860 for Hugging Face
+EXPOSE 7860
+
+# Initialize database and start both services
+CMD python -m database.init_db && supervisord
+```
+
+**Key Features:**
+- **Multi-stage build**: Reduces final image size (~500MB vs ~1GB)
+- **SQLite database**: No external database needed for demos
+- **Supervisor**: Manages both FastAPI and Streamlit processes
+- **Health checks**: Monitors service status
+- **Demo credentials**: Pre-configured API keys for easy testing
+
+**Build locally to test:**
+```bash
+# Build the image
+docker build -f docker/Dockerfile.huggingface -t hr-attrition-hf:local .
+
+# Run the container
+docker run -d -p 7860:7860 --name test-hf hr-attrition-hf:local
+
+# Wait for services to start (30-40 seconds)
+Start-Sleep -Seconds 40
+
+# Test the UI
+curl http://localhost:7860
+
+# Test the API (from inside container)
+docker exec test-hf curl http://localhost:8001/health
+
+# View logs
+docker logs test-hf
+
+# Stop and cleanup
+docker stop test-hf
+docker rm test-hf
 ```
 
 ### 5. Environment Variables
 
-Set these in your Space settings if needed:
+The Dockerfile includes demo environment variables. For production, you can override these in your Hugging Face Space settings:
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `DATABASE_URL` | `sqlite:///db_data/hr_attrition.db` | Database connection string |
-| `API_BASE_URL` | `http://localhost:8001` | API URL for UI to connect |
-| `DISABLE_DB` | `false` | Disable database features |
+| Variable | Default | Description | Required |
+|----------|---------|-------------|----------|
+| `DATABASE_URL` | `sqlite:///db_data/hr_attrition.db` | Database connection string | No - SQLite works for demos |
+| `API_BASE_URL` | `http://localhost:8001` | Internal API URL for UI | No - already configured |
+| `API_KEY` | `demo_huggingface_api_key` | API authentication key | No - demo key works |
+| `SECRET_KEY` | `demo_secret_key_for_huggingface...` | Flask/session secret | No - demo key works |
+| `DISABLE_DB` | `false` | Disable database features | No |
+
+**When to override:**
+- **Production deployment**: Change `API_KEY` and `SECRET_KEY` to secure values
+- **PostgreSQL**: Change `DATABASE_URL` to external PostgreSQL instance
+- **Custom configuration**: Add additional environment variables as needed
+
+**How to set in Hugging Face Space:**
+1. Go to your Space **Settings**
+2. Scroll to **Repository secrets**
+3. Add variables:
+   ```
+   API_KEY=your-secure-api-key-here
+   SECRET_KEY=your-secure-secret-key-min-32-chars-long
+   ```
+4. Restart your Space for changes to take effect
+
+**Generate secure keys:**
+```powershell
+# API Key (32 characters)
+[System.Web.Security.Membership]::GeneratePassword(32,8)
+
+# Or using OpenSSL (if installed)
+openssl rand -hex 32
+```
 
 ### 6. Verify Deployment
 
@@ -215,30 +288,80 @@ The Dockerfile includes health monitoring. Check:
 ### Common Issues
 
 **Space Won't Start:**
-- Check logs for errors
-- Verify model file exists in `outputs/`
-- Ensure Poetry dependencies install correctly
+- **Check logs**: Click **Logs** tab in your Space
+- **Model file missing**: Ensure `outputs/` directory with model file is committed
+  ```powershell
+  # Check if model exists locally
+  Test-Path "outputs\*.pkl"
+  
+  # If missing, train model first (see README.md)
+  # Then commit and push
+  git add outputs/
+  git commit -m "Add trained model"
+  git push hf main
+  ```
+- **Poetry install fails**: Check `pyproject.toml` and `poetry.lock` are in sync
+  ```powershell
+  # Regenerate lock file if needed
+  poetry lock --no-update
+  git add poetry.lock
+  git commit -m "Update poetry.lock"
+  git push hf main
+  ```
+- **Out of memory**: Upgrade hardware (see Advanced Configuration section)
 
 **UI Can't Connect to API:**
-- Verify `API_BASE_URL=http://localhost:8001`
-- Check Supervisor config in Dockerfile
-- Ensure both services are running
+- **Check Supervisor status**: View logs, should show both services RUNNING
+- **Verify API_BASE_URL**: Should be `http://localhost:8001` (container internal)
+- **Check port configuration**: Streamlit on 7860, FastAPI on 8001
+- **Supervisor not starting services**: Check `/etc/supervisor/conf.d/supervisord.conf` in Dockerfile
 
 **Model File Too Large:**
-- Model is ~30MB, should work fine
-- If needed, use Git LFS:
-  ```bash
+- Current model is ~30MB, works fine with Git
+- For models >50MB, use **Git LFS**:
+  ```powershell
+  # Install Git LFS
   git lfs install
+  
+  # Track large files
   git lfs track "outputs/*.pkl"
+  git lfs track "outputs/*.joblib"
+  
+  # Commit tracking config
   git add .gitattributes
-  git commit -m "Add LFS tracking"
+  git commit -m "Add LFS tracking for model files"
+  
+  # Add and commit model
+  git add outputs/
+  git commit -m "Add model with LFS"
+  
+  # Push to Hugging Face (LFS will handle large files)
+  git push hf main
   ```
+
+**Database Errors:**
+- **SQLite locked**: Expected with multiple workers, errors are handled gracefully
+- **Table doesn't exist**: Database init may have failed, check logs for errors
+- **Switch to PostgreSQL**: For production, use external PostgreSQL:
+  ```yaml
+  # In Space settings, set:
+  DATABASE_URL=postgresql://user:password@external-host:5432/dbname
+  ```
+
+**Build Timeout:**
+- Hugging Face has 60-minute build timeout
+- If exceeded, optimize Dockerfile:
+  - Use lighter base image
+  - Reduce dependencies
+  - Pre-build and push to Docker Hub
 
 ---
 
 ## GitHub Actions Integration
 
-The project includes CI/CD pipeline that builds the Hugging Face Docker image on every push to `main`.
+The project includes a CI/CD pipeline that validates the Hugging Face Docker image builds correctly on every push to `main`.
+
+**Note:** Docker push to GitHub Container Registry is **disabled** to avoid organization package creation errors. The workflow only builds and validates the image.
 
 See `.github/workflows/ci-cd.yml`:
 
@@ -254,21 +377,88 @@ docker-huggingface:
   - name: Build Hugging Face Docker image
     run: |
       docker build -f docker/Dockerfile.huggingface -t hr-attrition-hf:${{ github.sha }} .
+      
+  - name: Test image can start
+    run: |
+      docker run -d --name test-hf hr-attrition-hf:${{ github.sha }}
+      sleep 30
+      docker logs test-hf
+      docker stop test-hf
 ```
+
+### Automated Deployment to Hugging Face
 
 To automatically deploy to Hugging Face on push:
 
-1. Get your HF token: https://huggingface.co/settings/tokens
-2. Add to GitHub Secrets as `HF_TOKEN`
-3. Update workflow:
+1. **Get your HF token**: https://huggingface.co/settings/tokens
+   - Create token with **Write** access
+   - Token format: `hf_...`
+
+2. **Add to GitHub Secrets**:
+   - Go to repository **Settings** → **Secrets and variables** → **Actions**
+   - Click **New repository secret**
+   - Name: `HF_TOKEN`
+   - Value: Your token from step 1
+
+3. **Update workflow** to add deployment step:
 
 ```yaml
-- name: Push to Hugging Face
-  env:
-    HF_TOKEN: ${{ secrets.HF_TOKEN }}
-  run: |
-    git remote add hf https://YOUR-USERNAME:$HF_TOKEN@huggingface.co/spaces/YOUR-USERNAME/hr-attrition-platform
-    git push hf main --force
+docker-huggingface:
+  name: Build and Deploy Hugging Face Image
+  runs-on: ubuntu-latest
+  if: github.ref == 'refs/heads/main'
+  
+  steps:
+  - uses: actions/checkout@v4
+  
+  - name: Build Hugging Face Docker image
+    run: |
+      docker build -f docker/Dockerfile.huggingface -t hr-attrition-hf:${{ github.sha }} .
+  
+  - name: Test image
+    run: |
+      docker run -d --name test-hf hr-attrition-hf:${{ github.sha }}
+      sleep 30
+      docker exec test-hf curl -f http://localhost:8001/health || exit 1
+      docker stop test-hf && docker rm test-hf
+  
+  - name: Push to Hugging Face Space
+    env:
+      HF_TOKEN: ${{ secrets.HF_TOKEN }}
+      HF_USERNAME: YOUR-USERNAME
+      HF_SPACE: hr-attrition-platform
+    run: |
+      # Configure git
+      git config --global user.email "github-actions[bot]@users.noreply.github.com"
+      git config --global user.name "GitHub Actions"
+      
+      # Add Hugging Face remote
+      git remote add hf https://$HF_USERNAME:$HF_TOKEN@huggingface.co/spaces/$HF_USERNAME/$HF_SPACE || true
+      
+      # Push to Hugging Face
+      git push hf main --force
+```
+
+**Important Notes:**
+- Replace `YOUR-USERNAME` with your Hugging Face username
+- Replace `hr-attrition-platform` with your Space name
+- The workflow will push **entire repository** to Hugging Face Space
+- Hugging Face will automatically rebuild using `docker/Dockerfile.huggingface`
+- First deployment may take 5-10 minutes
+
+### Alternative: Manual Deployment
+
+If you prefer manual deployment:
+
+```bash
+# Add remote once
+git remote add hf https://YOUR-USERNAME:YOUR-HF-TOKEN@huggingface.co/spaces/YOUR-USERNAME/hr-attrition-platform
+
+# Deploy whenever ready
+git push hf main
+
+# Or force push to overwrite
+git push hf main --force
 ```
 
 ---
@@ -285,51 +475,147 @@ To automatically deploy to Hugging Face on push:
 
 ## Local Testing
 
-Before deploying, test the Docker container locally:
+Before deploying, test the Docker container locally to ensure everything works:
 
-```bash
-# Build the image
+```powershell
+# Build the image (takes 3-5 minutes)
 docker build -f docker/Dockerfile.huggingface -t hr-attrition-hf:local .
 
 # Run the container
 docker run -d -p 7860:7860 --name test-hf hr-attrition-hf:local
 
-# Wait for services to start
-sleep 30
+# Wait for services to start (database init + service startup)
+Start-Sleep -Seconds 40
 
-# Test the UI
+# Test the UI (should return HTML)
 curl http://localhost:7860
 
-# Test the API (internal)
+# Test the API health endpoint (from inside container)
 docker exec test-hf curl http://localhost:8001/health
 
-# View logs
-docker logs test-hf
+# Check both services are running
+docker exec test-hf supervisorctl status
 
-# Stop and remove
-docker stop test-hf && docker rm test-hf
+# View real-time logs
+docker logs -f test-hf
+
+# Stop following logs with Ctrl+C, then cleanup
+docker stop test-hf
+docker rm test-hf
 ```
+
+**Expected output:**
+```bash
+# supervisorctl status should show:
+fastapi                          RUNNING   pid 123, uptime 0:00:30
+streamlit                        RUNNING   pid 124, uptime 0:00:30
+
+# Health endpoint should return:
+{"status":"healthy","database":"connected","model":"loaded"}
+```
+
+**Troubleshooting local test:**
+
+| Issue | Cause | Solution |
+|-------|-------|----------|
+| Container exits immediately | Database init failed | `docker logs test-hf` to see errors |
+| UI not accessible | Services still starting | Wait 60 seconds, Streamlit is slower to start |
+| API returns 500 | Model file missing | Ensure `outputs/` directory exists with model |
+| "Connection refused" | Port already in use | Stop other services on 7860, or use `-p 8080:7860` |
+
+**Test with sample data:**
+1. Access http://localhost:7860 in browser
+2. Upload one of the sample CSV files from `data/` folder
+3. Click "Predict Attrition"
+4. Verify predictions display correctly
+5. Test Excel export functionality
 
 ---
 
 ## Alternative: Docker Compose for Local Development
 
-For local development with PostgreSQL instead of SQLite:
+For local development with full PostgreSQL database instead of SQLite:
 
-```bash
+```powershell
 # Use the existing docker-compose.yml
 docker-compose up -d
 
-# Access:
+# Wait for all services to start
+Start-Sleep -Seconds 60
+
+# Check service status
+docker-compose ps
+
+# Access services:
 # - API: http://localhost:8001
+# - API Docs: http://localhost:8001/docs
 # - UI: http://localhost:8501
 # - Database: PostgreSQL on port 5432
+
+# View logs
+docker-compose logs -f fastapi_app
+docker-compose logs -f streamlit_app
+
+# Stop services
+docker-compose down
 ```
 
-This uses separate Dockerfiles:
-- `docker/Dockerfile.api` - FastAPI service
-- `docker/Dockerfile.streamlit` - Streamlit service
-- `docker/Dockerfile.database` - Database initialization
+**Docker Compose Services:**
+
+| Service | Dockerfile | Port | Purpose |
+|---------|-----------|------|---------|
+| `db` | postgres:16-alpine | 5432 (internal) | PostgreSQL database |
+| `db_init` | docker/Dockerfile.database | - | Initialize database schema |
+| `fastapi_app` | docker/Dockerfile.api | 8001 | FastAPI backend |
+| `streamlit_app` | docker/Dockerfile.streamlit | 8501 | Streamlit UI |
+| `worker` | docker/Dockerfile.api | - | Background job processor |
+
+**Key Differences from Hugging Face:**
+
+| Feature | Hugging Face (Production) | Docker Compose (Development) |
+|---------|---------------------------|------------------------------|
+| Services | Combined (Supervisor) | Separate containers |
+| Database | SQLite (single file) | PostgreSQL (full DB server) |
+| Port | 7860 (Streamlit only) | 8001 (API) + 8501 (UI) |
+| API Access | Internal only | Exposed on localhost |
+| Background Jobs | Not included | Worker service included |
+| Best for | Demos, deployments | Development, testing |
+
+**Environment Configuration:**
+
+Create a `.env` file:
+```bash
+# Database
+POSTGRES_DB=hr_attrition_db
+POSTGRES_USER=user
+POSTGRES_PASSWORD=secure_password
+
+# API
+API_KEY=your_api_key_here
+SECRET_KEY=your_secret_key_min_32_chars
+
+# Development
+DISABLE_DB=false
+```
+
+**Advantages of Docker Compose:**
+- ✅ Separate services for easier debugging
+- ✅ PostgreSQL for production-like environment
+- ✅ Worker service for background jobs
+- ✅ API accessible directly for testing
+- ✅ Hot reload with volume mounts (can be configured)
+
+**Switching between environments:**
+```powershell
+# Development: Docker Compose
+docker-compose up -d
+# Access: http://localhost:8501
+
+# Production test: Hugging Face Dockerfile
+docker build -f docker/Dockerfile.huggingface -t hf-test .
+docker run -p 7860:7860 hf-test
+# Access: http://localhost:7860
+```
 
 ---
 
