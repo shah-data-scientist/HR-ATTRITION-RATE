@@ -17,6 +17,12 @@ def client():
 
 
 @pytest.fixture
+def auth_headers():
+    """Authentication headers for API requests"""
+    return {"X-API-Key": "test_api_key_for_pytest", "X-User-ID": "test_user"}
+
+
+@pytest.fixture
 def sample_data():
     return {
         "id_employee": 1,
@@ -55,7 +61,7 @@ def sample_data():
 class TestMultipleScenarios:
     """Test multiple prediction scenarios"""
 
-    def test_predict_10_employees(self, client, sample_data):
+    def test_predict_10_employees(self, client, auth_headers, sample_data):
         """Test with 10 employees"""
         employees = [dict(sample_data, id_employee=i) for i in range(1, 11)]
         payload = {
@@ -63,14 +69,14 @@ class TestMultipleScenarios:
             "sirh_data": employees,
             "sondage_data": employees,
         }
-        response = client.post("/predict", json=payload)
+        response = client.post("/predict", headers=auth_headers, json=payload)
         assert response.status_code in [200, 422, 500]
 
         if response.status_code == 200:
             data = response.json()
             assert "predictions" in data
 
-    def test_predict_20_employees(self, client, sample_data):
+    def test_predict_20_employees(self, client, auth_headers, sample_data):
         """Test with 20 employees"""
         employees = [dict(sample_data, id_employee=i) for i in range(1, 21)]
         payload = {
@@ -78,10 +84,10 @@ class TestMultipleScenarios:
             "sirh_data": employees,
             "sondage_data": employees,
         }
-        response = client.post("/predict", json=payload)
+        response = client.post("/predict", headers=auth_headers, json=payload)
         assert response.status_code in [200, 422, 500]
 
-    def test_excel_10_employees(self, client, sample_data):
+    def test_excel_10_employees(self, client, auth_headers, sample_data):
         """Test Excel with 10 employees"""
         employees = [dict(sample_data, id_employee=i) for i in range(1, 11)]
         payload = {
@@ -89,13 +95,13 @@ class TestMultipleScenarios:
             "sirh_data": employees,
             "sondage_data": employees,
         }
-        response = client.post("/predict_excel", json=payload)
+        response = client.post("/predict_excel", headers=auth_headers, json=payload)
         assert response.status_code in [200, 422, 500]
 
         if response.status_code == 200:
             assert len(response.content) > 0
 
-    def test_shap_5_employees(self, client, sample_data):
+    def test_shap_5_employees(self, client, auth_headers, sample_data):
         """Test SHAP with 5 employees"""
         employees = [dict(sample_data, id_employee=i) for i in range(1, 6)]
         payload = {
@@ -103,14 +109,14 @@ class TestMultipleScenarios:
             "sirh_data": employees,
             "sondage_data": employees,
         }
-        response = client.post("/predict_shap_images", json=payload)
+        response = client.post("/predict_shap_images", headers=auth_headers, json=payload)
         assert response.status_code in [200, 422, 500]
 
 
 class TestVariousDataTypes:
     """Test with various data type combinations"""
 
-    def test_all_string_numbers(self, client, sample_data):
+    def test_all_string_numbers(self, client, auth_headers, sample_data):
         """Test with numeric fields as strings"""
         data = sample_data.copy()
         data["age"] = "35"
@@ -118,10 +124,10 @@ class TestVariousDataTypes:
         data["annee_experience_totale"] = "10"
 
         payload = {"eval_data": [data], "sirh_data": [data], "sondage_data": [data]}
-        response = client.post("/predict", json=payload)
+        response = client.post("/predict", headers=auth_headers, json=payload)
         assert response.status_code in [200, 422, 500]
 
-    def test_mixed_case_categoricals(self, client, sample_data):
+    def test_mixed_case_categoricals(self, client, auth_headers, sample_data):
         """Test with mixed case categorical values"""
         data = sample_data.copy()
         data["genre"] = "m"  # lowercase
@@ -129,10 +135,10 @@ class TestVariousDataTypes:
         data["heure_supplementaires"] = "NON"  # uppercase
 
         payload = {"eval_data": [data], "sirh_data": [data], "sondage_data": [data]}
-        response = client.post("/predict", json=payload)
+        response = client.post("/predict", headers=auth_headers, json=payload)
         assert response.status_code in [200, 422, 500]
 
-    def test_boundary_values(self, client, sample_data):
+    def test_boundary_values(self, client, auth_headers, sample_data):
         """Test with boundary values"""
         data = sample_data.copy()
         data["age"] = 18  # Minimum
@@ -140,7 +146,7 @@ class TestVariousDataTypes:
         data["satisfaction_employee_environnement"] = 1  # Minimum
 
         payload = {"eval_data": [data], "sirh_data": [data], "sondage_data": [data]}
-        response = client.post("/predict", json=payload)
+        response = client.post("/predict", headers=auth_headers, json=payload)
         assert response.status_code in [200, 422, 500]
 
 
@@ -153,7 +159,7 @@ class TestSequentialCalls:
             response = client.get("/health")
             assert response.status_code == 200
 
-    def test_predict_then_excel(self, client, sample_data):
+    def test_predict_then_excel(self, client, auth_headers, sample_data):
         """Test prediction followed by Excel"""
         payload = {
             "eval_data": [sample_data],
@@ -162,14 +168,14 @@ class TestSequentialCalls:
         }
 
         # First predict
-        response1 = client.post("/predict", json=payload)
+        response1 = client.post("/predict", headers=auth_headers, json=payload)
         assert response1.status_code in [200, 422, 500]
 
         # Then Excel
-        response2 = client.post("/predict_excel", json=payload)
+        response2 = client.post("/predict_excel", headers=auth_headers, json=payload)
         assert response2.status_code in [200, 422, 500]
 
-    def test_predict_then_shap(self, client, sample_data):
+    def test_predict_then_shap(self, client, auth_headers, sample_data):
         """Test prediction followed by SHAP"""
         payload = {
             "eval_data": [sample_data],
@@ -178,18 +184,18 @@ class TestSequentialCalls:
         }
 
         # First predict
-        response1 = client.post("/predict", json=payload)
+        response1 = client.post("/predict", headers=auth_headers, json=payload)
         assert response1.status_code in [200, 422, 500]
 
         # Then SHAP
-        response2 = client.post("/predict_shap_images", json=payload)
+        response2 = client.post("/predict_shap_images", headers=auth_headers, json=payload)
         assert response2.status_code in [200, 422, 500]
 
 
 class TestDataVariations:
     """Test with various data variations"""
 
-    def test_different_departments(self, client, sample_data):
+    def test_different_departments(self, client, auth_headers, sample_data):
         """Test with different departments"""
         departments = ["IT", "HR", "Sales", "Finance", "Marketing"]
 
@@ -197,10 +203,10 @@ class TestDataVariations:
             data = sample_data.copy()
             data["departement"] = dept
             payload = {"eval_data": [data], "sirh_data": [data], "sondage_data": [data]}
-            response = client.post("/predict", json=payload)
+            response = client.post("/predict", headers=auth_headers, json=payload)
             assert response.status_code in [200, 422, 500]
 
-    def test_different_marital_status(self, client, sample_data):
+    def test_different_marital_status(self, client, auth_headers, sample_data):
         """Test with different marital statuses"""
         statuses = ["Marié", "Célibataire", "Divorcé"]
 
@@ -208,44 +214,44 @@ class TestDataVariations:
             data = sample_data.copy()
             data["statut_marital"] = status
             payload = {"eval_data": [data], "sirh_data": [data], "sondage_data": [data]}
-            response = client.post("/predict", json=payload)
+            response = client.post("/predict", headers=auth_headers, json=payload)
             assert response.status_code in [200, 422, 500]
 
-    def test_different_education_levels(self, client, sample_data):
+    def test_different_education_levels(self, client, auth_headers, sample_data):
         """Test with different education levels"""
         for level in [1, 2, 3, 4, 5]:
             data = sample_data.copy()
             data["niveau_education"] = level
             payload = {"eval_data": [data], "sirh_data": [data], "sondage_data": [data]}
-            response = client.post("/predict", json=payload)
+            response = client.post("/predict", headers=auth_headers, json=payload)
             assert response.status_code in [200, 422, 500]
 
 
 class TestResponseContent:
     """Test response content details"""
 
-    def test_prediction_includes_id(self, client, sample_data):
+    def test_prediction_includes_id(self, client, auth_headers, sample_data):
         """Test prediction includes employee ID"""
         payload = {
             "eval_data": [sample_data],
             "sirh_data": [sample_data],
             "sondage_data": [sample_data],
         }
-        response = client.post("/predict", json=payload)
+        response = client.post("/predict", headers=auth_headers, json=payload)
 
         if response.status_code == 200:
             data = response.json()
             if data.get("predictions"):
                 assert data["predictions"][0]["id_employee"] == 1
 
-    def test_prediction_probability_range(self, client, sample_data):
+    def test_prediction_probability_range(self, client, auth_headers, sample_data):
         """Test prediction probability is in valid range"""
         payload = {
             "eval_data": [sample_data],
             "sirh_data": [sample_data],
             "sondage_data": [sample_data],
         }
-        response = client.post("/predict", json=payload)
+        response = client.post("/predict", headers=auth_headers, json=payload)
 
         if response.status_code == 200:
             data = response.json()
@@ -253,14 +259,14 @@ class TestResponseContent:
                 prob = data["predictions"][0]["probability"]
                 assert 0 <= prob <= 1
 
-    def test_risk_category_values(self, client, sample_data):
+    def test_risk_category_values(self, client, auth_headers, sample_data):
         """Test risk category has valid values"""
         payload = {
             "eval_data": [sample_data],
             "sirh_data": [sample_data],
             "sondage_data": [sample_data],
         }
-        response = client.post("/predict", json=payload)
+        response = client.post("/predict", headers=auth_headers, json=payload)
 
         if response.status_code == 200:
             data = response.json()
@@ -282,21 +288,21 @@ class TestEndpointAccessibility:
         response = client.get("/health")
         assert response.status_code == 200
 
-    def test_predict_accessible(self, client):
+    def test_predict_accessible(self, client, auth_headers):
         """Test predict endpoint is accessible"""
-        response = client.post("/predict", json={})
+        response = client.post("/predict", headers=auth_headers, json={})
         # Should not be 404
         assert response.status_code != 404
 
-    def test_predict_excel_accessible(self, client):
+    def test_predict_excel_accessible(self, client, auth_headers):
         """Test predict_excel endpoint is accessible"""
-        response = client.post("/predict_excel", json={})
+        response = client.post("/predict_excel", headers=auth_headers, json={})
         # Should not be 404
         assert response.status_code != 404
 
-    def test_predict_shap_accessible(self, client):
+    def test_predict_shap_accessible(self, client, auth_headers):
         """Test predict_shap endpoint is accessible"""
-        response = client.post("/predict_shap_images", json={})
+        response = client.post("/predict_shap_images", headers=auth_headers, json={})
         # Should not be 404
         assert response.status_code != 404
 
@@ -304,7 +310,7 @@ class TestEndpointAccessibility:
 class TestEdgeCasesAdvanced:
     """Test advanced edge cases"""
 
-    def test_zero_experience(self, client, sample_data):
+    def test_zero_experience(self, client, auth_headers, sample_data):
         """Test with zero experience"""
         data = sample_data.copy()
         data["annee_experience_totale"] = 0
@@ -312,10 +318,10 @@ class TestEdgeCasesAdvanced:
         data["annees_dans_l_entreprise"] = 0
 
         payload = {"eval_data": [data], "sirh_data": [data], "sondage_data": [data]}
-        response = client.post("/predict", json=payload)
+        response = client.post("/predict", headers=auth_headers, json=payload)
         assert response.status_code in [200, 422, 500]
 
-    def test_maximum_satisfaction(self, client, sample_data):
+    def test_maximum_satisfaction(self, client, auth_headers, sample_data):
         """Test with maximum satisfaction scores"""
         data = sample_data.copy()
         data["satisfaction_employee_environnement"] = 4
@@ -324,10 +330,10 @@ class TestEdgeCasesAdvanced:
         data["satisfaction_employee_equilibre_pro_perso"] = 4
 
         payload = {"eval_data": [data], "sirh_data": [data], "sondage_data": [data]}
-        response = client.post("/predict", json=payload)
+        response = client.post("/predict", headers=auth_headers, json=payload)
         assert response.status_code in [200, 422, 500]
 
-    def test_minimum_satisfaction(self, client, sample_data):
+    def test_minimum_satisfaction(self, client, auth_headers, sample_data):
         """Test with minimum satisfaction scores"""
         data = sample_data.copy()
         data["satisfaction_employee_environnement"] = 1
@@ -336,7 +342,7 @@ class TestEdgeCasesAdvanced:
         data["satisfaction_employee_equilibre_pro_perso"] = 1
 
         payload = {"eval_data": [data], "sirh_data": [data], "sondage_data": [data]}
-        response = client.post("/predict", json=payload)
+        response = client.post("/predict", headers=auth_headers, json=payload)
         assert response.status_code in [200, 422, 500]
 
 
