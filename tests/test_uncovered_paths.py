@@ -265,16 +265,16 @@ class TestShapCalculationBranches:
 class TestJobQueueEndpoints:
     """Test job queue endpoints (may be unimplemented)"""
 
-    def test_job_status_endpoint_exists(self, client):
+    def test_job_status_endpoint_exists(self, client, auth_headers):
         """Test if job status endpoint exists"""
-        response = client.get("/jobs/test-job-id")
-        # May be 404 if not implemented, or 400/422 for invalid job ID, or 503 if DB disabled
+        response = client.get("/jobs/test-job-id", headers=auth_headers)
+        # May be 404 if not implemented, or 400/422 for invalid job ID, or 503 if DB disabled, or 500 if DB table missing
         assert response.status_code in [200, 400, 404, 422, 500, 503]
 
-    def test_list_jobs_endpoint(self, client):
+    def test_list_jobs_endpoint(self, client, auth_headers):
         """Test list jobs endpoint"""
-        response = client.get("/jobs")
-        # May be 404 if not implemented, or 503 if DB disabled
+        response = client.get("/jobs", headers=auth_headers)
+        # May be 404 if not implemented, or 503 if DB disabled, or 500 if DB error
         assert response.status_code in [200, 404, 500, 503]
 
     def test_submit_job_endpoint(self, client, auth_headers, sample_employee_data):
@@ -288,10 +288,10 @@ class TestJobQueueEndpoints:
         # May be 404 if not implemented, or 201 if created
         assert response.status_code in [200, 201, 404, 405, 422, 500]
 
-    def test_get_job_report_endpoint(self, client):
+    def test_get_job_report_endpoint(self, client, auth_headers):
         """Test get job report endpoint"""
-        response = client.get("/jobs/test-job-id/report")
-        # May be 404 if not implemented or job not found
+        response = client.get("/jobs/test-job-id/report", headers=auth_headers)
+        # May be 404 if not implemented or job not found, or 500 if DB error
         assert response.status_code in [200, 404, 422, 500]
 
 
