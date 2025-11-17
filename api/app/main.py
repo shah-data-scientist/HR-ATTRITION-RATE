@@ -30,6 +30,7 @@ from database.models import (
     ModelInput,
     ModelOutput,
     PredictionTraceability,
+    ShapAnalysis,
     Job,
 )
 
@@ -335,6 +336,10 @@ def generate_predictions(
                     if k != "id_employee"
                     and k in [col.name for col in Employee.__table__.columns]
                 }
+                
+                # Set user_id from request header (who is making the prediction request)
+                user_id = request.headers.get('X-User-ID', 'demo1')
+                employee_data_for_db['user_id'] = user_id
 
                 employee_db = (
                     db.query(Employee)
@@ -391,6 +396,24 @@ def generate_predictions(
                     created_at=datetime.now(),
                 )
                 db.add(new_trace)
+                db.flush()  # Flush to get trace_id
+
+                # 5. Record SHAP Analysis (if computed)
+                if compute_shap and shap_values_instance is not None:
+                    try:
+                        new_shap_analysis = ShapAnalysis(
+                            trace_id=new_trace.trace_id,
+                            shap_values=shap_values_instance.tolist(),
+                            base_value=float(base_value_instance),
+                            feature_names=feature_names_for_instance,
+                            created_at=datetime.now(),
+                        )
+                        db.add(new_shap_analysis)
+                        db.flush()  # Flush SHAP separately before commit
+                    except Exception as e:
+                        logger.error(f"Failed to save SHAP for employee {employee_id}: {type(e).__name__}: {str(e)}")
+                        # Don't fail the entire prediction if SHAP save fails
+
                 db.commit()
 
                 db.refresh(new_model_input)
@@ -459,15 +482,21 @@ async def health_check():
     response_model=dict[str, str],
 )
 async def create_report_job(
-    batch_input: RawBatchPredictionInput, db: Optional[Session] = Depends(get_db)
+    batch_input: RawBatchPredictionInput,
+    request: Request,
+    db: Optional[Session] = Depends(get_db),
 ):
     if _is_db_disabled() or db is None:
         raise HTTPException(
             status_code=503, detail="Database is disabled; jobs are unavailable."
         )
     try:
+        user_id = request.headers.get('X-User-ID', 'demo1')
         job = Job(
-            job_type="report", status="queued", payload_json=batch_input.model_dump()
+            job_type="report",
+            status="queued",
+            payload_json=batch_input.model_dump(),
+            user_id=user_id,
         )
         db.add(job)
         db.commit()
@@ -558,7 +587,7 @@ async def predict_attrition_report(
     - excel_base64: Excel workbook (Summary, Features, Metrics) in base64
     - shap_images: list of base64-encoded waterfall plots per employee
     """
-    predictions_output = generate_predictions(batch_input, request, db)
+    predictions_output = generate_predictions(batch_input, request, db, compute_shap=True)
 
     # Build Summary sheet
     summary_rows = []
@@ -676,7 +705,7 @@ async def predict_excel(
     db: Optional[Session] = Depends(get_db),
 ):
     """Runs prediction and returns only the Excel report as base64."""
-    predictions_output = generate_predictions(batch_input, request, db)
+    predictions_output = generate_predictions(batch_input, request, db, compute_shap=True)
 
     summary_rows = [
         {
@@ -745,7 +774,7 @@ async def predict_shap_images(
     db: Optional[Session] = Depends(get_db),
 ):
     """Runs prediction and returns only SHAP waterfall images as base64 list."""
-    predictions_output = generate_predictions(batch_input, request, db)
+    predictions_output = generate_predictions(batch_input, request, db, compute_shap=True)
 
     shap_images = []
     for p in predictions_output:

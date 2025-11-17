@@ -29,6 +29,7 @@ COPY api ./api
 COPY core ./core
 COPY database ./database
 COPY outputs ./outputs
+COPY scripts ./scripts
 
 # Create necessary directories
 RUN mkdir -p /app/temp /app/shap_images

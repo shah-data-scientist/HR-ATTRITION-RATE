@@ -83,6 +83,25 @@ services:
     networks:
       - hr_network
 
+  worker:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.api
+    command: ["poetry", "run", "python", "-m", "scripts.worker"]
+    environment:
+      DATABASE_URL: postgresql://user:password@db:5432/hr_attrition_db
+      WORKER_POLL_SEC: "2"
+      WORKER_STALE_SEC: "600"
+      DISABLE_DB: "false"
+    depends_on:
+      db:
+        condition: service_healthy
+      db_init:
+        condition: service_completed_successfully
+    restart: unless-stopped
+    networks:
+      - hr_network
+
 volumes:
   db_data:
     driver: local

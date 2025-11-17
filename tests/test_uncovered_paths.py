@@ -262,14 +262,14 @@ class TestJobQueueEndpoints:
     def test_job_status_endpoint_exists(self, client):
         """Test if job status endpoint exists"""
         response = client.get("/jobs/test-job-id")
-        # May be 404 if not implemented, or 400/422 for invalid job ID
-        assert response.status_code in [200, 400, 404, 422, 500]
+        # May be 404 if not implemented, or 400/422 for invalid job ID, or 503 if DB disabled
+        assert response.status_code in [200, 400, 404, 422, 500, 503]
 
     def test_list_jobs_endpoint(self, client):
         """Test list jobs endpoint"""
         response = client.get("/jobs")
-        # May be 404 if not implemented
-        assert response.status_code in [200, 404, 500]
+        # May be 404 if not implemented, or 503 if DB disabled
+        assert response.status_code in [200, 404, 500, 503]
 
     def test_submit_job_endpoint(self, client, sample_employee_data):
         """Test submit job endpoint"""

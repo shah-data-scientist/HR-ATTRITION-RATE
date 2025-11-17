@@ -1,0 +1,332 @@
+============================= test session starts =============================
+platform win32 -- Python 3.13.9, pytest-8.4.2, pluggy-1.6.0 -- C:\Users\shahu\OPEN CLASSROOMS\PROJET 5\HR Attrition Rate\.venv\Scripts\python.exe
+cachedir: .pytest_cache
+rootdir: C:\Users\shahu\OPEN CLASSROOMS\PROJET 5\HR Attrition Rate
+configfile: pyproject.toml
+plugins: anyio-4.11.0, asyncio-1.2.0, cov-7.0.0
+asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collecting ... collected 7 items
+
+tests/test_deep_coverage.py::TestPredictReportFullCoverage::test_predict_report_full_flow FAILED [ 14%]
+tests/test_deep_coverage.py::TestPredictReportFullCoverage::test_predict_report_multiple_employees_with_shap FAILED [ 28%]
+tests/test_deep_coverage.py::TestPredictExcelFullCoverage::test_predict_excel_single_employee FAILED [ 42%]
+tests/test_deep_coverage.py::TestPredictExcelFullCoverage::test_predict_excel_multiple_employees FAILED [ 57%]
+tests/test_deep_coverage.py::TestPredictShapImagesFullCoverage::test_predict_shap_images_single FAILED [ 71%]
+tests/test_deep_coverage.py::TestPredictShapImagesFullCoverage::test_predict_shap_images_multiple_employees FAILED [ 85%]
+tests/test_deep_coverage.py::TestJobEndpointsFullCoverage::test_create_report_job PASSED [100%]
+
+================================== FAILURES ===================================
+_________ TestPredictReportFullCoverage.test_predict_report_full_flow _________
+
+self = <test_deep_coverage.TestPredictReportFullCoverage object at 0x0000027B05662350>
+client = <starlette.testclient.TestClient object at 0x0000027B2457AF90>
+valid_employee_data = {'eval_data': [{'annees_depuis_la_derniere_promotion': 2, 'annes_sous_responsable_actuel': 2, 'augementation_salaire_p...is_la_derniere_promotion': 2, 'annes_sous_responsable_actuel': 2, 'ayant_enfants': 'oui', 'code_sondage': 90001, ...}]}
+
+    def test_predict_report_full_flow(self, client, valid_employee_data):
+        """Test predict_report with all sheets generated"""
+        response = client.post("/predict_report", json=valid_employee_data)
+>       assert response.status_code == 200
+E       assert 503 == 200
+E        +  where 503 = <Response [503 Service Unavailable]>.status_code
+
+tests\test_deep_coverage.py:81: AssertionError
+_ TestPredictReportFullCoverage.test_predict_report_multiple_employees_with_shap _
+
+self = <test_deep_coverage.TestPredictReportFullCoverage object at 0x0000027B05662850>
+client = <starlette.testclient.TestClient object at 0x0000027B05726FD0>
+
+    def test_predict_report_multiple_employees_with_shap(self, client):
+        """Test predict_report with multiple employees to cover concatenation logic"""
+        data = {
+            "sirh_data": [
+                {
+                    "id_employee": 90002,
+                    "age": 28,
+                    "genre": "F",
+                    "revenu_mensuel": 5000,
+                    "statut_marital": "Célibataire",
+                    "departement": "Sales",
+                    "poste": "Sales Rep",
+                    "nombre_experiences_precedentes": 1,
+                    "nombre_heures_travailless": 160,
+                    "annee_experience_totale": 5,
+                    "annees_dans_l_entreprise": 2,
+                    "annees_dans_le_poste_actuel": 1
+                },
+                {
+                    "id_employee": 90003,
+                    "age": 45,
+                    "genre": "M",
+                    "revenu_mensuel": 8000,
+                    "statut_marital": "Marié",
+                    "departement": "Management",
+                    "poste": "Manager",
+                    "nombre_experiences_precedentes": 3,
+                    "nombre_heures_travailless": 200,
+                    "annee_experience_totale": 20,
+                    "annees_dans_l_entreprise": 10,
+                    "annees_dans_le_poste_actuel": 5
+                },
+                {
+                    "id_employee": 90004,
+                    "age": 32,
+                    "genre": "F",
+                    "revenu_mensuel": 6500,
+                    "statut_marital": "Marié",
+                    "departement": "IT",
+                    "poste": "Developer",
+                    "nombre_experiences_precedentes": 2,
+                    "nombre_heures_travailless": 175,
+                    "annee_experience_totale": 8,
+                    "annees_dans_l_entreprise": 4,
+                    "annees_dans_le_poste_actuel": 2
+                }
+            ],
+            "eval_data": [
+                {
+                    "eval_number": "E_90002",
+                    "note_evaluation_precedente": 3,
+                    "note_evaluation_actuelle": 3,
+                    "augementation_salaire_precedente": "12 %",
+                    "niveau_hierarchique_poste": 1,
+                    "satisfaction_employee_environnement": 3,
+                    "satisfaction_employee_nature_travail": 3,
+                    "satisfaction_employee_equipe": 3,
+                    "satisfaction_employee_equilibre_pro_perso": 3,
+                    "heure_supplementaires": "Oui",
+                    "annees_depuis_la_derniere_promotion": 1,
+                    "annes_sous_responsable_actuel": 1
+                },
+                {
+                    "eval_number": "E_90003",
+                    "note_evaluation_precedente": 4,
+                    "note_evaluation_actuelle": 4,
+                    "augementation_salaire_precedente": "18 %",
+                    "niveau_hierarchique_poste": 3,
+                    "satisfaction_employee_environnement": 4,
+                    "satisfaction_employee_nature_travail": 4,
+                    "satisfaction_employee_equipe": 4,
+                    "satisfaction_employee_equilibre_pro_perso": 4,
+                    "heure_supplementaires": "Non",
+                    "annees_depuis_la_derniere_promotion": 3,
+                    "annes_sous_responsable_actuel": 3
+                },
+                {
+                    "eval_number": "E_90004",
+                    "note_evaluation_precedente": 4,
+                    "note_evaluation_actuelle": 4,
+                    "augementation_salaire_precedente": "16 %",
+                    "niveau_hierarchique_poste": 2,
+                    "satisfaction_employee_environnement": 4,
+                    "satisfaction_employee_nature_travail": 4,
+                    "satisfaction_employee_equipe": 4,
+                    "satisfaction_employee_equilibre_pro_perso": 4,
+                    "heure_supplementaires": "Non",
+                    "annees_depuis_la_derniere_promotion": 2,
+                    "annes_sous_responsable_actuel": 2
+                }
+            ],
+            "sondage_data": [
+                {
+                    "code_sondage": 90002,
+                    "nombre_participation_pee": 0,
+                    "nb_formations_suivies": 1,
+                    "nombre_employee_sous_responsabilite": 0,
+                    "distance_domicile_travail": 25,
+                    "niveau_education": 3,
+                    "domaine_etude": "Commerce",
+                    "ayant_enfants": "non",
+                    "frequence_deplacement": "Frequent",
+                    "annees_depuis_la_derniere_promotion": 1,
+                    "annes_sous_responsable_actuel": 1
+                },
+                {
+                    "code_sondage": 90003,
+                    "nombre_participation_pee": 1,
+                    "nb_formations_suivies": 5,
+                    "nombre_employee_sous_responsabilite": 5,
+                    "distance_domicile_travail": 5,
+                    "niveau_education": 5,
+                    "domaine_etude": "Management",
+                    "ayant_enfants": "oui",
+                    "frequence_deplacement": "Rarement",
+                    "annees_depuis_la_derniere_promotion": 3,
+                    "annes_sous_responsable_actuel": 3
+                },
+                {
+                    "code_sondage": 90004,
+                    "nombre_participation_pee": 1,
+                    "nb_formations_suivies": 3,
+                    "nombre_employee_sous_responsabilite": 0,
+                    "distance_domicile_travail": 15,
+                    "niveau_education": 4,
+                    "domaine_etude": "Informatique",
+                    "ayant_enfants": "oui",
+                    "frequence_deplacement": "Rarement",
+                    "annees_depuis_la_derniere_promotion": 2,
+                    "annes_sous_responsable_actuel": 2
+                }
+            ]
+        }
+        response = client.post("/predict_report", json=data)
+>       assert response.status_code == 200
+E       assert 503 == 200
+E        +  where 503 = <Response [503 Service Unavailable]>.status_code
+
+tests\test_deep_coverage.py:232: AssertionError
+_______ TestPredictExcelFullCoverage.test_predict_excel_single_employee _______
+
+self = <test_deep_coverage.TestPredictExcelFullCoverage object at 0x0000027B05662990>
+client = <starlette.testclient.TestClient object at 0x0000027B24DF42D0>
+valid_employee_data = {'eval_data': [{'annees_depuis_la_derniere_promotion': 2, 'annes_sous_responsable_actuel': 2, 'augementation_salaire_p...is_la_derniere_promotion': 2, 'annes_sous_responsable_actuel': 2, 'ayant_enfants': 'oui', 'code_sondage': 90001, ...}]}
+
+    def test_predict_excel_single_employee(self, client, valid_employee_data):
+        """Test Excel generation with single employee"""
+        response = client.post("/predict_excel", json=valid_employee_data)
+>       assert response.status_code == 200
+E       assert 503 == 200
+E        +  where 503 = <Response [503 Service Unavailable]>.status_code
+
+tests\test_deep_coverage.py:254: AssertionError
+_____ TestPredictExcelFullCoverage.test_predict_excel_multiple_employees ______
+
+self = <test_deep_coverage.TestPredictExcelFullCoverage object at 0x0000027B05662710>
+client = <starlette.testclient.TestClient object at 0x0000027B05789BA0>
+
+    def test_predict_excel_multiple_employees(self, client):
+        """Test Excel with multiple employees for concatenation coverage"""
+        data = {
+            "sirh_data": [
+                {"id_employee": 91001, "age": 30, "genre": "M", "revenu_mensuel": 5500,
+                 "statut_marital": "Célibataire", "departement": "IT", "poste": "Dev",
+                 "nombre_experiences_precedentes": 1, "nombre_heures_travailless": 170,
+                 "annee_experience_totale": 7, "annees_dans_l_entreprise": 3,
+                 "annees_dans_le_poste_actuel": 2},
+                {"id_employee": 91002, "age": 40, "genre": "F", "revenu_mensuel": 7000,
+                 "statut_marital": "Marié", "departement": "HR", "poste": "Manager",
+                 "nombre_experiences_precedentes": 2, "nombre_heures_travailless": 180,
+                 "annee_experience_totale": 15, "annees_dans_l_entreprise": 8,
+                 "annees_dans_le_poste_actuel": 4}
+            ],
+            "eval_data": [
+                {"eval_number": "E_91001", "note_evaluation_precedente": 3,
+                 "note_evaluation_actuelle": 3, "augementation_salaire_precedente": "14 %",
+                 "niveau_hierarchique_poste": 2, "satisfaction_employee_environnement": 3,
+                 "satisfaction_employee_nature_travail": 3, "satisfaction_employee_equipe": 3,
+                 "satisfaction_employee_equilibre_pro_perso": 3, "heure_supplementaires": "Non",
+                 "annees_depuis_la_derniere_promotion": 1, "annes_sous_responsable_actuel": 1},
+                {"eval_number": "E_91002", "note_evaluation_precedente": 4,
+                 "note_evaluation_actuelle": 4, "augementation_salaire_precedente": "16 %",
+                 "niveau_hierarchique_poste": 3, "satisfaction_employee_environnement": 4,
+                 "satisfaction_employee_nature_travail": 4, "satisfaction_employee_equipe": 4,
+                 "satisfaction_employee_equilibre_pro_perso": 4, "heure_supplementaires": "Non",
+                 "annees_depuis_la_derniere_promotion": 2, "annes_sous_responsable_actuel": 2}
+            ],
+            "sondage_data": [
+                {"code_sondage": 91001, "nombre_participation_pee": 1, "nb_formations_suivies": 2,
+                 "nombre_employee_sous_responsabilite": 0, "distance_domicile_travail": 12,
+                 "niveau_education": 4, "domaine_etude": "Informatique", "ayant_enfants": "non",
+                 "frequence_deplacement": "Rarement", "annees_depuis_la_derniere_promotion": 1,
+                 "annes_sous_responsable_actuel": 1},
+                {"code_sondage": 91002, "nombre_participation_pee": 1, "nb_formations_suivies": 4,
+                 "nombre_employee_sous_responsabilite": 3, "distance_domicile_travail": 8,
+                 "niveau_education": 5, "domaine_etude": "RH", "ayant_enfants": "oui",
+                 "frequence_deplacement": "Occasionnel", "annees_depuis_la_derniere_promotion": 2,
+                 "annes_sous_responsable_actuel": 2}
+            ]
+        }
+        response = client.post("/predict_excel", json=data)
+>       assert response.status_code == 200
+E       assert 503 == 200
+E        +  where 503 = <Response [503 Service Unavailable]>.status_code
+
+tests\test_deep_coverage.py:301: AssertionError
+______ TestPredictShapImagesFullCoverage.test_predict_shap_images_single ______
+
+self = <test_deep_coverage.TestPredictShapImagesFullCoverage object at 0x0000027B05662AD0>
+client = <starlette.testclient.TestClient object at 0x0000027B057896E0>
+valid_employee_data = {'eval_data': [{'annees_depuis_la_derniere_promotion': 2, 'annes_sous_responsable_actuel': 2, 'augementation_salaire_p...is_la_derniere_promotion': 2, 'annes_sous_responsable_actuel': 2, 'ayant_enfants': 'oui', 'code_sondage': 90001, ...}]}
+
+    def test_predict_shap_images_single(self, client, valid_employee_data):
+        """Test SHAP images generation for single employee"""
+        response = client.post("/predict_shap_images", json=valid_employee_data)
+>       assert response.status_code == 200
+E       assert 503 == 200
+E        +  where 503 = <Response [503 Service Unavailable]>.status_code
+
+tests\test_deep_coverage.py:312: AssertionError
+_ TestPredictShapImagesFullCoverage.test_predict_shap_images_multiple_employees _
+
+self = <test_deep_coverage.TestPredictShapImagesFullCoverage object at 0x0000027B05662C10>
+client = <starlette.testclient.TestClient object at 0x0000027B0573B1D0>
+
+    def test_predict_shap_images_multiple_employees(self, client):
+        """Test SHAP images with multiple employees"""
+        data = {
+            "sirh_data": [
+                {"id_employee": 92001, "age": 32, "genre": "F", "revenu_mensuel": 5800,
+                 "statut_marital": "Célibataire", "departement": "Sales", "poste": "Rep",
+                 "nombre_experiences_precedentes": 2, "nombre_heures_travailless": 165,
+                 "annee_experience_totale": 8, "annees_dans_l_entreprise": 4,
+                 "annees_dans_le_poste_actuel": 2},
+                {"id_employee": 92002, "age": 38, "genre": "M", "revenu_mensuel": 6500,
+                 "statut_marital": "Marié", "departement": "IT", "poste": "Lead",
+                 "nombre_experiences_precedentes": 3, "nombre_heures_travailless": 190,
+                 "annee_experience_totale": 12, "annees_dans_l_entreprise": 6,
+                 "annees_dans_le_poste_actuel": 3}
+            ],
+            "eval_data": [
+                {"eval_number": "E_92001", "note_evaluation_precedente": 3,
+                 "note_evaluation_actuelle": 4, "augementation_salaire_precedente": "13 %",
+                 "niveau_hierarchique_poste": 2, "satisfaction_employee_environnement": 3,
+                 "satisfaction_employee_nature_travail": 4, "satisfaction_employee_equipe": 3,
+                 "satisfaction_employee_equilibre_pro_perso": 3, "heure_supplementaires": "Oui",
+                 "annees_depuis_la_derniere_promotion": 1, "annes_sous_responsable_actuel": 2},
+                {"eval_number": "E_92002", "note_evaluation_precedente": 4,
+                 "note_evaluation_actuelle": 4, "augementation_salaire_precedente": "17 %",
+                 "niveau_hierarchique_poste": 3, "satisfaction_employee_environnement": 4,
+                 "satisfaction_employee_nature_travail": 4, "satisfaction_employee_equipe": 4,
+                 "satisfaction_employee_equilibre_pro_perso": 4, "heure_supplementaires": "Non",
+                 "annees_depuis_la_derniere_promotion": 2, "annes_sous_responsable_actuel": 3}
+            ],
+            "sondage_data": [
+                {"code_sondage": 92001, "nombre_participation_pee": 0, "nb_formations_suivies": 2,
+                 "nombre_employee_sous_responsabilite": 0, "distance_domicile_travail": 18,
+                 "niveau_education": 3, "domaine_etude": "Commerce", "ayant_enfants": "non",
+                 "frequence_deplacement": "Frequent", "annees_depuis_la_derniere_promotion": 1,
+                 "annes_sous_responsable_actuel": 2},
+                {"code_sondage": 92002, "nombre_participation_pee": 1, "nb_formations_suivies": 4,
+                 "nombre_employee_sous_responsabilite": 2, "distance_domicile_travail": 10,
+                 "niveau_education": 4, "domaine_etude": "Informatique", "ayant_enfants": "oui",
+                 "frequence_deplacement": "Rarement", "annees_depuis_la_derniere_promotion": 2,
+                 "annes_sous_responsable_actuel": 3}
+            ]
+        }
+        response = client.post("/predict_shap_images", json=data)
+>       assert response.status_code == 200
+E       assert 503 == 200
+E        +  where 503 = <Response [503 Service Unavailable]>.status_code
+
+tests\test_deep_coverage.py:359: AssertionError
+============================== warnings summary ===============================
+database\database.py:46
+  C:\Users\shahu\OPEN CLASSROOMS\PROJET 5\HR Attrition Rate\database\database.py:46: MovedIn20Warning: The ``declarative_base()`` function is now available as sqlalchemy.orm.declarative_base(). (deprecated since: 2.0) (Background on SQLAlchemy 2.0 at: https://sqlalche.me/e/b8d9)
+    Base = declarative_base()
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=============================== tests coverage ================================
+_______________ coverage: platform win32, python 3.13.9-final-0 _______________
+
+Name              Stmts   Miss  Cover
+-------------------------------------
+api\app\main.py     324    249    23%
+-------------------------------------
+TOTAL               324    249    23%
+=========================== short test summary info ===========================
+FAILED tests/test_deep_coverage.py::TestPredictReportFullCoverage::test_predict_report_full_flow
+FAILED tests/test_deep_coverage.py::TestPredictReportFullCoverage::test_predict_report_multiple_employees_with_shap
+FAILED tests/test_deep_coverage.py::TestPredictExcelFullCoverage::test_predict_excel_single_employee
+FAILED tests/test_deep_coverage.py::TestPredictExcelFullCoverage::test_predict_excel_multiple_employees
+FAILED tests/test_deep_coverage.py::TestPredictShapImagesFullCoverage::test_predict_shap_images_single
+FAILED tests/test_deep_coverage.py::TestPredictShapImagesFullCoverage::test_predict_shap_images_multiple_employees
+=================== 6 failed, 1 passed, 1 warning in 12.71s ===================

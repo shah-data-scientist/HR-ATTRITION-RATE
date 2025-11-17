@@ -52,6 +52,8 @@ if "job_excel_report_bytes" not in st.session_state:
     st.session_state.job_excel_report_bytes = None
 if "job_shap_zip_bytes" not in st.session_state:
     st.session_state.job_shap_zip_bytes = None
+if "user_id" not in st.session_state:
+    st.session_state.user_id = "demo1"  # Default user ID
 
 
 def get_project_root():
@@ -91,6 +93,7 @@ def _call_prediction_api(
     eval_data: Any,
     sirh_data: Any,
     sondage_data: Any,
+    user_id: str = "demo1",
 ) -> Dict[str, Any]:
     """Calls the FastAPI /predict endpoint with raw employee data."""
     try:
@@ -99,6 +102,7 @@ def _call_prediction_api(
             "sirh_data": sirh_data,
             "sondage_data": sondage_data,
         }
+        headers = {"X-User-ID": user_id}  # Pass user_id in request header
         # Set a reasonable timeout (increased for DB operations and SHAP calculations)
         response = httpx.post(f"{API_BASE_URL}/predict", json=payload, timeout=180.0)
         response.raise_for_status()
@@ -127,9 +131,10 @@ def _call_prediction_api(
         return {"predictions": []}
 
 
-def _call_predict_excel_api(payload: Dict[str, Any]) -> bytes | None:
+def _call_predict_excel_api(payload: Dict[str, Any], user_id: str = "demo1") -> bytes | None:
     try:
-        resp = httpx.post(f"{API_BASE_URL}/predict_excel", json=payload, timeout=180.0)
+        headers = {"X-User-ID": user_id}
+        resp = httpx.post(f"{API_BASE_URL}/predict_excel", json=payload, headers=headers, timeout=180.0)
         resp.raise_for_status()
         excel_b64 = resp.json().get("excel_base64")
         if not excel_b64:
@@ -141,10 +146,11 @@ def _call_predict_excel_api(payload: Dict[str, Any]) -> bytes | None:
         return None
 
 
-def _call_predict_shap_images_api(payload: Dict[str, Any]) -> bytes | None:
+def _call_predict_shap_images_api(payload: Dict[str, Any], user_id: str = "demo1") -> bytes | None:
     try:
+        headers = {"X-User-ID": user_id}
         resp = httpx.post(
-            f"{API_BASE_URL}/predict_shap_images", json=payload, timeout=180.0
+            f"{API_BASE_URL}/predict_shap_images", json=payload, headers=headers, timeout=180.0
         )
         resp.raise_for_status()
         items = resp.json().get("shap_images", [])
@@ -166,9 +172,10 @@ def _call_predict_shap_images_api(payload: Dict[str, Any]) -> bytes | None:
         return None
 
 
-def _enqueue_report_job(payload: Dict[str, Any]) -> str | None:
+def _enqueue_report_job(payload: Dict[str, Any], user_id: str = "demo1") -> str | None:
     try:
-        resp = httpx.post(f"{API_BASE_URL}/jobs/report", json=payload, timeout=30.0)
+        headers = {"X-User-ID": user_id}
+        resp = httpx.post(f"{API_BASE_URL}/jobs/report", json=payload, headers=headers, timeout=30.0)
         resp.raise_for_status()
         job_id = resp.json().get("job_id")
         if not job_id:
@@ -272,7 +279,7 @@ def _handle_file_uploads_and_predict() -> None:
                     sondage_data_for_api = sondage_df.to_dict(orient="records")
 
                     api_response = _call_prediction_api(
-                        eval_data_for_api, sirh_data_for_api, sondage_data_for_api
+                        eval_data_for_api, sirh_data_for_api, sondage_data_for_api, st.session_state.user_id
                     )
 
                     # Optionally save API response for debugging
@@ -342,6 +349,22 @@ def main() -> None:
     # --- Streamlit App Layout ---
     st.set_page_config(layout="wide")
     st.title("Employee Attrition Risk")
+    
+    # User ID input at the top
+    with st.sidebar:
+        st.header("User Settings")
+        user_id_input = st.text_input(
+            "User ID (max 5 characters)",
+            value=st.session_state.user_id,
+            max_chars=5,
+            help="Alphanumeric user ID (1-5 characters). Default: demo1"
+        )
+        if user_id_input and len(user_id_input) <= 5:
+            st.session_state.user_id = user_id_input
+        elif not user_id_input:
+            st.session_state.user_id = "demo1"
+        
+        st.info(f"Current User ID: **{st.session_state.user_id}**")
 
     with st.container():
         st.caption(f"API endpoint: {API_BASE_URL}")
@@ -387,7 +410,7 @@ def main() -> None:
                 if st.session_state.last_payload:
                     with st.spinner("Generating Excel report via API..."):
                         excel_bytes = _call_predict_excel_api(
-                            st.session_state.last_payload
+                            st.session_state.last_payload, st.session_state.user_id
                         )
                         st.session_state.excel_report_bytes = excel_bytes
                 else:
@@ -406,7 +429,7 @@ def main() -> None:
                 if st.session_state.last_payload:
                     with st.spinner("Generating SHAP images via API..."):
                         zip_bytes = _call_predict_shap_images_api(
-                            st.session_state.last_payload
+                            st.session_state.last_payload, st.session_state.user_id
                         )
                         st.session_state.shap_zip_bytes = zip_bytes
                 else:
@@ -428,7 +451,7 @@ def main() -> None:
                 st.warning("No input payload available. Please run a prediction first.")
             else:
                 with st.spinner("Enqueuing job..."):
-                    jid = _enqueue_report_job(st.session_state.last_payload)
+                    jid = _enqueue_report_job(st.session_state.last_payload, st.session_state.user_id)
                     if jid:
                         st.session_state.job_id = jid
                         st.session_state.job_status = "queued"

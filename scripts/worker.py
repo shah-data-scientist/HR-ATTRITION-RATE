@@ -149,7 +149,21 @@ def process_job(db, job):
     # Create a mock request object for the worker
     from types import SimpleNamespace
 
-    mock_request = SimpleNamespace(headers={}, client=SimpleNamespace(host="worker"))
+    # Use the user_id from the job (who originally created the job request)
+    user_id = getattr(job, 'user_id', 'demo1')
+    mock_headers_dict = {"X-User-ID": user_id}
+    
+    # SimpleNamespace to mimic request.headers with dict's .get() method
+    class MockHeaders:
+        def __init__(self, headers_dict):
+            self._headers = headers_dict
+        def get(self, key, default=None):
+            return self._headers.get(key, default)
+    
+    mock_request = SimpleNamespace(
+        headers=MockHeaders(mock_headers_dict),
+        client=SimpleNamespace(host="worker")
+    )
 
     # Use DB session for traceability
     predictions_output = generate_predictions(

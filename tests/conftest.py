@@ -123,6 +123,7 @@ def sample_employee_in_db(test_db_session):
         improvement_evaluation=1.0,
         total_satisfaction=36.0,
         work_mobility=0.6,
+        user_id="demo1",
         date_ingestion=datetime.now(),
     )
     test_db_session.add(employee)
