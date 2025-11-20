@@ -125,7 +125,7 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile.api
-    command: ["poetry", "run", "python", "-m", "scripts.worker"]
+    command: ["python", "-m", "scripts.worker"]
     env_file:
       - .env
     environment:
@@ -133,6 +133,7 @@ services:
       WORKER_POLL_SEC: ${WORKER_POLL_SEC:-2}
       WORKER_STALE_SEC: ${WORKER_STALE_SEC:-600}
       DISABLE_DB: "false"
+      MPLCONFIGDIR: /tmp/matplotlib
     depends_on:
       db:
         condition: service_healthy
