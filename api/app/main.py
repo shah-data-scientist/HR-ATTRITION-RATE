@@ -3,6 +3,11 @@ import logging  # Add logging import
 import os
 from contextlib import asynccontextmanager
 from datetime import datetime  # For timestamps
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()  # Load .env
+load_dotenv(".env.local", override=True)  # Load .env.local and override
 
 import base64
 import io
@@ -17,6 +22,7 @@ import pandas as pd
 import shap  # Import shap
 from fastapi import Depends, FastAPI, HTTPException, status, Request, Security
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse
 from sqlalchemy.orm import Session  # Explicitly import Session for type hinting
 from sqlalchemy import text
 from typing import Optional
@@ -55,6 +61,45 @@ logger = logging.getLogger("uvicorn.error")
 # --- Configuration ---
 # Define risk categories for Excel report and HTML visualization
 RISK_THRESHOLDS = {"Low": (0.0, 0.3), "Medium": (0.3, 0.7), "High": (0.7, 1.0)}
+
+
+def filter_id_employee_from_shap(shap_values: list, feature_names: list) -> tuple[list, list]:
+    """Filter out id_employee from SHAP values and feature names.
+
+    Args:
+        shap_values: List of SHAP values for all features
+        feature_names: List of feature names corresponding to SHAP values
+
+    Returns:
+        Tuple of (filtered_shap_values, filtered_feature_names) with id_employee removed
+    """
+    if not feature_names or len(feature_names) != len(shap_values):
+        return shap_values, feature_names
+
+    # Employee ID variations to filter out
+    employee_id_variations = {
+        "id_employee",
+        "num_id_employee",
+        "num__id_employee",  # double underscore variant
+        "employee_id",
+        "id employee",
+        "employeeid",
+        "emp_id",
+        "empid"
+    }
+
+    # Find indices where feature is NOT an employee ID (case-insensitive)
+    indices_to_keep = [
+        i for i, name in enumerate(feature_names)
+        if name.lower().replace("_", "").replace(" ", "") not in
+           {var.lower().replace("_", "").replace(" ", "") for var in employee_id_variations}
+    ]
+
+    # Filter both lists
+    filtered_shap_values = [shap_values[i] for i in indices_to_keep]
+    filtered_feature_names = [feature_names[i] for i in indices_to_keep]
+
+    return filtered_shap_values, filtered_feature_names
 
 
 # Optional local toggle to skip DB writes (useful when Postgres isn't available)
@@ -675,11 +720,17 @@ async def predict_attrition_report(
             if p.feature_names and len(p.feature_names) == len(p.shap_values)
             else [f"Feature {i}" for i in range(len(p.shap_values))]
         )
+
+        # Filter out id_employee from SHAP visualization
+        filtered_shap_values, filtered_feature_names = filter_id_employee_from_shap(
+            p.shap_values, feature_names
+        )
+
         explanation = shap.Explanation(
-            values=np.array(p.shap_values),
+            values=np.array(filtered_shap_values),
             base_values=p.base_value,
-            data=np.zeros(len(p.shap_values)),
-            feature_names=feature_names,
+            data=np.zeros(len(filtered_shap_values)),
+            feature_names=filtered_feature_names,
         )
         shap.plots.waterfall(explanation, max_display=10, show=False)
         fig = plt.gcf()
@@ -808,11 +859,17 @@ async def predict_shap_images(
             if p.feature_names and len(p.feature_names) == len(p.shap_values)
             else [f"Feature {i}" for i in range(len(p.shap_values))]
         )
+
+        # Filter out id_employee from SHAP visualization
+        filtered_shap_values, filtered_feature_names = filter_id_employee_from_shap(
+            p.shap_values, feature_names
+        )
+
         explanation = shap.Explanation(
-            values=np.array(p.shap_values),
+            values=np.array(filtered_shap_values),
             base_values=p.base_value,
-            data=np.zeros(len(p.shap_values)),
-            feature_names=feature_names,
+            data=np.zeros(len(filtered_shap_values)),
+            feature_names=filtered_feature_names,
         )
         shap.plots.waterfall(explanation, max_display=10, show=False)
         fig = plt.gcf()
@@ -833,3 +890,396 @@ async def predict_shap_images(
         )
 
     return {"shap_images": shap_images}
+
+
+@app.post(
+    "/predict_shap_html",
+    summary="Generate HTML page with SHAP analysis for all employees",
+    response_class=HTMLResponse,
+)
+async def predict_shap_html(
+    batch_input: RawBatchPredictionInput,
+    request: Request,
+    db: Optional[Session] = Depends(get_db),
+    api_key: str = Security(get_api_key),
+):
+    """Generates an interactive HTML page with expandable employee sections showing SHAP analysis.
+
+    **Authentication Required:** Provide X-API-Key header with valid API key.
+
+    Returns an HTML page with:
+    - Expandable sections for each employee
+    - SHAP waterfall diagrams
+    - SHAP values table
+    - Download button for the HTML page
+    """
+    predictions_output = generate_predictions(
+        batch_input, request, db, compute_shap=True
+    )
+
+    # Generate SHAP images and create employee sections
+    employee_sections = []
+
+    for idx, p in enumerate(predictions_output, 1):
+        if p.shap_values is None or p.base_value is None:
+            continue
+
+        # Generate SHAP waterfall plot
+        feature_names = (
+            p.feature_names
+            if p.feature_names and len(p.feature_names) == len(p.shap_values)
+            else [f"Feature {i}" for i in range(len(p.shap_values))]
+        )
+
+        # Filter out id_employee from SHAP visualization
+        filtered_shap_values, filtered_feature_names = filter_id_employee_from_shap(
+            p.shap_values, feature_names
+        )
+
+        explanation = shap.Explanation(
+            values=np.array(filtered_shap_values),
+            base_values=p.base_value,
+            data=np.zeros(len(filtered_shap_values)),
+            feature_names=filtered_feature_names,
+        )
+
+        shap.plots.waterfall(explanation, max_display=10, show=False)
+        fig = plt.gcf()
+        fig.set_size_inches(8, 6)
+        buf = io.BytesIO()
+        fig.savefig(buf, format="png", bbox_inches="tight", dpi=100)
+        plt.close(fig)
+        img_base64 = base64.b64encode(buf.getvalue()).decode("utf-8")
+
+        # Determine risk color
+        risk_color = {
+            "High": "#dc3545",
+            "Medium": "#ffc107",
+            "Low": "#28a745"
+        }.get(p.risk_category, "#6c757d")
+
+        # Create employee section HTML
+        employee_section = f"""
+        <div class="employee-card">
+            <div class="employee-header" onclick="toggleEmployee({idx})">
+                <h3>Employee {p.id_employee}</h3>
+                <div class="employee-summary">
+                    <span class="risk-badge" style="background-color: {risk_color};">{p.risk_category} Risk</span>
+                    <span class="prob-badge">{p.probability:.1%} Attrition Probability</span>
+                    <span class="pred-badge">Prediction: {p.prediction}</span>
+                </div>
+                <span class="toggle-icon" id="icon-{idx}">▼</span>
+            </div>
+            <div class="employee-content" id="content-{idx}">
+                <div class="shap-section">
+                    <h4>SHAP Waterfall Diagram</h4>
+                    <img src="data:image/png;base64,{img_base64}" alt="SHAP Waterfall for Employee {p.id_employee}" class="shap-image">
+                </div>
+            </div>
+        </div>
+        """
+        employee_sections.append(employee_section)
+
+    # Build complete HTML page
+    html_content = f"""
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Employee Risk Analysis - SHAP Report</title>
+        <style>
+            * {{
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }}
+
+            body {{
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                padding: 20px;
+                min-height: 100vh;
+            }}
+
+            .container {{
+                max-width: 1200px;
+                margin: 0 auto;
+                background: white;
+                border-radius: 12px;
+                box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+                overflow: hidden;
+            }}
+
+            .header {{
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white;
+                padding: 30px;
+                text-align: center;
+            }}
+
+            .header h1 {{
+                font-size: 2rem;
+                margin-bottom: 10px;
+            }}
+
+            .header p {{
+                opacity: 0.9;
+                font-size: 1rem;
+            }}
+
+            .download-section {{
+                background: #f8f9fa;
+                padding: 20px 30px;
+                border-bottom: 1px solid #dee2e6;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+            }}
+
+            .download-btn {{
+                background: #28a745;
+                color: white;
+                border: none;
+                padding: 12px 24px;
+                border-radius: 6px;
+                font-size: 1rem;
+                cursor: pointer;
+                transition: background 0.3s;
+            }}
+
+            .download-btn:hover {{
+                background: #218838;
+            }}
+
+            .content {{
+                padding: 30px;
+            }}
+
+            .employee-card {{
+                margin-bottom: 20px;
+                border: 1px solid #dee2e6;
+                border-radius: 8px;
+                overflow: hidden;
+                transition: box-shadow 0.3s;
+            }}
+
+            .employee-card:hover {{
+                box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            }}
+
+            .employee-header {{
+                background: #f8f9fa;
+                padding: 20px;
+                cursor: pointer;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                transition: background 0.3s;
+            }}
+
+            .employee-header:hover {{
+                background: #e9ecef;
+            }}
+
+            .employee-header h3 {{
+                font-size: 1.25rem;
+                color: #333;
+            }}
+
+            .employee-summary {{
+                display: flex;
+                gap: 15px;
+                align-items: center;
+            }}
+
+            .risk-badge, .prob-badge, .pred-badge {{
+                padding: 6px 12px;
+                border-radius: 4px;
+                font-size: 0.875rem;
+                font-weight: 500;
+            }}
+
+            .risk-badge {{
+                color: white;
+            }}
+
+            .prob-badge {{
+                background: #e3f2fd;
+                color: #1976d2;
+            }}
+
+            .pred-badge {{
+                background: #f3e5f5;
+                color: #7b1fa2;
+            }}
+
+            .toggle-icon {{
+                font-size: 1.5rem;
+                transition: transform 0.3s;
+            }}
+
+            .toggle-icon.rotated {{
+                transform: rotate(-180deg);
+            }}
+
+            .employee-content {{
+                max-height: 0;
+                overflow: hidden;
+                transition: max-height 0.3s ease;
+            }}
+
+            .employee-content.expanded {{
+                max-height: 5000px;
+                padding: 20px;
+                border-top: 1px solid #dee2e6;
+            }}
+
+            .shap-section {{
+                margin-bottom: 30px;
+            }}
+
+            .shap-section h4, .shap-values-section h4 {{
+                font-size: 1.1rem;
+                margin-bottom: 15px;
+                color: #495057;
+            }}
+
+            .shap-image {{
+                max-width: 100%;
+                height: auto;
+                border: 1px solid #dee2e6;
+                border-radius: 4px;
+            }}
+
+            .shap-table {{
+                width: 100%;
+                border-collapse: collapse;
+                margin-top: 10px;
+            }}
+
+            .shap-table th {{
+                background: #f8f9fa;
+                padding: 12px;
+                text-align: left;
+                font-weight: 600;
+                border-bottom: 2px solid #dee2e6;
+            }}
+
+            .shap-table td {{
+                padding: 10px 12px;
+                border-bottom: 1px solid #dee2e6;
+            }}
+
+            .shap-table tbody tr:hover {{
+                background: #f8f9fa;
+            }}
+
+            .stats-summary {{
+                background: #e3f2fd;
+                padding: 20px;
+                border-radius: 8px;
+                margin-bottom: 30px;
+            }}
+
+            .stats-summary h3 {{
+                margin-bottom: 15px;
+                color: #1976d2;
+            }}
+
+            .stats-grid {{
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+                gap: 15px;
+            }}
+
+            .stat-item {{
+                background: white;
+                padding: 15px;
+                border-radius: 6px;
+                text-align: center;
+            }}
+
+            .stat-value {{
+                font-size: 2rem;
+                font-weight: bold;
+                color: #1976d2;
+            }}
+
+            .stat-label {{
+                color: #666;
+                font-size: 0.875rem;
+                margin-top: 5px;
+            }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header">
+                <h1>Employee Risk Analysis in Detail</h1>
+                <p>SHAP (SHapley Additive exPlanations) Analysis Report</p>
+            </div>
+
+            <div class="download-section">
+                <div>
+                    <strong>Total Employees Analyzed:</strong> {len(predictions_output)}
+                </div>
+                <button class="download-btn" onclick="downloadHTML()">
+                    📥 Download Full Report
+                </button>
+            </div>
+
+            <div class="content">
+                <div class="stats-summary">
+                    <h3>Summary Statistics</h3>
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <div class="stat-value">{len(predictions_output)}</div>
+                            <div class="stat-label">Total Employees</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value">{sum(1 for p in predictions_output if p.prediction == 'Leave')}</div>
+                            <div class="stat-label">Predicted to Leave</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value">{sum(1 for p in predictions_output if p.prediction == 'Stay')}</div>
+                            <div class="stat-label">Predicted to Stay</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value">{sum(1 for p in predictions_output if p.risk_category == 'High')}</div>
+                            <div class="stat-label">High Risk</div>
+                        </div>
+                    </div>
+                </div>
+
+                {"".join(employee_sections)}
+            </div>
+        </div>
+
+        <script>
+            function toggleEmployee(id) {{
+                const content = document.getElementById('content-' + id);
+                const icon = document.getElementById('icon-' + id);
+
+                content.classList.toggle('expanded');
+                icon.classList.toggle('rotated');
+            }}
+
+            function downloadHTML() {{
+                const htmlContent = document.documentElement.outerHTML;
+                const blob = new Blob([htmlContent], {{ type: 'text/html' }});
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'employee_risk_analysis_shap_report.html';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }}
+        </script>
+    </body>
+    </html>
+    """
+
+    return HTMLResponse(content=html_content)
