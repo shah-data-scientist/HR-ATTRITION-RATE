@@ -500,7 +500,7 @@ def _handle_file_uploads_and_predict() -> None:
                         eval_data_for_api,
                         sirh_data_for_api,
                         sondage_data_for_api,
-                        st.session_state.user_id,
+                        str(st.session_state.user_id),
                     )
 
                     # Optionally save API response for debugging
@@ -534,14 +534,14 @@ def _handle_file_uploads_and_predict() -> None:
                         with st.spinner("Generating Excel report and SHAP analysis..."):
                             # Generate Excel report
                             excel_bytes = _call_predict_excel_api(
-                                st.session_state.last_payload, st.session_state.user_id
+                                st.session_state.last_payload, str(st.session_state.user_id)
                             )
                             if excel_bytes:
                                 st.session_state.excel_report_bytes = excel_bytes
 
                             # Generate HTML SHAP report
                             html_bytes = _call_predict_shap_html_api(
-                                st.session_state.last_payload, st.session_state.user_id
+                                st.session_state.last_payload, str(st.session_state.user_id)
                             )
                             if html_bytes:
                                 st.session_state.shap_html_bytes = html_bytes
@@ -579,23 +579,8 @@ def main() -> None:
     )
     st.title("Employee Attrition Risk Prediction")
 
-    # Sidebar: User settings and API status (collapsed by default)
+    # Sidebar: API status
     with st.sidebar:
-        st.header("User Settings")
-        user_id_input = st.text_input(
-            "User ID",
-            value=st.session_state.user_id,
-            max_chars=5,
-            help="Alphanumeric user ID (1-5 characters). Default: demo1",
-        )
-        if user_id_input and len(user_id_input) <= 5:
-            st.session_state.user_id = user_id_input
-        elif not user_id_input:
-            st.session_state.user_id = "demo1"
-
-        st.info(f"Current User ID: **{st.session_state.user_id}**")
-
-        st.markdown("---")
         st.header("API Status")
         st.caption(f"Endpoint: {API_BASE_URL}")
         ok, msg = _check_api_health(API_BASE_URL)
@@ -762,7 +747,7 @@ def main() -> None:
                         eval_data_for_api,
                         sirh_data_for_api,
                         sondage_data_for_api,
-                        st.session_state.user_id,
+                        str(st.session_state.user_id),
                     )
 
                     # Optionally save API response for debugging
@@ -796,14 +781,14 @@ def main() -> None:
                         with st.spinner("Generating Excel report and SHAP analysis..."):
                             # Generate Excel report
                             excel_bytes = _call_predict_excel_api(
-                                st.session_state.last_payload, st.session_state.user_id
+                                st.session_state.last_payload, str(st.session_state.user_id)
                             )
                             if excel_bytes:
                                 st.session_state.excel_report_bytes = excel_bytes
 
                             # Generate HTML SHAP report
                             html_bytes = _call_predict_shap_html_api(
-                                st.session_state.last_payload, st.session_state.user_id
+                                st.session_state.last_payload, str(st.session_state.user_id)
                             )
                             if html_bytes:
                                 st.session_state.shap_html_bytes = html_bytes
@@ -837,7 +822,7 @@ def main() -> None:
 
         # Prediction Table
         st.markdown("---")
-        st.subheader("Prediction Results Table")
+        st.subheader("Prediction Results Table (Chosen Threshold)")
         st.dataframe(
             report_data.rename(
                 columns={
@@ -851,7 +836,7 @@ def main() -> None:
 
         # Downloads section
         st.markdown("---")
-        st.subheader("Downloads")
+        st.subheader("Downloads (With Fixed Threshold = 0.5)")
         col1, col2 = st.columns(2)
 
         with col1:

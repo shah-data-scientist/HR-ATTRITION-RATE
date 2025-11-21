@@ -333,7 +333,9 @@ jobs:
     - name: Deploy to staging server
       run: |
         echo "🚀 Deployment to staging would happen here"
-        echo "Example: SSH to server and run docker-compose pull && docker-compose up -d"
+        echo "Example: SSH to server and run docker-compose --profile prod pull && docker-compose --profile prod up -d"
+        echo ""
+        echo "Note: Now using unified docker-compose.yml with --profile prod flag"
         echo ""
         echo "Required secrets for actual deployment:"
         echo "  - STAGING_HOST: SSH host"
@@ -351,9 +353,9 @@ jobs:
     #     script: |
     #       cd /opt/hr-attrition
     #       echo "${{ secrets.STAGING_ENV_FILE }}" > .env
-    #       docker-compose -f docker-compose.prod.yml pull
-    #       docker-compose -f docker-compose.prod.yml up -d
-    #       docker-compose -f docker-compose.prod.yml logs --tail=50
+    #       docker-compose --profile prod pull
+    #       docker-compose --profile prod up -d
+    #       docker-compose --profile prod logs --tail=50
 
   deploy-production:
     name: Deploy to Production (Manual Approval)
@@ -372,6 +374,8 @@ jobs:
         echo "🚀 Production deployment would happen here"
         echo "This requires manual approval in GitHub Actions"
         echo ""
+        echo "Note: Now using unified docker-compose.yml with --profile prod flag"
+        echo ""
         echo "Required secrets for actual deployment:"
         echo "  - PROD_HOST: SSH host"
         echo "  - PROD_USER: SSH username"
@@ -388,6 +392,6 @@ jobs:
     #     script: |
     #       cd /opt/hr-attrition
     #       echo "${{ secrets.PROD_ENV_FILE }}" > .env
-    #       docker-compose -f docker-compose.prod.yml pull
-    #       docker-compose -f docker-compose.prod.yml up -d --no-deps --build
-    #       docker-compose -f docker-compose.prod.yml logs --tail=50
+    #       docker-compose --profile prod pull
+    #       docker-compose --profile prod up -d --no-deps --build
+    #       docker-compose --profile prod logs --tail=50

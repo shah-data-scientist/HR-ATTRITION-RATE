@@ -1,5 +1,21 @@
+version: '3.8'
+
+# Unified Docker Compose Configuration
+#
+# Usage:
+#   Local Development:  docker-compose --profile local up -d
+#   Production:         docker-compose --profile prod up -d
+#   Hugging Face:       docker-compose --profile huggingface up -d
+#
+# Default (no profile): Local development services
+
 services:
+  # ============================================================================
+  # LOCAL DEVELOPMENT PROFILE (default)
+  # ============================================================================
+
   db:
+    profiles: ["local", "prod"]
     image: postgres:16-alpine
     restart: always
     env_file:
@@ -8,7 +24,6 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-hr_attrition_db}
       POSTGRES_USER: ${POSTGRES_USER:-user}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
-    # Database port removed - internal only
     volumes:
       - db_data:/var/lib/postgresql/data
     healthcheck:
@@ -29,6 +44,7 @@ services:
           memory: 256M
 
   db_init:
+    profiles: ["local", "prod"]
     build:
       context: .
       dockerfile: docker/Dockerfile.database
@@ -51,11 +67,12 @@ services:
           memory: 256M
 
   fastapi_app:
+    profiles: ["local"]
     build:
       context: .
       dockerfile: docker/Dockerfile.api
     ports:
-      - "8081:8001"
+      - "8081:8001"  # Local dev uses 8081 to avoid conflicts
     env_file:
       - .env
     environment:
@@ -88,11 +105,12 @@ services:
           memory: 512M
 
   streamlit_app:
+    profiles: ["local"]
     build:
       context: .
       dockerfile: docker/Dockerfile.streamlit
     ports:
-      - "8581:8501"
+      - "8581:8501"  # Local dev uses 8581 to avoid conflicts
     env_file:
       - .env
     environment:
@@ -119,7 +137,96 @@ services:
           cpus: '0.5'
           memory: 256M
 
+  # ============================================================================
+  # PRODUCTION PROFILE
+  # ============================================================================
+
+  fastapi_app_prod:
+    profiles: ["prod"]
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.api
+    ports:
+      - "8001:8001"  # Production uses standard ports
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      API_HOST: 0.0.0.0
+      API_PORT: 8001
+      DISABLE_DB: "false"
+      API_KEY: ${API_KEY}
+      SECRET_KEY: ${SECRET_KEY}
+      ENVIRONMENT: production
+      MPLCONFIGDIR: /tmp/matplotlib
+    depends_on:
+      db:
+        condition: service_healthy
+      db_init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: always
+    networks:
+      - hr_network
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
+        reservations:
+          cpus: '1.0'
+          memory: 1G
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  streamlit_app_prod:
+    profiles: ["prod"]
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.streamlit
+    ports:
+      - "8501:8501"  # Production uses standard ports
+    env_file:
+      - .env
+    environment:
+      API_BASE_URL: http://fastapi_app_prod:8001
+      API_KEY: ${API_KEY}
+    depends_on:
+      fastapi_app_prod:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8501/_stcore/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: always
+    networks:
+      - hr_network
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
   worker:
+    profiles: ["prod"]
     build:
       context: .
       dockerfile: docker/Dockerfile.api
@@ -127,7 +234,7 @@ services:
     env_file:
       - .env
     environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER:-user}:${POSTGRES_PASSWORD:-password}@db:5432/${POSTGRES_DB:-hr_attrition_db}
+      DATABASE_URL: ${DATABASE_URL}
       WORKER_POLL_SEC: ${WORKER_POLL_SEC:-2}
       WORKER_STALE_SEC: ${WORKER_STALE_SEC:-600}
       DISABLE_DB: "false"
@@ -137,27 +244,69 @@ services:
         condition: service_healthy
       db_init:
         condition: service_completed_successfully
-    restart: unless-stopped
+    restart: always
     networks:
       - hr_network
-    healthcheck:
-      test: ["CMD", "python", "-c", "import sys; sys.exit(0)"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
     deploy:
       resources:
         limits:
           cpus: '2.0'
-          memory: 1G
+          memory: 2G
         reservations:
           cpus: '1.0'
-          memory: 512M
+          memory: 1G
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  # ============================================================================
+  # HUGGING FACE PROFILE (single container)
+  # ============================================================================
+
+  huggingface:
+    profiles: ["huggingface"]
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.huggingface
+    ports:
+      - "7860:7860"  # Hugging Face Spaces default port
+      - "8001:8001"  # API port
+    environment:
+      # Use SQLite instead of PostgreSQL for single-container deployment
+      DATABASE_URL: sqlite:///db_data/hr_attrition.db
+      DISABLE_DB: "false"
+      API_BASE_URL: http://localhost:8001
+      API_KEY: ${API_KEY:-demo_huggingface_api_key}
+      SECRET_KEY: ${SECRET_KEY:-demo_secret_key_for_huggingface_deployment_min_32_chars}
+    volumes:
+      - huggingface_db:/app/db_data
+      - ./outputs:/app/outputs
+      - ./data:/app/data
+    restart: always
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8001/health', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - hr_network
+
+# ============================================================================
+# VOLUMES
+# ============================================================================
 
 volumes:
   db_data:
     driver: local
+  huggingface_db:
+    driver: local
+
+# ============================================================================
+# NETWORKS
+# ============================================================================
 
 networks:
   hr_network:

@@ -49,7 +49,9 @@ COPY --from=builder /app/.venv /app/.venv
 
 # Copy application code
 COPY ui ./ui
+COPY core ./core
 COPY data ./data
+COPY outputs ./outputs
 
 # Create non-root user
 RUN groupadd -r appuser && useradd -r -g appuser -u 1001 appuser
@@ -71,6 +73,6 @@ EXPOSE 8501
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
     CMD curl -f http://localhost:8501/_stcore/health || exit 1
 
-# Run Streamlit
-CMD ["streamlit", "run", "ui/app.py", "--server.port=8501", "--server.address=0.0.0.0", "--server.headless=true", "--browser.gatherUsageStats=false"]
+# Run Streamlit with authentication
+CMD ["streamlit", "run", "ui/app_authenticated.py", "--server.port=8501", "--server.address=0.0.0.0", "--server.headless=true", "--browser.gatherUsageStats=false"]
 

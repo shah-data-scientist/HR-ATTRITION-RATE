@@ -2,6 +2,7 @@ from sqlalchemy import JSON, Column, DateTime, Float, ForeignKey, Integer, Strin
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import uuid
+import bcrypt
 
 from .database import Base
 
@@ -149,3 +150,31 @@ class ShapAnalysis(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     trace = relationship("PredictionTraceability", back_populates="shap_analysis")
+
+
+class User(Base):
+    """User model for authentication with bcrypt password hashing."""
+    __tablename__ = "users"
+
+    user_id = Column(Integer, primary_key=True, index=True)
+    username = Column(String(50), unique=True, nullable=False, index=True)
+    password_hash = Column(String(255), nullable=False)
+    role = Column(String(20), nullable=False, default="user")  # 'admin' or 'user'
+    is_active = Column(Integer, nullable=False, default=1)  # 1=active, 0=inactive
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    last_login = Column(DateTime(timezone=True), nullable=True)
+
+    @staticmethod
+    def hash_password(password: str) -> str:
+        """Hash a password using bcrypt with automatic salt generation."""
+        password_bytes = password.encode('utf-8')
+        salt = bcrypt.gensalt()
+        hashed = bcrypt.hashpw(password_bytes, salt)
+        return hashed.decode('utf-8')
+
+    @staticmethod
+    def verify_password(password: str, password_hash: str) -> bool:
+        """Verify a password against its hash."""
+        password_bytes = password.encode('utf-8')
+        hash_bytes = password_hash.encode('utf-8')
+        return bcrypt.checkpw(password_bytes, hash_bytes)

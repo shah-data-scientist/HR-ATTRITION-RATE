@@ -13,7 +13,50 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from scripts.utils import load_and_merge_data  # Import the merged data loading function
 
 from .database import Base, SessionLocal, engine
-from .models import Employee
+from .models import Employee, User
+
+
+def create_default_users(db: Session):
+    """Create default users if users table is empty."""
+    try:
+        # Check if users table is empty
+        if db.query(User).count() == 0:
+            print("Creating default users...")
+
+            # Get credentials from environment variables
+            admin_username = os.getenv("UI_ADMIN_USERNAME", "admin")
+            admin_password = os.getenv("UI_ADMIN_PASSWORD", "Admin@2025!Secure")
+            user_username = os.getenv("UI_USER_USERNAME", "analyst")
+            user_password = os.getenv("UI_USER_PASSWORD", "Analyst@2025!View")
+
+            # Create admin user
+            admin_user = User(
+                username=admin_username,
+                password_hash=User.hash_password(admin_password),
+                role="admin",
+                is_active=1
+            )
+
+            # Create regular user
+            regular_user = User(
+                username=user_username,
+                password_hash=User.hash_password(user_password),
+                role="user",
+                is_active=1
+            )
+
+            db.add(admin_user)
+            db.add(regular_user)
+            db.commit()
+            print(f"Successfully created 2 default users:")
+            print(f"  - Admin user: {admin_username} (role: admin)")
+            print(f"  - Regular user: {user_username} (role: user)")
+        else:
+            print("Users table is not empty. Skipping default users creation.")
+    except Exception as e:
+        db.rollback()
+        print(f"Error creating default users: {e}")
+        raise e
 
 
 def init_db():
@@ -90,6 +133,10 @@ def init_db():
             )
         else:
             print("Employees table is not empty. Skipping initial data load.")
+
+        # Create default users for UI authentication
+        create_default_users(db)
+
     except Exception as e:
         db.rollback()
         print(f"Error during database initialization or data load: {e}")

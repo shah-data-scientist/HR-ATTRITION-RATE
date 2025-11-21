@@ -47,7 +47,7 @@ COPY database/ ./database/
 COPY outputs/ ./outputs/
 COPY data/ ./data/
 COPY scripts/ ./scripts/
-COPY ui/app.py ./ui/app.py
+COPY ui/ ./ui/
 COPY .streamlit/ ./.streamlit/
 COPY pyproject.toml poetry.lock ./
 
@@ -72,7 +72,7 @@ stderr_logfile=/dev/stderr\n\
 stderr_logfile_maxbytes=0\n\
 \n\
 [program:streamlit]\n\
-command=/app/.venv/bin/streamlit run ui/app.py --server.port=7860 --server.address=0.0.0.0 --server.headless=true --browser.gatherUsageStats=false\n\
+command=/app/.venv/bin/streamlit run ui/app_authenticated.py --server.port=7860 --server.address=0.0.0.0 --server.headless=true --browser.gatherUsageStats=false\n\
 directory=/app\n\
 autostart=true\n\
 autorestart=true\n\
@@ -88,7 +88,11 @@ ENV DATABASE_URL=sqlite:///db_data/hr_attrition.db \
     DISABLE_DB=false \
     API_BASE_URL=http://localhost:8001 \
     API_KEY=demo_huggingface_api_key \
-    SECRET_KEY=demo_secret_key_for_huggingface_deployment_min_32_chars
+    SECRET_KEY=demo_secret_key_for_huggingface_deployment_min_32_chars \
+    UI_ADMIN_USERNAME=admin \
+    UI_ADMIN_PASSWORD=Admin@2025!Secure \
+    UI_USER_USERNAME=analyst \
+    UI_USER_PASSWORD=Analyst@2025!View
 
 # Expose Hugging Face default port
 EXPOSE 7860

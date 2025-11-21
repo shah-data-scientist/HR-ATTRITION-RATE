@@ -40,6 +40,7 @@ from database.models import (
     PredictionTraceability,
     ShapAnalysis,
     Job,
+    User,
 )
 
 # Core imports - using canonical schemas and processing
@@ -599,6 +600,108 @@ async def db_health(db: Optional[Session] = Depends(get_db)):
         return {"status": "ok", "message": "Database connection successful"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Database connection failed: {e}")
+
+
+@app.post("/auth/login", summary="Authenticate user", response_model=dict)
+async def login(
+    username: str,
+    password: str,
+    db: Optional[Session] = Depends(get_db),
+):
+    """
+    Authenticate a user with username and password.
+
+    Returns user data if authentication is successful.
+
+    **No API key required** - this endpoint is public for UI authentication.
+    """
+    if _is_db_disabled() or db is None:
+        raise HTTPException(
+            status_code=503,
+            detail="Database is disabled; authentication unavailable."
+        )
+
+    try:
+        # Query user by username
+        user = db.query(User).filter(User.username == username).first()
+
+        if user is None or not user.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid username or password"
+            )
+
+        # Verify password
+        if not User.verify_password(password, user.password_hash):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid username or password"
+            )
+
+        # Update last login timestamp
+        from datetime import datetime, timezone
+        user.last_login = datetime.now(timezone.utc)
+        db.commit()
+        db.refresh(user)
+
+        # Return user data (excluding password hash)
+        return {
+            "success": True,
+            "user_id": user.user_id,
+            "username": user.username,
+            "role": user.role,
+            "last_login": user.last_login.isoformat() if user.last_login else None,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("Login failed with unexpected error")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Authentication error: {str(e)}"
+        )
+
+
+@app.get("/auth/user/{username}", summary="Get user info", response_model=dict)
+async def get_user_info(
+    username: str,
+    db: Optional[Session] = Depends(get_db),
+):
+    """
+    Get user information by username (for session validation).
+
+    **No API key required** - this endpoint is public for UI session management.
+    """
+    if _is_db_disabled() or db is None:
+        raise HTTPException(
+            status_code=503,
+            detail="Database is disabled; user info unavailable."
+        )
+
+    try:
+        user = db.query(User).filter(User.username == username).first()
+
+        if user is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found"
+            )
+
+        return {
+            "user_id": user.user_id,
+            "username": user.username,
+            "role": user.role,
+            "is_active": bool(user.is_active),
+            "last_login": user.last_login.isoformat() if user.last_login else None,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("Get user info failed")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error retrieving user info: {str(e)}"
+        )
 
 
 @app.post(
