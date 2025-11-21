@@ -14,15 +14,19 @@ from sqlalchemy.exc import SQLAlchemyError
 
 @pytest.fixture
 def client():
-    from api.app.main import app
+    import os
 
+    # IMPORTANT: Set API key BEFORE importing app
+    os.environ["API_KEY"] = "test_api_key"
+
+    from api.app.main import app
     return TestClient(app)
 
 
 @pytest.fixture
 def auth_headers():
     """Authentication headers for API requests"""
-    return {"X-API-Key": "test_api_key_for_pytest", "X-User-ID": "test_user"}
+    return {"X-API-Key": "test_api_key", "X-User-ID": "test_user"}
 
 
 @pytest.fixture
@@ -241,10 +245,15 @@ class TestShapCalculationBranches:
         assert response.status_code in [200, 422, 500]
 
     def test_predict_shap_with_invalid_data(self, client, auth_headers):
-        """Test SHAP with invalid data"""
+        """Test SHAP with empty data - expects validation error"""
         payload = {"eval_data": [], "sirh_data": [], "sondage_data": []}
         response = client.post("/predict_shap_images", headers=auth_headers, json=payload)
+        # Empty data should be rejected by Pydantic validation (min_length=1)
+        # or return a server error if validation passes
         assert response.status_code in [422, 500, 503]
+        # Empty lists should fail validation, so we expect 422
+        if response.status_code == 422:
+            assert "detail" in response.json()
 
     def test_predict_shap_with_extreme_values(self, client, auth_headers, sample_employee_data):
         """Test SHAP with extreme values"""

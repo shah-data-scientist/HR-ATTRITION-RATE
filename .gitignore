@@ -166,3 +166,5 @@ Thumbs.db
 
 # Docker
 .dockerignore
+.gitignore
+nul

@@ -14,8 +14,16 @@ import bcrypt
 API_KEY_NAME = "X-API-Key"
 api_key_header = APIKeyHeader(name=API_KEY_NAME, auto_error=False)
 
-# Get API key from environment
-VALID_API_KEY = os.getenv("API_KEY", "demo_api_key_change_in_production")
+
+def _get_valid_api_key() -> str:
+    """
+    Get the valid API key from environment.
+    This function reads from environment at call time to support testing.
+
+    Returns:
+        The valid API key from environment variable or default
+    """
+    return os.getenv("API_KEY", "demo_api_key_change_in_production")
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
@@ -83,6 +91,8 @@ async def get_api_key(api_key: Optional[str] = Security(api_key_header)) -> str:
     Raises:
         HTTPException: If API key is missing or invalid
     """
+    valid_key = _get_valid_api_key()
+
     if api_key is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -90,7 +100,7 @@ async def get_api_key(api_key: Optional[str] = Security(api_key_header)) -> str:
             headers={"WWW-Authenticate": "ApiKey"},
         )
 
-    if api_key != VALID_API_KEY:
+    if api_key != valid_key:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Invalid API Key",
@@ -112,10 +122,12 @@ async def get_optional_api_key(
     Returns:
         Valid API key string or None
     """
+    valid_key = _get_valid_api_key()
+
     if api_key is None:
         return None
 
-    if api_key != VALID_API_KEY:
+    if api_key != valid_key:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Invalid API Key",

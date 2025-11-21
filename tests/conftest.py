@@ -15,8 +15,8 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from database.database import Base
 from database.models import Employee, ModelInput, ModelOutput, PredictionTraceability
 
-# Set test API key
-os.environ["API_KEY"] = "test_api_key_for_pytest"
+# Set test API key (must match CI/CD workflow)
+os.environ["API_KEY"] = "test_api_key"
 
 
 @pytest.fixture(scope="session")

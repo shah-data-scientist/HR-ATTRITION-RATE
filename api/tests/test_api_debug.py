@@ -1,6 +1,5 @@
 import pytest
 from fastapi.testclient import TestClient
-from api.app.main import app
 import pandas as pd
 import os
 import sys
@@ -12,8 +11,11 @@ sys.path.insert(
     0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 )
 
-# Ensure API key is set for tests
-os.environ["API_KEY"] = "test_api_key_for_pytest"
+# IMPORTANT: Set API key BEFORE importing app
+os.environ["API_KEY"] = "test_api_key"
+
+# Import app after setting environment variable
+from api.app.main import app
 
 client = TestClient(app)
 
@@ -21,7 +23,7 @@ client = TestClient(app)
 @pytest.fixture
 def auth_headers():
     """Authentication headers for API requests"""
-    return {"X-API-Key": "test_api_key_for_pytest", "X-User-ID": "test_user"}
+    return {"X-API-Key": "test_api_key", "X-User-ID": "test_user"}
 
 
 @pytest.fixture(scope="module")

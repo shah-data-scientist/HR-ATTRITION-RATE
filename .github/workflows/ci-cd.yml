@@ -118,7 +118,7 @@ jobs:
         DATABASE_URL: postgresql://${{ secrets.POSTGRES_USER || 'user' }}:${{ secrets.POSTGRES_PASSWORD || 'password' }}@localhost:5432/${{ secrets.POSTGRES_DB || 'hr_attrition_db' }}
         API_KEY: ${{ secrets.API_KEY || 'test_api_key' }}
       run: |
-        poetry run pytest tests/test_final_push_85.py tests/test_uncovered_paths.py tests/test_coverage_85.py tests/test_api_comprehensive.py tests/test_core.py api/tests/test_api_debug.py --cov=api.app.main --cov=core --cov=database.models --cov-report=term --cov-report=xml -v
+        poetry run pytest tests/test_final_push_85.py tests/test_uncovered_paths.py tests/test_coverage_85.py tests/test_api_comprehensive.py tests/test_core.py tests/test_coverage_boost.py tests/test_database_integration.py api/tests/test_api_debug.py --cov=api.app.main --cov=core --cov=database.models --cov-report=term --cov-report=xml -v
     
     - name: Upload coverage reports
       uses: codecov/codecov-action@v4
@@ -153,7 +153,7 @@ jobs:
         DISABLE_DB: "1"
         API_KEY: ${{ secrets.API_KEY || 'test_api_key' }}
       run: |
-        poetry run pytest tests/test_final_push_85.py tests/test_uncovered_paths.py tests/test_coverage_85.py tests/test_api_comprehensive.py tests/test_core.py api/tests/test_api_debug.py --cov=api.app.main --cov=core --cov-report=term -v
+        poetry run pytest tests/test_final_push_85.py tests/test_uncovered_paths.py tests/test_coverage_85.py tests/test_api_comprehensive.py tests/test_core.py tests/test_coverage_boost.py tests/test_database_integration.py api/tests/test_api_debug.py --cov=api.app.main --cov=core --cov-report=term -v
 
   test-authentication:
     name: Test Authentication & Security

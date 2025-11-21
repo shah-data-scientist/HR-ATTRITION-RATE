@@ -280,13 +280,13 @@ class RawBatchPredictionInput(BaseModel):
     """Batch prediction input schema for raw, unmerged employee data."""
 
     eval_data: list[EvalInputSchema] = Field(
-        ..., description="List of raw evaluation records"
+        ..., min_length=1, description="List of raw evaluation records"
     )
     sirh_data: list[SirhInputSchema] = Field(
-        ..., description="List of raw SIRH records"
+        ..., min_length=1, description="List of raw SIRH records"
     )
     sondage_data: list[SondageInputSchema] = Field(
-        ..., description="List of raw survey records"
+        ..., min_length=1, description="List of raw survey records"
     )
 
 

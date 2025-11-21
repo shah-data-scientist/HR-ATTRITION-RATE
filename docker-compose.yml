@@ -24,6 +24,8 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-hr_attrition_db}
       POSTGRES_USER: ${POSTGRES_USER:-user}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
+    ports:
+      - "5432:5432"  # Expose PostgreSQL for local testing
     volumes:
       - db_data:/var/lib/postgresql/data
     healthcheck:

@@ -11,15 +11,19 @@ import numpy as np
 
 @pytest.fixture
 def client():
-    from api.app.main import app
+    import os
 
+    # IMPORTANT: Set API key BEFORE importing app
+    os.environ["API_KEY"] = "test_api_key"
+
+    from api.app.main import app
     return TestClient(app)
 
 
 @pytest.fixture
 def auth_headers():
     """Authentication headers for API requests"""
-    return {"X-API-Key": "test_api_key_for_pytest", "X-User-ID": "test_user"}
+    return {"X-API-Key": "test_api_key", "X-User-ID": "test_user"}
 
 
 @pytest.fixture

@@ -14,17 +14,19 @@ import numpy as np
 def client():
     """Create test client with API key authentication"""
     import os
-    from api.app.main import app
 
-    # Ensure API key is set for tests
-    os.environ["API_KEY"] = "test_api_key_for_pytest"
+    # IMPORTANT: Set API key BEFORE importing app to ensure auth module picks it up
+    os.environ["API_KEY"] = "test_api_key"
+
+    # Import app after setting environment variable
+    from api.app.main import app
     return TestClient(app)
 
 
 @pytest.fixture
 def auth_headers():
     """Authentication headers for API requests"""
-    return {"X-API-Key": "test_api_key_for_pytest", "X-User-ID": "test_user"}
+    return {"X-API-Key": "test_api_key", "X-User-ID": "test_user"}
 
 
 @pytest.fixture

@@ -6,8 +6,14 @@ from datetime import datetime  # For timestamps
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
-load_dotenv()  # Load .env
-load_dotenv(".env.local", override=True)  # Load .env.local and override
+# Use override=False to respect programmatically set environment variables (e.g., in tests)
+# .env.local values will override .env values, but not pre-existing env vars
+_existing_api_key = os.environ.get("API_KEY")
+load_dotenv()  # Load .env (doesn't override existing)
+load_dotenv(".env.local", override=True)  # Load .env.local (overrides .env values)
+# Restore programmatically set API_KEY (for tests)
+if _existing_api_key is not None:
+    os.environ["API_KEY"] = _existing_api_key
 
 import base64
 import io

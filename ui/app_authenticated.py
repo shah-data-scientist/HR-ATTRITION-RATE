@@ -3,6 +3,11 @@ Authenticated wrapper for the HR Attrition Risk Streamlit application.
 This module adds authentication layer before allowing access to the main app.
 """
 import streamlit as st
+import sys
+from pathlib import Path
+
+# Add parent directory to path for imports
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 # Import authentication functions
 from ui.auth import require_authentication, show_login_page, show_user_info
@@ -55,13 +60,6 @@ else:
         st.session_state.predictions_raw = None
 
     # User is authenticated, show the main application
-    # Import the main app module
-    import sys
-    from pathlib import Path
-
-    # Add the project root to sys.path
-    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-
     # Import main app after authentication
     from ui import app
 

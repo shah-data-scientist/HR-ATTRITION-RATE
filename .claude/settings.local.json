@@ -10,7 +10,17 @@
       "Bash(docker:*)",
       "Bash(findstr:*)",
       "Bash(docker-compose up:*)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(docker-compose:*)",
+      "Bash(poetry run pytest:*)",
+      "Bash(set API_KEY=test_api_key)",
+      "Bash(nul)",
+      "Bash(dir .env* /b 2)",
+      "Bash(if not exist \"tests\\test_coverage_boost.py\" echo File does not exist)",
+      "Bash(set \"DATABASE_URL=postgresql://user:AjvJq6YOOaktpOUjoo_V3EZ2b1YXRIazXFMERyWYK-g@localhost:5432/hr_attrition_db\")",
+      "Bash(set \"DISABLE_DB=\")",
+      "Bash(move teststest_streamlit_simulation.py scriptstest_streamlit_simulation.py 2)",
+      "Bash(poetry run python:*)"
     ],
     "deny": [],
     "ask": []
