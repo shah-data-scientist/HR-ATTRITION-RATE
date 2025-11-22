@@ -20,27 +20,3 @@ services:
             envVars:
               - key: API_KEY
                 value: 0c1ae40adb7d1d7b6758ffe8697c93f1b451c1ecaaa4cb7a81c26450c7e5f824
-              - key: SECRET_KEY
-                value: 7a120a7ecfbb9d78db8500c964e69320e11a7a8cbd7fab215b8ab0c27bc623b7
-              - key: UI_ADMIN_USERNAME
-                value: admin
-              - key: UI_ADMIN_PASSWORD
-                value: Admin@2025!Secure
-              - key: UI_USER_USERNAME
-                value: analyst
-              - key: UI_USER_PASSWORD
-                value: Analyst@2025!View
-              - key: MODEL_PATH
-                value: outputs/employee_attrition_pipeline.pkl
-              - key: MODEL_VERSION
-                value: 1.0.0
-              - key: ENVIRONMENT
-                value: production
-              - key: LOG_LEVEL
-                value: INFO
-              - key: STREAMLIT_SERVER_PORT
-                value: 8501
-              - key: STREAMLIT_SERVER_ADDRESS
-                value: 0.0.0.0
-              - key: API_BASE_URL
-                value: http://fastapi_app:8001
