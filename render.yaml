@@ -1,7 +1,7 @@
 services:
-  huggingface-space:
+  render:
     type: web
-    name: huggingface-space
+    name: render
     env: docker
     dockerfilePath: ./docker/Dockerfile.huggingface
     autoDeploy: true
