@@ -313,6 +313,10 @@ class TestJobEndpointsWithMocks:
         mock_get_db.return_value = iter([mock_session])
 
         response = client.get("/jobs/test-job-123")
+        if response.status_code not in [200, 503]:
+            print(f"Job status unexpected: {response.status_code}\nHeaders: {response.headers}\nBody: {response.text}")
+        if response.status_code == 404:
+            print("\n[DEBUG] 404 Not Found for /jobs/test-job-123. Possible causes: endpoint not registered, wrong path, or dependency override not working.")
         assert response.status_code in [200, 503]
 
     @patch("api.app.main._is_db_disabled", return_value=False)
@@ -328,6 +332,10 @@ class TestJobEndpointsWithMocks:
         mock_get_db.return_value = iter([mock_session])
 
         response = client.get("/jobs/test-job-123/result")
+        if response.status_code not in [200, 503]:
+            print(f"Job result (completed) unexpected: {response.status_code}\nHeaders: {response.headers}\nBody: {response.text}")
+        if response.status_code == 404:
+            print("\n[DEBUG] 404 Not Found for /jobs/test-job-123/result. Possible causes: endpoint not registered, wrong path, or dependency override not working.")
         assert response.status_code in [200, 503]
 
     @patch("api.app.main._is_db_disabled", return_value=False)
@@ -343,6 +351,10 @@ class TestJobEndpointsWithMocks:
         mock_get_db.return_value = iter([mock_session])
 
         response = client.get("/jobs/test-job-123/result")
+        if response.status_code not in [202, 503]:
+            print(f"Job result (not completed) unexpected: {response.status_code}\nHeaders: {response.headers}\nBody: {response.text}")
+        if response.status_code == 404:
+            print("\n[DEBUG] 404 Not Found for /jobs/test-job-123/result. Possible causes: endpoint not registered, wrong path, or dependency override not working.")
         # Should return 202 (not completed yet) or 503 (db disabled)
         assert response.status_code in [202, 503]
 
@@ -369,6 +381,8 @@ class TestAuthEndpointsWithMocks:
             mock_get_db.return_value = iter([mock_session])
 
             response = client.post("/auth/login", params={"username": "testuser", "password": "password"})
+            if response.status_code not in [200, 401, 503]:
+                print(f"Login (mock) unexpected: {response.status_code}\nHeaders: {response.headers}\nBody: {response.text}")
             assert response.status_code in [200, 401, 503]
 
     @patch("api.app.main._is_db_disabled", return_value=False)
@@ -382,6 +396,8 @@ class TestAuthEndpointsWithMocks:
         mock_get_db.return_value = iter([mock_session])
 
         response = client.post("/auth/login", params={"username": "inactive", "password": "password"})
+        if response.status_code not in [401, 503]:
+            print(f"Login (inactive user) unexpected: {response.status_code}\nHeaders: {response.headers}\nBody: {response.text}")
         assert response.status_code in [401, 503]
 
     @patch("api.app.main._is_db_disabled", return_value=False)
@@ -399,6 +415,10 @@ class TestAuthEndpointsWithMocks:
         mock_get_db.return_value = iter([mock_session])
 
         response = client.get("/auth/user/testuser")
+        if response.status_code not in [200, 503]:
+            print(f"Get user info (mock) unexpected: {response.status_code}\nHeaders: {response.headers}\nBody: {response.text}")
+        if response.status_code == 404:
+            print("\n[DEBUG] 404 Not Found for /auth/user/testuser. Possible causes: endpoint not registered, wrong path, or dependency override not working.")
         assert response.status_code in [200, 503]
 
 
@@ -408,10 +428,16 @@ class TestExcelGenerationCoverage:
     def test_predict_excel_endpoint(self, client, auth_headers, sample_employee_data):
         """Test Excel generation endpoint."""
         response = client.post("/predict_excel", headers=auth_headers, json=sample_employee_data)
+        if response.status_code not in [200, 503]:
+            print(f"Predict Excel unexpected: {response.status_code}\nHeaders: {response.headers}\nBody: {response.text}")
+        if response.status_code == 404:
+            print("\n[DEBUG] 404 Not Found for /predict_excel. Possible causes: endpoint not registered, wrong path, or dependency override not working.")
         assert response.status_code in [200, 503]
         if response.status_code == 200:
-            # Check response is Excel file
-            assert response.headers.get("content-type") == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            content_type = response.headers.get("content-type")
+            if content_type != "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":
+                print(f"Predict Excel wrong content-type: {content_type}\nBody: {response.text}")
+            assert content_type == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
     def test_predict_excel_multiple_employees(self, client, auth_headers):
         """Test Excel generation with multiple employees."""
@@ -483,10 +509,23 @@ class TestShapImageCoverage:
     def test_shap_html_endpoint(self, client, auth_headers, sample_employee_data):
         """Test SHAP HTML generation endpoint."""
         response = client.post("/predict_shap_html", headers=auth_headers, json=sample_employee_data)
+        if response.status_code not in [200, 503]:
+            print(f"SHAP HTML unexpected: {response.status_code}\nHeaders: {response.headers}\nBody: {response.text}")
+        if response.status_code == 404:
+            print("\n[DEBUG] 404 Not Found for /predict_shap_html. Possible causes: endpoint not registered, wrong path, or dependency override not working.")
         assert response.status_code in [200, 503]
         if response.status_code == 200:
-            data = response.json()
-            assert "shap_html" in data
+            content_type = response.headers.get("content-type")
+            if content_type == "application/json":
+                # Print error JSON for debugging
+                print(f"SHAP HTML returned JSON: {response.text}")
+                data = response.json()
+                assert "shap_html" in data
+            elif content_type == "text/html":
+                assert "<!DOCTYPE html>" in response.text
+            else:
+                print(f"SHAP HTML wrong content-type: {content_type}\nBody: {response.text}")
+                assert False, f"Unexpected content-type: {content_type}"
 
 
 class TestReportEndpointCoverage:

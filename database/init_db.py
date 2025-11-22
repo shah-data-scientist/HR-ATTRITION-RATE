@@ -12,8 +12,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from scripts.utils import load_and_merge_data  # Import the merged data loading function
 
-from .database import Base, SessionLocal, engine
-from .models import Employee, User
+from database.database import Base, SessionLocal, engine
+from database.models import Employee, User
 
 
 def create_default_users(db: Session):

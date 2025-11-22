@@ -20,7 +20,8 @@
       "Bash(set \"DATABASE_URL=postgresql://user:AjvJq6YOOaktpOUjoo_V3EZ2b1YXRIazXFMERyWYK-g@localhost:5432/hr_attrition_db\")",
       "Bash(set \"DISABLE_DB=\")",
       "Bash(move teststest_streamlit_simulation.py scriptstest_streamlit_simulation.py 2)",
-      "Bash(poetry run python:*)"
+      "Bash(poetry run python:*)",
+      "Bash(dir:*)"
     ],
     "deny": [],
     "ask": []
