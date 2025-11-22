@@ -12,8 +12,7 @@ services:
         value: 7a120a7ecfbb9d78db8500c964e69320e11a7a8cbd7fab215b8ab0c27bc623b7
       - key: UI_ADMIN_USERNAME
         services:
-          render:
-            type: web
+          - type: web
             name: render
             env: docker
             dockerfilePath: ./docker/Dockerfile.huggingface
