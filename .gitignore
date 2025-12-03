@@ -166,5 +166,11 @@ Thumbs.db
 
 # Docker
 .dockerignore
-.gitignore
 nul
+
+# Local development executables
+act.exe
+
+# Local test outputs (fixtures are tracked)
+tests/fixtures/*.json
+tests/fixtures/*.txt

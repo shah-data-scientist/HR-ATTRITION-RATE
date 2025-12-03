@@ -46,6 +46,12 @@ black = "^25.11.0"
 selenium = "^4.38.0"
 
 [tool.pytest.ini_options]
+testpaths = ["tests"]
+# Exclude manual tests from automatic collection
+norecursedirs = ["tests/manual", "tests/fixtures", ".git", ".venv", "__pycache__"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
 
 [tool.ruff]
 line-length = 88

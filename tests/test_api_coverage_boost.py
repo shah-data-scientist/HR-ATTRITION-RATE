@@ -12,11 +12,14 @@ from datetime import datetime
 
 
 @pytest.fixture
-def client():
-    """Create a test client for the API"""
+def client(api_headers):
+    """Create a test client for the API with authentication"""
     from api.app.main import app
 
-    return TestClient(app)
+    client = TestClient(app)
+    # Set default headers for all requests
+    client.headers.update(api_headers)
+    return client
 
 
 @pytest.fixture

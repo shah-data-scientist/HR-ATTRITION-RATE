@@ -37,6 +37,84 @@ git push hf main
 - SQLite database (in-container)
 - Pre-configured demo credentials
 
+#### Database Configuration for HF Spaces
+
+For containerized environments with read-only filesystems (like Hugging Face Spaces), use an in-memory database:
+
+**Environment Variables** (set in HF Space secrets):
+```bash
+# Use in-memory SQLite (resets on restart)
+DATABASE_URL=sqlite:///:memory:
+
+# Enable database features
+DISABLE_DB=0
+
+# Customize default user credentials (optional)
+UI_ADMIN_USERNAME=admin
+UI_ADMIN_PASSWORD=YourSecurePassword123!
+UI_USER_USERNAME=analyst
+UI_USER_PASSWORD=AnotherSecurePass456!
+```
+
+**Default User Credentials** (if not customized):
+- **Admin Account**:
+  - Username: `admin`
+  - Password: `Admin@2025!Secure`
+  - Role: admin (full access)
+- **Analyst Account**:
+  - Username: `analyst`
+  - Password: `Analyst@2025!View`
+  - Role: user (read-only)
+
+**Important Notes:**
+- ⚠️ In-memory database **resets on every container restart**
+- ✅ Users are automatically recreated on startup
+- ✅ No persistent storage needed
+- ✅ Solves read-only filesystem errors
+
+#### Testing HF Spaces Deployment Locally
+
+Test the container locally before deploying to Hugging Face Spaces:
+
+```powershell
+# Build the HF container
+docker build -f docker/Dockerfile.huggingface -t hr-attrition-hf:test .
+
+# Run with in-memory database (simulates HF Spaces)
+docker run -d -p 7860:7860 `
+  -e DATABASE_URL="sqlite:///:memory:" `
+  -e DISABLE_DB="0" `
+  -e UI_ADMIN_PASSWORD="TestAdmin123!" `
+  --name test-hf-space `
+  hr-attrition-hf:test
+
+# Wait for startup (about 30 seconds)
+Start-Sleep -Seconds 30
+
+# Check logs
+docker logs test-hf-space
+
+# Test the app
+Start-Process "http://localhost:7860"
+
+# Test authentication
+# Login with: admin / TestAdmin123!
+
+# Clean up when done
+docker stop test-hf-space
+docker rm test-hf-space
+```
+
+**Verify startup logs show**:
+```
+Initializing database tables...
+Database tables created.
+Creating default users...
+Successfully created 2 default users:
+  - Admin user: admin (role: admin)
+  - Regular user: analyst (role: user)
+```
+
 ---
 
 ### Option 2: Docker Compose (Recommended for Production)

@@ -229,6 +229,26 @@ async def lifespan(app: FastAPI):
                 print(f"Preprocessor Categorical Columns (from model): {columns}")
     # --- END DEBUG ---
 
+    # Initialize database and create default users (if DB is enabled)
+    if not _is_db_disabled():
+        try:
+            from database.database import Base, engine, SessionLocal
+            from database.init_db import create_default_users
+
+            print("Initializing database tables...")
+            Base.metadata.create_all(bind=engine)
+            print("Database tables created.")
+
+            # Create default users
+            db = SessionLocal()
+            try:
+                create_default_users(db)
+            finally:
+                db.close()
+        except Exception as e:
+            print(f"Warning: Database initialization failed: {e}")
+            print("Continuing without database features...")
+
     yield
     # Clean up (optional)
     print("FastAPI app shutting down.")

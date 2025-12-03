@@ -17,6 +17,9 @@ from database.models import Employee, ModelInput, ModelOutput, PredictionTraceab
 
 # Set test API key (must match CI/CD workflow)
 os.environ["API_KEY"] = "test_api_key"
+os.environ["SECRET_KEY"] = "test_secret_key_at_least_32_chars_long_for_testing"
+os.environ["DATABASE_URL"] = "sqlite:///:memory:"
+os.environ["DISABLE_DB"] = "0"  # Enable DB for tests
 
 
 @pytest.fixture(scope="session")
@@ -85,6 +88,21 @@ def test_db_session(test_db_engine):
     session = TestingSessionLocal()
     yield session
     session.close()
+
+
+@pytest.fixture(scope="session")
+def api_headers():
+    """Headers for authenticated API requests."""
+    return {
+        "X-API-Key": os.getenv("API_KEY", "test_api_key"),
+        "Content-Type": "application/json"
+    }
+
+
+@pytest.fixture(scope="session")
+def api_base_url():
+    """Base URL for API requests."""
+    return os.getenv("API_BASE_URL", "http://localhost:8001")
 
 
 @pytest.fixture(scope="function")

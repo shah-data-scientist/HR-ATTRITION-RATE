@@ -21,7 +21,11 @@
       "Bash(set \"DISABLE_DB=\")",
       "Bash(move teststest_streamlit_simulation.py scriptstest_streamlit_simulation.py 2)",
       "Bash(poetry run python:*)",
-      "Bash(dir:*)"
+      "Bash(dir:*)",
+      "Bash(mkdir:*)",
+      "Bash(mv:*)",
+      "Bash(move teststest_streamlit_interaction.py testsmanualtest_streamlit_interaction.py)",
+      "Bash(if exist \"tests\\test_streamlit_interaction.py\" move \"tests\\test_streamlit_interaction.py\" \"tests\\manual\\test_streamlit_interaction.py\")"
     ],
     "deny": [],
     "ask": []

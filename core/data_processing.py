@@ -27,14 +27,18 @@ def clean_raw_input(df: pd.DataFrame) -> pd.DataFrame:
 
     # 1. Clean genre: convert string to 0/1
     if "genre" in df.columns:
-        df["genre"] = (
-            df["genre"]
-            .astype(str)
-            .str.lower()
-            .replace({"m": 1, "f": 0, "homme": 1, "femme": 0, "male": 1, "female": 0})
-            .infer_objects(copy=False)
-            .astype("Int64")
-        )
+        # First handle integers that are already 0 or 1
+        genre_series = df["genre"].copy()
+        # Convert to string and lowercase for string values
+        genre_str = genre_series.astype(str).str.lower()
+        # Replace string representations
+        genre_cleaned = genre_str.replace({
+            "m": "1", "f": "0",
+            "homme": "1", "femme": "0",
+            "male": "1", "female": "0"
+        })
+        # Convert to Int64, handling any values that are already "1" or "0"
+        df["genre"] = pd.to_numeric(genre_cleaned, errors='coerce').fillna(genre_series).astype("Int64")
 
     # 2. Clean ayant_enfants: ensure it's string
     if "ayant_enfants" in df.columns:

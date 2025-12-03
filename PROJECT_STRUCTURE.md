@@ -49,30 +49,74 @@ hr-attrition-rate/
 │
 ├── docs/                       # Documentation
 │   ├── ARCHITECTURE.md        # System architecture and design
+│   ├── ER_DIAGRAM.md          # Database schema and relationships
 │   ├── REFACTOR_SUMMARY.md    # Development history and changes
+│   ├── REORGANIZATION_SUMMARY.md  # Project restructuring documentation
 │   ├── deployment/            # Deployment-specific docs
 │   │   └── HUGGINGFACE_DEPLOYMENT.md  # Unified HF Space deployment guide
 │   └── archive/               # Historical/archived documentation
+│       ├── AUTHENTICATION_INTEGRATION.md
+│       ├── DOCKER_DEPLOYMENT.md
+│       ├── DOCKER_DEVELOPMENT_GUIDE.md
+│       ├── FOUR_EMPLOYEE_TEST_RESULTS.md
+│       ├── MANUAL_UI_TEST_RESULTS.md
+│       ├── SHAP_BUG_ANALYSIS.md
+│       ├── API_SETUP_AND_USAGE.md
+│       ├── README.old.md
+│       ├── SOLUTION_SUMMARY.md
+│       ├── TROUBLESHOOTING_422_ERROR.md
+│       └── UI_TESTING_GUIDE.md
 │
 ├── outputs/                    # Model artifacts and predictions
 │   ├── employee_attrition_pipeline.pkl  # Trained ML model
 │   └── snapshots/             # Model version snapshots
 │
 ├── scripts/                    # Utility scripts
+│   ├── dev/                   # Development and debug scripts
+│   │   ├── align_schema_with_data.py
+│   │   ├── call_predict_report.py
+│   │   ├── debug_api_call.py
+│   │   ├── debug_types.py
+│   │   ├── e2e_test.py
+│   │   ├── enqueue_sample_report_job.py
+│   │   └── quick_ui_diagnostics.py
 │   ├── utils.py               # Shared utility functions
 │   ├── create_synthetic_data.py
-│   ├── start-api.sh           # Development server scripts
+│   ├── migrate_db.py
+│   ├── worker.py              # Background worker for async jobs
+│   ├── start-api.sh           # Production server scripts
 │   ├── start-api.bat
 │   ├── start-ui.sh
 │   ├── start-ui.bat
 │   └── README.md
 │
 ├── tests/                      # Test suite
+│   ├── manual/                # Manual test scripts
+│   │   ├── test_four_employees.py
+│   │   ├── test_multiple_new.py
+│   │   ├── test_new_employee.py
+│   │   ├── test_single_employee_prediction.py
+│   │   ├── test_ui_manual.py
+│   │   ├── quick_test.py
+│   │   ├── show_employee_records.py
+│   │   └── show_shap_details.py
+│   ├── fixtures/              # Test data files
+│   │   ├── test_payload.json
+│   │   ├── test_response.json
+│   │   ├── streamlit_simulation_payload.json
+│   │   ├── streamlit_simulation_response.json
+│   │   ├── temp_api_response.json
+│   │   ├── test_error.txt
+│   │   ├── test_output.txt
+│   │   ├── query_employee_88888.sql
+│   │   └── test_shap_insert.sql
 │   ├── conftest.py            # Pytest configuration and fixtures
 │   ├── test_api_comprehensive.py
 │   ├── test_core.py
 │   ├── test_database.py
 │   ├── test_coverage_85.py
+│   ├── run_automated_test.py
+│   ├── run_ui_test.py
 │   └── TEST_README.md
 │
 ├── .env.example                # Environment variables template

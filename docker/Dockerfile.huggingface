@@ -1,5 +1,5 @@
 # Multi-stage build for lean Hugging Face deployment
-FROM python:3.13-slim AS builder
+FROM python:3.12-slim AS builder
 
 WORKDIR /app
 
@@ -26,11 +26,18 @@ COPY pyproject.toml poetry.lock ./
 RUN poetry install --no-root --without dev && rm -rf $POETRY_CACHE_DIR
 
 # Runtime stage
-FROM python:3.13-slim
+FROM python:3.12-slim
+
+# Create a non-root user
+RUN useradd -m -u 1000 user
+USER user
+ENV HOME=/home/user \
+    PATH=/home/user/.local/bin:$PATH
 
 WORKDIR /app
 
-# Install only runtime dependencies
+# Switch to root to install system packages and setup permissions
+USER root
 RUN apt-get update && apt-get install -y \
     supervisor \
     && rm -rf /var/lib/apt/lists/*
@@ -41,18 +48,19 @@ COPY --from=builder /app/.venv /app/.venv
 ENV PATH="/root/.local/bin:/app/.venv/bin:$PATH"
 
 # Copy application code
-COPY api/ ./api/
-COPY core/ ./core/
-COPY database/ ./database/
-COPY outputs/ ./outputs/
-COPY data/ ./data/
-COPY scripts/ ./scripts/
-COPY ui/ ./ui/
-COPY .streamlit/ ./.streamlit/
-COPY pyproject.toml poetry.lock ./
+COPY --chown=user api/ ./api/
+COPY --chown=user core/ ./core/
+COPY --chown=user database/ ./database/
+COPY --chown=user outputs/ ./outputs/
+COPY --chown=user data/ ./data/
+COPY --chown=user scripts/ ./scripts/
+COPY --chown=user ui/ ./ui/
+COPY --chown=user .streamlit/ ./.streamlit/
+COPY --chown=user pyproject.toml poetry.lock ./
 
-# Create necessary directories
-RUN mkdir -p /app/temp /app/shap_images /app/db_data /var/log/supervisor
+# Create necessary directories with correct permissions
+RUN mkdir -p /app/temp /app/shap_images /app/db_data /var/log/supervisor && \
+    chown -R user:user /app/temp /app/shap_images /app/db_data /var/log/supervisor
 
 # Create lean supervisor configuration
 RUN echo '[supervisord]\n\
@@ -93,6 +101,9 @@ ENV DATABASE_URL=sqlite:///db_data/hr_attrition.db \
     UI_ADMIN_PASSWORD=Admin@2025!Secure \
     UI_USER_USERNAME=analyst \
     UI_USER_PASSWORD=Analyst@2025!View
+
+# Switch back to non-root user
+USER user
 
 # Expose Hugging Face default port
 EXPOSE 7860
