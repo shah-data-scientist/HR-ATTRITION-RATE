@@ -25,7 +25,13 @@
       "Bash(mkdir:*)",
       "Bash(mv:*)",
       "Bash(move teststest_streamlit_interaction.py testsmanualtest_streamlit_interaction.py)",
-      "Bash(if exist \"tests\\test_streamlit_interaction.py\" move \"tests\\test_streamlit_interaction.py\" \"tests\\manual\\test_streamlit_interaction.py\")"
+      "Bash(if exist \"tests\\test_streamlit_interaction.py\" move \"tests\\test_streamlit_interaction.py\" \"tests\\manual\\test_streamlit_interaction.py\")",
+      "Bash(set \"API_BASE_URL=http://localhost:8081\")",
+      "Bash(set \"STREAMLIT_URL=http://localhost:8581\")",
+      "Bash(Select-Object -Last 50)",
+      "Bash(poetry run coverage:*)",
+      "Bash(timeout /t 30 /nobreak)",
+      "Bash(timeout /t 180 /nobreak)"
     ],
     "deny": [],
     "ask": []
