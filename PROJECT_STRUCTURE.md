@@ -53,7 +53,6 @@ hr-attrition-rate/
 │   ├── REFACTOR_SUMMARY.md    # Development history and changes
 │   ├── REORGANIZATION_SUMMARY.md  # Project restructuring documentation
 │   ├── deployment/            # Deployment-specific docs
-│   │   └── HUGGINGFACE_DEPLOYMENT.md  # Unified HF Space deployment guide
 │   └── archive/               # Historical/archived documentation
 │       ├── AUTHENTICATION_INTEGRATION.md
 │       ├── DOCKER_DEPLOYMENT.md
@@ -86,7 +85,6 @@ hr-attrition-rate/
 │   ├── create_tables.py       # Table creation utility
 │   ├── migrate_db.py
 │   ├── worker.py              # Background worker for async jobs
-│   ├── test-hf-local.ps1      # Local Hugging Face simulation script
 │   ├── start-api.sh           # Production server scripts
 │   ├── start-api.bat
 │   ├── start-api-nodb.bat     # Start API without DB connection
@@ -129,8 +127,7 @@ hr-attrition-rate/
 ├── docker/                     # Docker configuration files
 │   ├── Dockerfile.api         # API container definition
 │   ├── Dockerfile.streamlit   # UI container definition
-│   ├── Dockerfile.database    # DB initialization container
-│   └── Dockerfile.huggingface # Unified HF deployment (API+UI+SQLite+Supervisor)
+│   └── Dockerfile.database    # DB initialization container
 ├── docker-compose.yml          # Docker orchestration (dev/prod)
 │
 ├── pyproject.toml              # Poetry dependencies and project config
@@ -218,10 +215,6 @@ User → Streamlit UI (ui/app.py)
 ### Docker Compose (Recommended)
 - All services: `docker-compose up`
 - Includes: PostgreSQL, API, UI, DB initialization
-
-### Hugging Face Spaces
-- **Unified**: `Dockerfile.huggingface` (API + UI + SQLite + Supervisor)
-- **Separate**: `Dockerfile.huggingface.api` + `Dockerfile.huggingface.ui`
 
 ### Cloud Production
 - See `DEPLOYMENT.md` for AWS, Azure, Kubernetes deployments

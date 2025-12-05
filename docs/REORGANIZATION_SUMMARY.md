@@ -89,7 +89,6 @@ Legacy documentation moved to `docs/archive/` for historical reference:
 - **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** - System architecture
 - **[docs/ER_DIAGRAM.md](docs/ER_DIAGRAM.md)** - Database schema
 - **[docs/REFACTOR_SUMMARY.md](docs/REFACTOR_SUMMARY.md)** - Development history
-- **[docs/deployment/HUGGINGFACE_DEPLOYMENT.md](docs/deployment/HUGGINGFACE_DEPLOYMENT.md)** - Hugging Face Spaces deployment
 
 ### 5. Updated .gitignore
 
@@ -120,7 +119,6 @@ tests/fixtures/*.txt
 - `pyproject.toml` - Dependencies
 - `poetry.lock` - Locked versions
 - `docker-compose.yml` - Orchestration
-- `docker-compose-huggingface.yml` - HF deployment
 - `render.yaml` - Render deployment
 - `.env.example` - Environment template
 - `.gitignore` - Git rules
@@ -130,7 +128,6 @@ tests/fixtures/*.txt
 - `docker/Dockerfile.api`
 - `docker/Dockerfile.streamlit`
 - `docker/Dockerfile.database`
-- `docker/Dockerfile.huggingface`
 
 **Documentation:**
 - All root-level .md files

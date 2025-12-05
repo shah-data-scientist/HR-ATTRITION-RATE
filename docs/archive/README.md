@@ -20,7 +20,6 @@ For active development and deployment, refer to the main documentation:
 - **[DEVELOPMENT.md](../../DEVELOPMENT.md)** - Development workflow and best practices
 - **[DEPLOYMENT.md](../../DEPLOYMENT.md)** - Production deployment guide
 - **[docs/ARCHITECTURE.md](../ARCHITECTURE.md)** - System architecture details
-- **[docs/deployment/HUGGINGFACE_DEPLOYMENT.md](../deployment/HUGGINGFACE_DEPLOYMENT.md)** - Hugging Face deployment
 
 ### Archived Documents
 

@@ -29,7 +29,7 @@ scripts\start-ui.bat
 ```
 
 ### `start-api-nodb.bat`
-Starts the API without a database connection (useful for lightweight testing or huggingface-like environments).
+Starts the API without a database connection (useful for lightweight testing).
 
 **Usage:**
 ```cmd
@@ -79,14 +79,6 @@ Generates synthetic employee data for testing purposes.
 **Usage:**
 ```bash
 poetry run python scripts/create_synthetic_data.py
-```
-
-### `test-hf-local.ps1`
-PowerShell script to simulate Hugging Face deployment locally.
-
-**Usage:**
-```powershell
-.\scripts\test-hf-local.ps1
 ```
 
 ## Development Scripts

@@ -3,7 +3,6 @@
 # Usage:
 #   Local Development:  docker-compose --profile local up -d
 #   Production:         docker-compose --profile prod up -d
-#   Hugging Face:       docker-compose --profile huggingface up -d
 #
 # Default (no profile): Local development services
 
@@ -262,47 +261,12 @@ services:
         max-size: "10m"
         max-file: "5"
 
-  # ============================================================================
-  # HUGGING FACE PROFILE (single container)
-  # ============================================================================
-
-  huggingface:
-    profiles: ["huggingface"]
-    build:
-      context: .
-      dockerfile: docker/Dockerfile.huggingface
-    ports:
-      - "7860:7860"  # Hugging Face Spaces default port
-      - "8001:8001"  # API port
-    environment:
-      # Use SQLite instead of PostgreSQL for single-container deployment
-      DATABASE_URL: sqlite:///db_data/hr_attrition.db
-      DISABLE_DB: "false"
-      API_BASE_URL: http://localhost:8001
-      API_KEY: ${API_KEY:-demo_huggingface_api_key}
-      SECRET_KEY: ${SECRET_KEY:-demo_secret_key_for_huggingface_deployment_min_32_chars}
-    volumes:
-      - huggingface_db:/app/db_data
-      - ./outputs:/app/outputs
-      - ./data:/app/data
-    restart: always
-    healthcheck:
-      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8001/health', timeout=5)"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
-    networks:
-      - hr_network
-
 # ============================================================================
 # VOLUMES
 # ============================================================================
 
 volumes:
   db_data:
-    driver: local
-  huggingface_db:
     driver: local
 
 # ============================================================================

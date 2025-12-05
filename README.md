@@ -71,14 +71,6 @@ A machine learning-powered system to predict and analyze employee attrition risk
    This starts database, API, UI, and background worker.
    - API: http://localhost:8001
    - UI: http://localhost:8501
-   
-   **For Production/Demo (Hugging Face style, unified container):**
-   ```bash
-   docker build -f docker/Dockerfile.huggingface -t hr-attrition-hf .
-   docker run -d -p 7860:7860 hr-attrition-hf
-   ```
-   Single container with SQLite, both services managed by Supervisor.
-   - Access: http://localhost:7860 (Streamlit UI, API on port 8001 internal)
 
 ### Running the Application
 
@@ -184,9 +176,6 @@ poetry run pytest --cov=api --cov=core --cov=database --cov-report=term --cov-re
 
 # Run specific test suite
 poetry run pytest tests/test_core.py -v
-
-# Run with database disabled (Hugging Face mode)
-DISABLE_DB=1 poetry run pytest
 ```
 
 ### CI/CD Pipeline
@@ -209,7 +198,6 @@ The project includes a comprehensive GitHub Actions pipeline:
 
 **Docker:**
 - ✅ API and UI image builds
-- ✅ Hugging Face deployment image
 - ✅ Push to GitHub Container Registry (ghcr.io)
 
 **Deployment (Optional):**
@@ -279,8 +267,7 @@ hr-attrition-rate/
 ├── docker/                # Docker configuration
 │   ├── Dockerfile.api         # API container
 │   ├── Dockerfile.streamlit   # UI container
-│   ├── Dockerfile.database    # DB initialization
-│   └── Dockerfile.huggingface # Unified HF deployment
+│   └── Dockerfile.database    # DB initialization
 ├── docker-compose.yml     # Docker orchestration
 └── pyproject.toml        # Project dependencies
 ```
@@ -315,9 +302,6 @@ STREAMLIT_SERVER_PORT="8501"
 # Worker Configuration
 WORKER_POLL_SEC="5"                              # Job polling interval
 WORKER_STALE_SEC="300"                           # Job stale timeout
-
-# Disable database mode (for Hugging Face deployment)
-DISABLE_DB="0"                                   # Set to "1" to disable DB
 ```
 
 **Security Best Practices:**
@@ -438,7 +422,6 @@ Network error while connecting to API: [WinError 10061] No connection could be m
 
 ### Deployment
 - **[DEPLOYMENT.md](DEPLOYMENT.md)** - Production deployment (Docker, AWS, Azure, K8s)
-- **[docs/deployment/HUGGINGFACE_DEPLOYMENT.md](docs/deployment/HUGGINGFACE_DEPLOYMENT.md)** - Deploy to Hugging Face Spaces
 
 ### Architecture & Technical Details
 - **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** - System architecture details
@@ -507,19 +490,7 @@ Network error while connecting to API: [WinError 10061] No connection could be m
 
 This project supports multiple deployment strategies:
 
-1. **Hugging Face Spaces** (Recommended for demos)
-   - Unified Docker container with Supervisor
-   - SQLite database (no external dependencies)
-   - Free tier available
-   - See [docs/deployment/HUGGINGFACE_DEPLOYMENT.md](docs/deployment/HUGGINGFACE_DEPLOYMENT.md)
-   
-   ```powershell
-   # Quick deploy
-   git remote add hf https://huggingface.co/spaces/YOUR-USERNAME/hr-attrition-platform
-   git push hf main
-   ```
-
-2. **Docker Compose** (Recommended for production)
+1. **Docker Compose** (Recommended for production)
    - Separate containers for each service
    - PostgreSQL database
    - Background worker for async jobs
@@ -529,25 +500,25 @@ This project supports multiple deployment strategies:
    docker-compose up -d
    ```
 
-3. **Cloud Platforms** (AWS/Azure/GCP)
+2. **Cloud Platforms** (AWS/Azure/GCP)
    - ECS, AKS, or GKE deployment
    - Managed databases (RDS, Azure Database, Cloud SQL)
    - See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed guides
 
-4. **Kubernetes** (Enterprise)
+3. **Kubernetes** (Enterprise)
    - Full orchestration with auto-scaling
    - High availability setup
    - See [DEPLOYMENT.md](DEPLOYMENT.md)
 
 **Key Differences:**
 
-| Feature | Hugging Face | Docker Compose | Kubernetes |
-|---------|--------------|----------------|------------|
-| Setup Complexity | ⭐ Simple | ⭐⭐ Moderate | ⭐⭐⭐ Complex |
-| Database | SQLite | PostgreSQL | PostgreSQL/Managed |
-| Scalability | Limited | Moderate | Excellent |
-| Cost | Free tier | Self-hosted | Self-hosted/Cloud |
-| Best For | Demos | Production | Enterprise |
+| Feature | Docker Compose | Kubernetes |
+|---------|----------------|------------|
+| Setup Complexity | ⭐⭐ Moderate | ⭐⭐⭐ Complex |
+| Database | PostgreSQL | PostgreSQL/Managed |
+| Scalability | Moderate | Excellent |
+| Cost | Self-hosted | Self-hosted/Cloud |
+| Best For | Production | Enterprise |
 
 ## 🤝 Contributing
 

@@ -27,26 +27,16 @@ docker-compose --profile prod up -d
 # - FastAPI: http://localhost:8001
 ```
 
-### Hugging Face Spaces
-```bash
-# Start single container for Hugging Face
-docker-compose --profile huggingface up -d
-
-# Access:
-# - Streamlit UI: http://localhost:7860
-# - FastAPI: http://localhost:8001
-```
-
 ## Profile Comparison
 
-| Feature | Local (`local`) | Production (`prod`) | Hugging Face (`huggingface`) |
-|---------|----------------|---------------------|------------------------------|
-| **Containers** | 4 separate | 5 separate + worker | 1 combined |
-| **Database** | PostgreSQL | PostgreSQL | SQLite |
-| **Ports** | 8581, 8081 | 8501, 8001 | 7860, 8001 |
-| **Use Case** | Development | Production | Cloud deployment |
-| **Logging** | Basic | Advanced (10MB limit) | Basic |
-| **Resource Limits** | Moderate | High | Moderate |
+| Feature | Local (`local`) | Production (`prod`) |
+|---------|----------------|---------------------|
+| **Containers** | 4 separate | 5 separate + worker |
+| **Database** | PostgreSQL | PostgreSQL |
+| **Ports** | 8581, 8081 | 8501, 8001 |
+| **Use Case** | Development | Production |
+| **Logging** | Basic | Advanced (10MB limit) |
+| **Resource Limits** | Moderate | High |
 
 ## Common Operations
 
@@ -57,16 +47,12 @@ docker-compose --profile local logs -f streamlit_app
 
 # Production
 docker-compose --profile prod logs -f streamlit_app_prod
-
-# Hugging Face
-docker-compose --profile huggingface logs -f huggingface
 ```
 
 ### Stop Services
 ```bash
 docker-compose --profile local down      # Local
 docker-compose --profile prod down       # Production
-docker-compose --profile huggingface down # Hugging Face
 ```
 
 ### Rebuild Specific Service
@@ -76,9 +62,6 @@ docker-compose --profile local up -d --build streamlit_app
 
 # Production
 docker-compose --profile prod up -d --build streamlit_app_prod
-
-# Hugging Face
-docker-compose --profile huggingface up -d --build huggingface
 ```
 
 ### Clean Up Everything
@@ -86,7 +69,6 @@ docker-compose --profile huggingface up -d --build huggingface
 # Stop and remove all containers, networks, and volumes
 docker-compose --profile local down -v
 docker-compose --profile prod down -v
-docker-compose --profile huggingface down -v
 ```
 
 ## Environment Variables
@@ -123,11 +105,9 @@ If you have old docker-compose files, you can now delete them:
 # Backup first (optional)
 mkdir docker-compose-backup
 mv docker-compose.prod.yml docker-compose-backup/
-mv docker-compose-huggingface.yml docker-compose-backup/
 
 # Or delete directly
 rm docker-compose.prod.yml
-rm docker-compose-huggingface.yml
 ```
 
 ## Troubleshooting
@@ -135,7 +115,6 @@ rm docker-compose-huggingface.yml
 ### Port Conflicts
 - **Local**: Uses ports 8581 and 8081 to avoid conflicts
 - **Production**: Uses standard ports 8501 and 8001
-- **Hugging Face**: Uses port 7860 (HF default)
 
 ### Database Connection Issues
 ```bash

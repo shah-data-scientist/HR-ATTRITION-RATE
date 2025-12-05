@@ -31,8 +31,7 @@ hr-attrition-rate/
 ├── docker/                        # Docker Configurations
 │   ├── Dockerfile.api            # API container
 │   ├── Dockerfile.streamlit      # UI container
-│   ├── Dockerfile.database       # DB initialization
-│   └── Dockerfile.huggingface    # Unified deployment
+│   └── Dockerfile.database       # DB initialization
 ├── tests/                         # Integration tests
 ├── outputs/                       # ML model artifacts
 └── docker-compose.yml             # Service orchestration
@@ -52,10 +51,8 @@ hr-attrition-rate/
 | `code-quality` | Linting & Type Checking | Black, Mypy |
 | `security-scan` | Vulnerability Detection | Trivy (SARIF reports) |
 | `test-with-database` | Integration Tests | PostgreSQL service, pytest |
-| `test-no-database` | Hugging Face Mode Tests | DISABLE_DB=1, pytest |
 | `test-authentication` | Security Module Tests | bcrypt, API key validation |
 | `build-docker-images` | Container Builds | Docker Buildx, GHCR |
-| `docker-huggingface` | Unified Image Build | Supervisor, SQLite |
 | `deploy-staging` | Staging Deployment | Manual approval |
 | `deploy-production` | Production Deployment | Environment protection |
 
@@ -248,9 +245,6 @@ poetry run pytest --cov=api --cov=core --cov=database --cov-report=term -v
 # Run specific test file
 poetry run pytest tests/test_core.py -v
 
-# Run with database disabled
-DISABLE_DB=1 poetry run pytest
-
 # Generate HTML coverage report
 poetry run pytest --cov=api --cov=core --cov-report=html
 # Open htmlcov/index.html
@@ -354,11 +348,6 @@ SessionLocal = sessionmaker(bind=engine)
 - Job queue for async processing
 - ACID compliance
 
-**2. DISABLE_DB=1 (Hugging Face)**
-- In-memory processing only
-- No persistence
-- SQLite fallback available
-
 ### Demonstration Commands
 
 ```bash
@@ -454,7 +443,6 @@ docker exec -it hr-attrition-db psql -U user -d hr_attrition_db \
 > - JSON columns for flexible SHAP storage
 > - Mature tooling and cloud support
 > - Foreign key constraints for referential integrity
-> SQLite is used for Hugging Face deployment (demo mode).
 
 **Q4: How does the testing strategy ensure quality?**
 > Multi-layer approach:

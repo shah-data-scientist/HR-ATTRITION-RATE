@@ -3,7 +3,7 @@
 ## Overview
 - **Goal**: Predict employee attrition using ML (FastAPI backend, Streamlit frontend).
 - **Tech Stack**: Python 3.12, FastAPI, Streamlit, PostgreSQL, Docker, Poetry.
-- **Infrastructure**: Docker Compose with profiles (`local`, `prod`, `huggingface`).
+- **Infrastructure**: Docker Compose with profiles (`local`, `prod`).
 
 ## Current Session Status
 - **Date**: 2025-12-05
