@@ -30,17 +30,17 @@ for idx, emp_id in enumerate(test_employee_ids, 1):
     print(f"\n{'=' * 80}")
     print(f"TEST {idx}/5: EMPLOYEE {emp_id}")
     print("=" * 80)
-    
+
     # Get employee data
-    sirh_row = sirh_df[sirh_df['id_employee'] == emp_id].iloc[0].to_dict()
-    
+    sirh_row = sirh_df[sirh_df["id_employee"] == emp_id].iloc[0].to_dict()
+
     # Find matching eval row (E_{emp_id})
     eval_number = f"E_{emp_id}"
-    eval_row = eval_df[eval_df['eval_number'] == eval_number].iloc[0].to_dict()
-    
+    eval_row = eval_df[eval_df["eval_number"] == eval_number].iloc[0].to_dict()
+
     # Find matching sondage row (code_sondage = emp_id)
-    sondage_row = sondage_df[sondage_df['code_sondage'] == emp_id].iloc[0].to_dict()
-    
+    sondage_row = sondage_df[sondage_df["code_sondage"] == emp_id].iloc[0].to_dict()
+
     # Display employee info
     print(f"\nEmployee Information:")
     print(f"  ID: {emp_id}")
@@ -50,52 +50,56 @@ for idx, emp_id in enumerate(test_employee_ids, 1):
     print(f"  Marital Status: {sirh_row['statut_marital']}")
     print(f"  Years in Company: {sirh_row['annees_dans_l_entreprise']}")
     print(f"  Total Experience: {sirh_row['annee_experience_totale']}")
-    
+
     # Prepare API request (same format as UI sends)
     payload = {
         "sirh_data": [sirh_row],
         "eval_data": [eval_row],
-        "sondage_data": [sondage_row]
+        "sondage_data": [sondage_row],
     }
-    
+
     # Call API with user_id header (simulating UI)
     print(f"\nCalling API: POST /predict_report")
     print(f"User ID: test_user_{idx}")
-    
+
     try:
         response = httpx.post(
             "http://localhost:8001/predict_report",
             json=payload,
             headers={"X-User-ID": f"test_user_{idx}"},
-            timeout=30.0
+            timeout=30.0,
         )
-        
+
         if response.status_code == 200:
             result = response.json()
-            prediction = result['predictions'][0]
-            
+            prediction = result["predictions"][0]
+
             print(f"\n✅ PREDICTION SUCCESSFUL!")
             print("-" * 80)
             print(f"Prediction Result:")
             print(f"  Employee ID: {prediction['id_employee']}")
             print(f"  Prediction: {prediction['prediction']}")
-            print(f"  Probability: {prediction['probability']:.4f} ({prediction['probability']*100:.2f}%)")
+            print(
+                f"  Probability: {prediction['probability']:.4f} ({prediction['probability']*100:.2f}%)"
+            )
             print(f"  Risk Category: {prediction['risk_category']}")
             print(f"  Trace ID: {prediction['trace_id']}")
-            
-            if prediction.get('shap_values'):
-                print(f"  SHAP Analysis: ✅ Computed ({len(prediction['shap_values'])} features)")
+
+            if prediction.get("shap_values"):
+                print(
+                    f"  SHAP Analysis: ✅ Computed ({len(prediction['shap_values'])} features)"
+                )
                 print(f"  Base Value: {prediction['base_value']:.4f}")
             else:
                 print(f"  SHAP Analysis: ❌ Not computed")
-            
+
             # Wait a moment before next request
             time.sleep(1)
-            
+
         else:
             print(f"\n❌ API ERROR: Status {response.status_code}")
             print(f"Response: {response.text[:500]}")
-            
+
     except Exception as e:
         print(f"\n❌ EXCEPTION: {e}")
 
@@ -129,9 +133,20 @@ LIMIT 5;
 """
 
 result = subprocess.run(
-    ["docker", "exec", "hrattritionrate-db-1", "psql", "-U", "user", "-d", "hr_attrition_db", "-c", query],
+    [
+        "docker",
+        "exec",
+        "hrattritionrate-db-1",
+        "psql",
+        "-U",
+        "user",
+        "-d",
+        "hr_attrition_db",
+        "-c",
+        query,
+    ],
     capture_output=True,
-    text=True
+    text=True,
 )
 
 print("\nDatabase Query Results:")

@@ -67,7 +67,7 @@ def test_predict_attrition_with_raw_data(synthetic_data, auth_headers):
     print("--- API Debug Test Finished ---")
 
     assert response.status_code in [200, 500]  # Allow 500 for database errors in CI
-    
+
     if response.status_code == 200:
         assert "predictions" in response.json()
         assert len(response.json()["predictions"]) > 0

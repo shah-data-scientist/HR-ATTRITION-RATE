@@ -198,16 +198,16 @@ class TestJobEndpoints:
         assert response.status_code != 404
 
     def test_get_job_status_endpoint_exists(self, client):
-        """Test that get job status endpoint exists"""
-        response = client.get("/jobs/test-job-id/status")
-        # Endpoint should exist
-        assert response.status_code != 404
+        """Test that get job status endpoint exists and returns 404 for non-existent ID."""
+        response = client.get("/jobs/non-existent-job-id/status")
+        # Endpoint should exist but return 404 for a non-existent ID
+        assert response.status_code == 404
 
     def test_get_job_report_endpoint_exists(self, client):
-        """Test that get job report endpoint exists"""
-        response = client.get("/jobs/test-job-id/report")
-        # Endpoint should exist
-        assert response.status_code != 404
+        """Test that get job report endpoint exists and returns 404 for non-existent ID."""
+        response = client.get("/jobs/non-existent-job-id/report")
+        # Endpoint should exist but return 404 for a non-existent ID
+        assert response.status_code == 404
 
 
 class TestDataProcessing:

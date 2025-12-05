@@ -1,4 +1,5 @@
 """Authentication helper module for Streamlit UI."""
+
 import os
 import requests
 from datetime import datetime
@@ -26,7 +27,7 @@ def authenticate_user(username: str, password: str) -> Tuple[bool, Optional[dict
         response = requests.post(
             f"{API_BASE_URL}/auth/login",
             params={"username": username, "password": password},
-            timeout=10
+            timeout=10,
         )
 
         if response.status_code == 200:
@@ -119,9 +120,7 @@ def require_authentication():
 def show_login_page():
     """Display the login page."""
     st.set_page_config(
-        page_title="HR Attrition Risk - Login",
-        page_icon="🔐",
-        layout="centered"
+        page_title="HR Attrition Risk - Login", page_icon="🔐", layout="centered"
     )
 
     # Center the login form
@@ -135,7 +134,9 @@ def show_login_page():
         # Login form
         with st.form("login_form"):
             username = st.text_input("Username", placeholder="Enter your username")
-            password = st.text_input("Password", type="password", placeholder="Enter your password")
+            password = st.text_input(
+                "Password", type="password", placeholder="Enter your password"
+            )
             submit = st.form_submit_button("Login", use_container_width=True)
 
             if submit:
@@ -160,7 +161,8 @@ def show_login_page():
 
         # Information box
         st.markdown("---")
-        st.info("""
+        st.info(
+            """
         **Default Accounts:**
 
         **Admin Account:**
@@ -172,7 +174,8 @@ def show_login_page():
         - Access: View-only access
 
         *Note: For security, passwords are set in the environment configuration.*
-        """)
+        """
+        )
 
 
 def show_user_info():
@@ -180,13 +183,15 @@ def show_user_info():
     if st.session_state.authenticated:
         st.sidebar.markdown("---")
         st.sidebar.markdown("### 👤 User Information")
-        st.sidebar.info(f"""
+        st.sidebar.info(
+            f"""
         **Username:** {st.session_state.username}
 
         **Role:** {st.session_state.user_role.title()}
 
         **User ID:** {st.session_state.user_id}
-        """)
+        """
+        )
 
         if st.sidebar.button("🚪 Logout", use_container_width=True):
             logout()

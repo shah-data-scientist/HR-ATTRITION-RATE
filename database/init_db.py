@@ -34,7 +34,7 @@ def create_default_users(db: Session):
                 username=admin_username,
                 password_hash=User.hash_password(admin_password),
                 role="admin",
-                is_active=1
+                is_active=1,
             )
 
             # Create regular user
@@ -42,7 +42,7 @@ def create_default_users(db: Session):
                 username=user_username,
                 password_hash=User.hash_password(user_password),
                 role="user",
-                is_active=1
+                is_active=1,
             )
 
             db.add(admin_user)

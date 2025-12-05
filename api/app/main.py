@@ -9,11 +9,18 @@ from dotenv import load_dotenv
 # Use override=False to respect programmatically set environment variables (e.g., in tests)
 # .env.local values will override .env values, but not pre-existing env vars
 _existing_api_key = os.environ.get("API_KEY")
-load_dotenv()  # Load .env (doesn't override existing)
-load_dotenv(".env.local", override=True)  # Load .env.local (overrides .env values)
-# Restore programmatically set API_KEY (for tests)
-if _existing_api_key is not None:
-    os.environ["API_KEY"] = _existing_api_key
+# Check if we are in testing mode
+if os.environ.get("TESTING") != "1":
+    load_dotenv()  # Load .env (doesn't override existing)
+    load_dotenv(".env.local", override=True)  # Load .env.local (overrides .env values)
+    # Restore programmatically set API_KEY (for tests)
+    if _existing_api_key is not None:
+        os.environ["API_KEY"] = _existing_api_key
+else:
+    # In testing mode, we trust the environment is already set up correctly by the test runner
+    # But we might still want to load .env if it's not there (e.g. for non-conflicting vars)
+    # For now, we skip loading .env.local to avoid overriding DB settings
+    pass
 
 import base64
 import io
@@ -32,6 +39,8 @@ from fastapi.responses import HTMLResponse
 from sqlalchemy.orm import Session  # Explicitly import Session for type hinting
 from sqlalchemy import text
 from typing import Optional
+import unicodedata
+import re
 
 # Authentication and security
 from api.auth import get_api_key, get_optional_api_key
@@ -64,49 +73,82 @@ from core.preprocess import enforce_schema
 from core.validation import NUMERIC_COLS, CATEGORICAL_COLS
 
 logger = logging.getLogger("uvicorn.error")
+logger.setLevel(logging.INFO)
+# Add StreamHandler to logger to ensure output is captured during tests
+handler = logging.StreamHandler()
+formatter = logging.Formatter("%(levelname)s:     %(message)s")
+handler.setFormatter(formatter)
+logger.addHandler(handler)
 
 # --- Configuration ---
 # Define risk categories for Excel report and HTML visualization
 RISK_THRESHOLDS = {"Low": (0.0, 0.3), "Medium": (0.3, 0.7), "High": (0.7, 1.0)}
 
 
-def filter_id_employee_from_shap(shap_values: list, feature_names: list) -> tuple[list, list]:
-    """Filter out id_employee from SHAP values and feature names.
+def _sanitize_feature_name(name: str) -> str:
+    """Sanitize feature names for better compatibility (e.g., in Excel, plots)."""
+    # Normalize unicode characters to decompose them (e.g., é -> e)
+    name = unicodedata.normalize("NFKD", name).encode("ascii", "ignore").decode("utf-8")
+    # Replace special characters and spaces with underscores, remove percentages
+    name = re.sub(
+        r"[^a-zA-Z0-9_]", "_", name
+    )  # Replace non-alphanumeric with underscore
+    name = re.sub(r"__+", "_", name)  # Replace multiple underscores with single
+    name = name.strip("_")  # Remove leading/trailing underscores
+    return name
+
+
+def filter_id_employee_from_shap(
+    shap_values: list, feature_names: list
+) -> tuple[list, list]:
+    """Filter out id_employee from SHAP values and feature names, and sanitize feature names.
 
     Args:
         shap_values: List of SHAP values for all features
         feature_names: List of feature names corresponding to SHAP values
 
     Returns:
-        Tuple of (filtered_shap_values, filtered_feature_names) with id_employee removed
+        Tuple of (filtered_shap_values, filtered_feature_names) with id_employee removed and names sanitized
     """
     if not feature_names or len(feature_names) != len(shap_values):
         return shap_values, feature_names
 
-    # Employee ID variations to filter out
-    employee_id_variations = {
-        "id_employee",
-        "num_id_employee",
-        "num__id_employee",  # double underscore variant
-        "employee_id",
-        "id employee",
-        "employeeid",
-        "emp_id",
-        "empid"
+    # Employee ID variations to filter out (sanitized versions)
+    employee_id_variations_sanitized = {
+        _sanitize_feature_name(var)
+        for var in {
+            "id_employee",
+            "num_id_employee",
+            "num__id_employee",
+            "employee_id",
+            "id employee",
+            "employeeid",
+            "emp_id",
+            "empid",
+        }
     }
+
+    sanitized_feature_names = [_sanitize_feature_name(name) for name in feature_names]
 
     # Find indices where feature is NOT an employee ID (case-insensitive)
     indices_to_keep = [
-        i for i, name in enumerate(feature_names)
-        if name.lower().replace("_", "").replace(" ", "") not in
-           {var.lower().replace("_", "").replace(" ", "") for var in employee_id_variations}
+        i
+        for i, name in enumerate(sanitized_feature_names)
+        if name.lower() not in employee_id_variations_sanitized
     ]
 
     # Filter both lists
     filtered_shap_values = [shap_values[i] for i in indices_to_keep]
-    filtered_feature_names = [feature_names[i] for i in indices_to_keep]
+    filtered_feature_names = [
+        feature_names[i] for i in indices_to_keep
+    ]  # Keep original names for display if needed
 
-    return filtered_shap_values, filtered_feature_names
+    # Sanitize the filtered feature names as well for consistency
+    filtered_feature_names_sanitized = [
+        _sanitize_feature_name(name) for name in filtered_feature_names
+    ]
+
+    return filtered_shap_values, filtered_feature_names_sanitized
 
 
 # Optional local toggle to skip DB writes (useful when Postgres isn't available)
@@ -182,51 +224,75 @@ async def lifespan(app: FastAPI):
         "employee_attrition_pipeline.pkl",
     )
     if not os.path.exists(model_path):
+        logger.error(
+            f"Model file not found at {model_path}. Please ensure the model is trained and saved."
+        )
         raise RuntimeError(
             f"Model file not found at {model_path}. Please ensure the model is trained and saved."
         )
 
-    model = joblib.load(model_path)
-    expected_model_columns = get_expected_columns_from_pipeline(model)
-    print(f"Model loaded successfully from {model_path}")
-    print(f"Expected model columns: {expected_model_columns}")
+    try:
+        model = joblib.load(model_path)
+        logger.info(f"Model loaded successfully from {model_path}")
+    except Exception as e:
+        logger.error(f"Error loading model from {model_path}: {e}")
+        raise RuntimeError(f"Failed to load ML model: {e}")
+
+    try:
+        expected_model_columns = get_expected_columns_from_pipeline(model)
+        logger.info(f"Expected model columns: {expected_model_columns}")
+    except Exception as e:
+        logger.error(f"Error getting expected model columns: {e}")
+        raise RuntimeError(f"Failed to get model columns: {e}")
 
     # Load X_train for SHAP explainer
     x_train_path = os.path.join(
         os.path.dirname(__file__), "..", "..", "outputs", "X_train.parquet"
     )
     if not os.path.exists(x_train_path):
+        logger.error(
+            f"X_train file not found at {x_train_path}. SHAP explainer cannot be initialized."
+        )
         raise RuntimeError(
             f"X_train file not found at {x_train_path}. SHAP explainer cannot be initialized."
         )
-    x_train_for_shap = pd.read_parquet(x_train_path)
+    try:
+        x_train_for_shap = pd.read_parquet(x_train_path)
+        logger.info(f"X_train loaded successfully from {x_train_path}")
+    except Exception as e:
+        logger.error(f"Error loading X_train for SHAP from {x_train_path}: {e}")
+        raise RuntimeError(f"Failed to load X_train for SHAP: {e}")
 
     # Initialize SHAP explainer
-    # Assuming the model is a pipeline with a 'preprocessor' and a 'model' step
-    preprocessor = model.named_steps["preprocessor"]
-    ml_model = model.named_steps["model"]
+    try:
+        # Assuming the model is a pipeline with a 'preprocessor' and a 'model' step
+        preprocessor = model.named_steps["preprocessor"]
+        ml_model = model.named_steps["model"]
 
-    # Transform x_train_for_shap to get the data in the format the ML model expects
-    x_train_transformed = preprocessor.transform(x_train_for_shap)
-    expected_model_columns_for_shap = preprocessor.get_feature_names_out()
+        # Transform x_train_for_shap to get the data in the format the ML model expects
+        x_train_transformed = preprocessor.transform(x_train_for_shap)
+        expected_model_columns_for_shap = preprocessor.get_feature_names_out()
 
-    # Ensure x_train_transformed is a DataFrame for explainer
-    if not isinstance(x_train_transformed, pd.DataFrame):
-        x_train_transformed = pd.DataFrame(
-            x_train_transformed, columns=expected_model_columns_for_shap
-        )
+        # Ensure x_train_transformed is a DataFrame for explainer
+        if not isinstance(x_train_transformed, pd.DataFrame):
+            x_train_transformed = pd.DataFrame(
+                x_train_transformed, columns=expected_model_columns_for_shap
+            )
 
-    explainer = shap.LinearExplainer(ml_model, x_train_transformed)
-    print("SHAP Explainer initialized successfully.")
+        explainer = shap.LinearExplainer(ml_model, x_train_transformed)
+        logger.info("SHAP Explainer initialized successfully.")
+    except Exception as e:
+        logger.error(f"Error initializing SHAP Explainer: {e}")
+        raise RuntimeError(f"Failed to initialize SHAP Explainer: {e}")
 
     # --- DEBUG: Inspect ColumnTransformer's internal column lists ---
     if "preprocessor" in model.named_steps:
         preprocessor = model.named_steps["preprocessor"]
         for name, transformer, columns in preprocessor.transformers_:
             if name == "num":
-                print(f"Preprocessor Numeric Columns (from model): {columns}")
+                logger.info(f"Preprocessor Numeric Columns (from model): {columns}")
             elif name == "cat":
-                print(f"Preprocessor Categorical Columns (from model): {columns}")
+                logger.info(f"Preprocessor Categorical Columns (from model): {columns}")
     # --- END DEBUG ---
 
     # Initialize database and create default users (if DB is enabled)
@@ -235,9 +301,9 @@ async def lifespan(app: FastAPI):
             from database.database import Base, engine, SessionLocal
             from database.init_db import create_default_users
 
-            print("Initializing database tables...")
+            logger.info("Initializing database tables...")
             Base.metadata.create_all(bind=engine)
-            print("Database tables created.")
+            logger.info("Database tables created.")
 
             # Create default users
             db = SessionLocal()
@@ -245,13 +311,14 @@ async def lifespan(app: FastAPI):
                 create_default_users(db)
             finally:
                 db.close()
+            logger.info("Default users created/verified.")
         except Exception as e:
-            print(f"Warning: Database initialization failed: {e}")
-            print("Continuing without database features...")
+            logger.error(f"Database initialization failed: {e}")
+            logger.warning("Continuing without database features...")
 
     yield
     # Clean up (optional)
-    print("FastAPI app shutting down.")
+    logger.info("FastAPI app shutting down.")
 
 
 app = FastAPI(
@@ -340,7 +407,15 @@ def generate_predictions(
     input_df["id_employee"] = input_df["id_employee"].astype(int)
 
     # Apply feature engineering
+    logger.info(
+        f"Input DataFrame before clean_and_engineer_features: \n{input_df.head()}"
+    )
+    logger.info(f"Input DataFrame dtypes: \n{input_df.dtypes}")
     processed_data = clean_and_engineer_features(input_df.copy())
+    logger.info(
+        f"Processed data after clean_and_engineer_features: \n{processed_data.head()}"
+    )
+    logger.info(f"Processed data dtypes: \n{processed_data.dtypes}")
 
     # ✨ enforce schema and coerce types
     feature_order = NUMERIC_COLS + CATEGORICAL_COLS
@@ -643,8 +718,7 @@ async def login(
     """
     if _is_db_disabled() or db is None:
         raise HTTPException(
-            status_code=503,
-            detail="Database is disabled; authentication unavailable."
+            status_code=503, detail="Database is disabled; authentication unavailable."
         )
 
     try:
@@ -654,18 +728,19 @@ async def login(
         if user is None or not user.is_active:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid username or password"
+                detail="Invalid username or password",
             )
 
         # Verify password
         if not User.verify_password(password, user.password_hash):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid username or password"
+                detail="Invalid username or password",
             )
 
         # Update last login timestamp
         from datetime import datetime, timezone
+
         user.last_login = datetime.now(timezone.utc)
         db.commit()
         db.refresh(user)
@@ -684,7 +759,7 @@ async def login(
         logger.exception("Login failed with unexpected error")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Authentication error: {str(e)}"
+            detail=f"Authentication error: {str(e)}",
         )
 
 
@@ -700,8 +775,7 @@ async def get_user_info(
     """
     if _is_db_disabled() or db is None:
         raise HTTPException(
-            status_code=503,
-            detail="Database is disabled; user info unavailable."
+            status_code=503, detail="Database is disabled; user info unavailable."
         )
 
     try:
@@ -709,8 +783,7 @@ async def get_user_info(
 
         if user is None:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="User not found"
+                status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
             )
 
         return {
@@ -726,7 +799,7 @@ async def get_user_info(
         logger.exception("Get user info failed")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error retrieving user info: {str(e)}"
+            detail=f"Error retrieving user info: {str(e)}",
         )
 
 
@@ -773,6 +846,9 @@ async def predict_attrition_report(
     predictions_output = generate_predictions(
         batch_input, request, db, compute_shap=True
     )
+    logger.info(
+        f"Predictions Output: {[p.model_dump_json() for p in predictions_output]}"
+    )  # Log full PredictionsOutput
 
     # Build Summary sheet
     summary_rows = []
@@ -799,8 +875,8 @@ async def predict_attrition_report(
             )
             df = pd.DataFrame(
                 {
-                    "Feature": feature_names,
-                    "Coefficient": p.shap_values,
+                    "Feature": pd.Series(feature_names).astype(str).tolist(),
+                    "Coefficient": pd.Series(p.shap_values).astype(float).tolist(),
                 }
             )
             df["Employee_ID"] = p.id_employee
@@ -827,15 +903,20 @@ async def predict_attrition_report(
         }
     )
 
+    logger.info(f"Summary DataFrame dtypes: \n{summary_df.dtypes}")
+    if not features_df.empty:
+        logger.info(f"Features DataFrame dtypes: \n{features_df.dtypes}")
+    logger.info(f"Metrics DataFrame dtypes: \n{metrics_df.dtypes}")
+
     # Write Excel to bytes
     excel_buffer = io.BytesIO()
     with pd.ExcelWriter(excel_buffer, engine="openpyxl") as writer:
-        summary_df.to_excel(writer, sheet_name="Summary", index=False)
+        summary_df.astype(str).to_excel(writer, sheet_name="Summary", index=False)
         if not features_df.empty:
-            features_df[
+            features_df.astype(str)[
                 ["Employee_ID", "Feature", "Coefficient", "Prediction"]
             ].to_excel(writer, sheet_name="Features", index=False)
-        metrics_df.to_excel(writer, sheet_name="Metrics", index=False)
+        metrics_df.astype(str).to_excel(writer, sheet_name="Metrics", index=False)
     excel_buffer.seek(0)
     excel_b64 = base64.b64encode(excel_buffer.read()).decode("utf-8")
 
@@ -851,15 +932,15 @@ async def predict_attrition_report(
         )
 
         # Filter out id_employee from SHAP visualization
-        filtered_shap_values, filtered_feature_names = filter_id_employee_from_shap(
-            p.shap_values, feature_names
+        filtered_shap_values, filtered_feature_names_sanitized = (
+            filter_id_employee_from_shap(p.shap_values, feature_names)
         )
 
         explanation = shap.Explanation(
             values=np.array(filtered_shap_values),
             base_values=p.base_value,
             data=np.zeros(len(filtered_shap_values)),
-            feature_names=filtered_feature_names,
+            feature_names=filtered_feature_names_sanitized,
         )
         shap.plots.waterfall(explanation, max_display=10, show=False)
         fig = plt.gcf()
@@ -903,6 +984,9 @@ async def predict_excel(
     predictions_output = generate_predictions(
         batch_input, request, db, compute_shap=True
     )
+    logger.info(
+        f"Predictions Output: {[p.model_dump_json() for p in predictions_output]}"
+    )  # Log full PredictionsOutput
 
     summary_rows = [
         {
@@ -923,7 +1007,12 @@ async def predict_excel(
                 if len(p.feature_names) == len(p.shap_values)
                 else [f"Feature {i}" for i in range(len(p.shap_values))]
             )
-            df = pd.DataFrame({"Feature": feature_names, "Coefficient": p.shap_values})
+            df = pd.DataFrame(
+                {
+                    "Feature": pd.Series(feature_names).astype(str).tolist(),
+                    "Coefficient": pd.Series(p.shap_values).astype(float).tolist(),
+                }
+            )
             df["Employee_ID"] = p.id_employee
             df["Prediction"] = p.prediction
             features_frames.append(df)
@@ -947,14 +1036,19 @@ async def predict_excel(
         }
     )
 
+    logger.info(f"Summary DataFrame dtypes: \n{summary_df.dtypes}")
+    if not features_df.empty:
+        logger.info(f"Features DataFrame dtypes: \n{features_df.dtypes}")
+    logger.info(f"Metrics DataFrame dtypes: \n{metrics_df.dtypes}")
+
     excel_buffer = io.BytesIO()
     with pd.ExcelWriter(excel_buffer, engine="openpyxl") as writer:
-        summary_df.to_excel(writer, sheet_name="Summary", index=False)
+        summary_df.astype(str).to_excel(writer, sheet_name="Summary", index=False)
         if not features_df.empty:
-            features_df[
+            features_df.astype(str)[
                 ["Employee_ID", "Feature", "Coefficient", "Prediction"]
             ].to_excel(writer, sheet_name="Features", index=False)
-        metrics_df.to_excel(writer, sheet_name="Metrics", index=False)
+        metrics_df.astype(str).to_excel(writer, sheet_name="Metrics", index=False)
     excel_buffer.seek(0)
     excel_b64 = base64.b64encode(excel_buffer.read()).decode("utf-8")
 
@@ -978,6 +1072,9 @@ async def predict_shap_images(
     predictions_output = generate_predictions(
         batch_input, request, db, compute_shap=True
     )
+    logger.info(
+        f"Predictions Output: {[p.model_dump_json() for p in predictions_output]}"
+    )  # Log full PredictionsOutput
 
     shap_images = []
     for p in predictions_output:
@@ -990,15 +1087,15 @@ async def predict_shap_images(
         )
 
         # Filter out id_employee from SHAP visualization
-        filtered_shap_values, filtered_feature_names = filter_id_employee_from_shap(
-            p.shap_values, feature_names
+        filtered_shap_values, filtered_feature_names_sanitized = (
+            filter_id_employee_from_shap(p.shap_values, feature_names)
         )
 
         explanation = shap.Explanation(
             values=np.array(filtered_shap_values),
             base_values=p.base_value,
             data=np.zeros(len(filtered_shap_values)),
-            feature_names=filtered_feature_names,
+            feature_names=filtered_feature_names_sanitized,
         )
         shap.plots.waterfall(explanation, max_display=10, show=False)
         fig = plt.gcf()
@@ -1045,6 +1142,9 @@ async def predict_shap_html(
     predictions_output = generate_predictions(
         batch_input, request, db, compute_shap=True
     )
+    logger.info(
+        f"Predictions Output: {[p.model_dump_json() for p in predictions_output]}"
+    )  # Log full PredictionsOutput
 
     # Generate SHAP images and create employee sections
     employee_sections = []
@@ -1061,15 +1161,15 @@ async def predict_shap_html(
         )
 
         # Filter out id_employee from SHAP visualization
-        filtered_shap_values, filtered_feature_names = filter_id_employee_from_shap(
-            p.shap_values, feature_names
+        filtered_shap_values, filtered_feature_names_sanitized = (
+            filter_id_employee_from_shap(p.shap_values, feature_names)
         )
 
         explanation = shap.Explanation(
             values=np.array(filtered_shap_values),
             base_values=p.base_value,
             data=np.zeros(len(filtered_shap_values)),
-            feature_names=filtered_feature_names,
+            feature_names=filtered_feature_names_sanitized,
         )
 
         shap.plots.waterfall(explanation, max_display=10, show=False)
@@ -1081,11 +1181,9 @@ async def predict_shap_html(
         img_base64 = base64.b64encode(buf.getvalue()).decode("utf-8")
 
         # Determine risk color
-        risk_color = {
-            "High": "#dc3545",
-            "Medium": "#ffc107",
-            "Low": "#28a745"
-        }.get(p.risk_category, "#6c757d")
+        risk_color = {"High": "#dc3545", "Medium": "#ffc107", "Low": "#28a745"}.get(
+            p.risk_category, "#6c757d"
+        )
 
         # Create employee section HTML
         employee_section = f"""

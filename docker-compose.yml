@@ -81,6 +81,7 @@ services:
       API_PORT: 8001
       DISABLE_DB: "false"
       API_KEY: ${API_KEY:-changeme}
+      MPLCONFIGDIR: /tmp/matplotlib
     depends_on:
       db:
         condition: service_healthy

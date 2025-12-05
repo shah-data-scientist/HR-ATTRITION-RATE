@@ -7,16 +7,25 @@ import requests
 import pandas as pd
 import json
 import sys
+import os
+
+API_URL = os.environ.get("API_URL", "http://localhost:8001")
+API_KEY = os.environ.get("API_KEY", "changeme")
 
 print("=" * 70)
 print("HR ATTRITION API - END-TO-END TEST")
 print("=" * 70)
+print(f"Target API: {API_URL}")
+print(f"Using API Key: {API_KEY[:3]}...")
+
+HEADERS = {"X-API-Key": API_KEY}
 
 # Test 1: Health Check
 print("\n[TEST 1] Health Check")
 print("-" * 70)
 try:
-    response = requests.get("http://localhost:8001/health", timeout=5)
+    # Health check usually doesn't need auth, but good to check
+    response = requests.get(f"{API_URL}/health", timeout=5)
     if response.status_code == 200:
         print("✓ API is healthy")
         print(f"  Response: {response.json()}")
@@ -25,7 +34,7 @@ try:
         sys.exit(1)
 except Exception as e:
     print(f"✗ Failed to connect to API: {e}")
-    print("  Make sure the API is running on port 8001")
+    print(f"  Make sure the API is running at {API_URL}")
     sys.exit(1)
 
 # Test 2: Load CSV files
@@ -80,7 +89,7 @@ try:
     print("  Payload saved to test_payload.json")
 
     response = requests.post(
-        "http://localhost:8001/predict", json=payload, timeout=60.0
+        f"{API_URL}/predict", json=payload, headers=HEADERS, timeout=60.0
     )
 
     print(f"\n  Status Code: {response.status_code}")
@@ -157,10 +166,13 @@ except Exception as e:
 # Test 6: Test with full dataset
 print("\n[TEST 6] Testing with Full Dataset")
 print("-" * 70)
-response = input("Do you want to test with the full dataset? (y/n): ")
-if response.lower() == "y":
+
+# Check for --full flag
+test_full = "--full" in sys.argv
+
+if test_full:
     try:
-        print("  Processing full dataset...")
+        print("  Processing full dataset (triggered by --full flag)...")
         eval_data_full = eval_df.to_dict(orient="records")
         sirh_data_full = sirh_df.to_dict(orient="records")
         sondage_data_full = sondage_df.to_dict(orient="records")
@@ -172,7 +184,7 @@ if response.lower() == "y":
         }
 
         response = requests.post(
-            "http://localhost:8001/predict", json=payload_full, timeout=120.0
+            f"{API_URL}/predict", json=payload_full, headers=HEADERS, timeout=120.0
         )
 
         if response.status_code == 200:
@@ -190,7 +202,7 @@ if response.lower() == "y":
     except Exception as e:
         print(f"✗ Full dataset test error: {e}")
 else:
-    print("  Skipped full dataset test")
+    print("  Skipped full dataset test (use --full to run)")
 
 print("\n" + "=" * 70)
 print("END-TO-END TEST COMPLETED SUCCESSFULLY!")

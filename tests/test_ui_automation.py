@@ -11,6 +11,7 @@ import time
 from pathlib import Path
 
 import pytest
+import requests
 
 
 # Check if playwright is available
@@ -20,9 +21,7 @@ try:
     PLAYWRIGHT_AVAILABLE = True
 except ImportError:
     PLAYWRIGHT_AVAILABLE = False
-    print(
-        "Warning: Playwright not installed. Run: pip install playwright && playwright install"
-    )
+    # No need to print warning here, it will be printed by the skipif decorator
 
 
 # Configuration
@@ -31,6 +30,20 @@ UI_URL = os.environ.get("STREAMLIT_URL", "http://localhost:8501")
 DATA_DIR = Path(__file__).parent.parent / "data"
 SCREENSHOTS_DIR = Path(__file__).parent.parent / "test_screenshots"
 TIMEOUT = 60000  # 60 seconds
+
+
+def is_streamlit_server_running(url):
+    """Checks if the Streamlit server is running by making a GET request."""
+    try:
+        response = requests.get(url, timeout=5)
+        # Streamlit usually returns 200 for its main page
+        return response.status_code == 200
+    except requests.exceptions.ConnectionError:
+        return False
+    except requests.exceptions.Timeout:
+        return False
+    except Exception:
+        return False
 
 
 @pytest.fixture(scope="module")
@@ -57,6 +70,10 @@ def ensure_screenshots_dir():
     return SCREENSHOTS_DIR
 
 
+@pytest.mark.skipif(
+    not PLAYWRIGHT_AVAILABLE or not is_streamlit_server_running(UI_URL),
+    reason="Playwright not installed or Streamlit UI server not running",
+)
 class TestStreamlitUI:
     """Test Streamlit UI with browser automation."""
 
@@ -103,6 +120,29 @@ class TestStreamlitUI:
             screenshot_path = ensure_screenshots_dir / "02_before_upload.png"
             page.screenshot(path=str(screenshot_path), full_page=True)
             print(f"✓ Screenshot saved: {screenshot_path}")
+
+            # Step 2.1: Login if required
+            try:
+                username_input = page.locator(
+                    'input[placeholder="Enter your username"]'
+                )
+                password_input = page.locator(
+                    'input[placeholder="Enter your password"]'
+                )
+                login_button = page.get_by_role("button", name="Login")
+
+                if username_input.count() > 0:
+                    print("  Login page detected. Logging in...")
+                    username_input.fill("admin")
+                    password_input.fill("Admin@2025!Secure")
+                    login_button.click()
+
+                    # Wait for redirect/reload
+                    time.sleep(3)
+                    page.wait_for_load_state("networkidle", timeout=TIMEOUT)
+                    print("  ✓ Logged in")
+            except Exception as e:
+                print(f"  ⚠ Login step info: {e}")
 
             # Find and interact with file upload
             # Streamlit uses file_uploader which creates input[type=file] elements
@@ -204,7 +244,7 @@ class TestStreamlitUI:
 
             # Save final page HTML for debugging
             html_path = ensure_screenshots_dir / "final_page.html"
-            with open(html_path, "w") as f:
+            with open(html_path, "w", encoding="utf-8") as f:
                 f.write(page.content())
             print(f"✓ Page HTML saved: {html_path}")
 

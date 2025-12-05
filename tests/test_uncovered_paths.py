@@ -20,6 +20,7 @@ def client():
     os.environ["API_KEY"] = "test_api_key"
 
     from api.app.main import app
+
     return TestClient(app)
 
 
@@ -204,7 +205,9 @@ class TestExcelGenerationErrors:
         response = client.post("/predict_excel", headers=auth_headers, json=payload)
         assert response.status_code in [422, 500]
 
-    def test_predict_excel_with_mismatched_ids(self, client, auth_headers, sample_employee_data):
+    def test_predict_excel_with_mismatched_ids(
+        self, client, auth_headers, sample_employee_data
+    ):
         """Test Excel generation when IDs don't match across datasets"""
         data1 = dict(sample_employee_data, id_employee=1)
         data2 = dict(sample_employee_data, id_employee=2)
@@ -219,21 +222,27 @@ class TestExcelGenerationErrors:
 class TestShapCalculationBranches:
     """Test SHAP calculation branches"""
 
-    def test_predict_shap_with_single_employee(self, client, auth_headers, sample_employee_data):
+    def test_predict_shap_with_single_employee(
+        self, client, auth_headers, sample_employee_data
+    ):
         """Test SHAP image generation with single employee"""
         payload = {
             "eval_data": [sample_employee_data],
             "sirh_data": [sample_employee_data],
             "sondage_data": [sample_employee_data],
         }
-        response = client.post("/predict_shap_images", headers=auth_headers, json=payload)
+        response = client.post(
+            "/predict_shap_images", headers=auth_headers, json=payload
+        )
         assert response.status_code in [200, 422, 500]
 
         if response.status_code == 200:
             data = response.json()
             assert "shap_images" in data or "error" in data
 
-    def test_predict_shap_with_multiple_employees(self, client, auth_headers, sample_employee_data):
+    def test_predict_shap_with_multiple_employees(
+        self, client, auth_headers, sample_employee_data
+    ):
         """Test SHAP with multiple employees"""
         employees = [dict(sample_employee_data, id_employee=i) for i in range(1, 4)]
         payload = {
@@ -241,13 +250,17 @@ class TestShapCalculationBranches:
             "sirh_data": employees,
             "sondage_data": employees,
         }
-        response = client.post("/predict_shap_images", headers=auth_headers, json=payload)
+        response = client.post(
+            "/predict_shap_images", headers=auth_headers, json=payload
+        )
         assert response.status_code in [200, 422, 500]
 
     def test_predict_shap_with_invalid_data(self, client, auth_headers):
         """Test SHAP with empty data - expects validation error"""
         payload = {"eval_data": [], "sirh_data": [], "sondage_data": []}
-        response = client.post("/predict_shap_images", headers=auth_headers, json=payload)
+        response = client.post(
+            "/predict_shap_images", headers=auth_headers, json=payload
+        )
         # Empty data should be rejected by Pydantic validation (min_length=1)
         # or return a server error if validation passes
         assert response.status_code in [422, 500, 503]
@@ -255,7 +268,9 @@ class TestShapCalculationBranches:
         if response.status_code == 422:
             assert "detail" in response.json()
 
-    def test_predict_shap_with_extreme_values(self, client, auth_headers, sample_employee_data):
+    def test_predict_shap_with_extreme_values(
+        self, client, auth_headers, sample_employee_data
+    ):
         """Test SHAP with extreme values"""
         extreme_data = dict(sample_employee_data)
         extreme_data["age"] = 65
@@ -267,7 +282,9 @@ class TestShapCalculationBranches:
             "sirh_data": [extreme_data],
             "sondage_data": [extreme_data],
         }
-        response = client.post("/predict_shap_images", headers=auth_headers, json=payload)
+        response = client.post(
+            "/predict_shap_images", headers=auth_headers, json=payload
+        )
         assert response.status_code in [200, 422, 500]
 
 
@@ -359,7 +376,9 @@ class TestPredictionWithDatabaseDisabled:
         assert response.status_code in [200, 422, 500]
 
     @patch.dict(os.environ, {"DISABLE_DB": "1"})
-    def test_predict_excel_with_db_disabled(self, client, auth_headers, sample_employee_data):
+    def test_predict_excel_with_db_disabled(
+        self, client, auth_headers, sample_employee_data
+    ):
         """Test Excel generation when database is disabled"""
         payload = {
             "eval_data": [sample_employee_data],
@@ -383,7 +402,9 @@ class TestPredictionErrorPaths:
         response = client.post("/predict", headers=auth_headers, json=payload)
         assert response.status_code in [200, 422, 500]
 
-    def test_predict_with_empty_strings(self, client, auth_headers, sample_employee_data):
+    def test_predict_with_empty_strings(
+        self, client, auth_headers, sample_employee_data
+    ):
         """Test prediction with empty strings"""
         data = dict(sample_employee_data)
         data["departement"] = ""
@@ -393,7 +414,9 @@ class TestPredictionErrorPaths:
         response = client.post("/predict", headers=auth_headers, json=payload)
         assert response.status_code in [200, 422, 500]
 
-    def test_predict_with_invalid_numeric_types(self, client, auth_headers, sample_employee_data):
+    def test_predict_with_invalid_numeric_types(
+        self, client, auth_headers, sample_employee_data
+    ):
         """Test prediction with invalid numeric types"""
         data = dict(sample_employee_data)
         data["age"] = "not_a_number"

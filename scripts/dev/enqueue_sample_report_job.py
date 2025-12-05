@@ -6,7 +6,8 @@ import httpx
 
 API_BASE_URL = os.environ.get("API_BASE_URL", "http://localhost:8001")
 
-root = Path(__file__).resolve().parents[1]
+# Go up 2 levels: scripts/dev -> scripts -> root
+root = Path(__file__).resolve().parents[2]
 data_dir = root / "data"
 
 eval_df = pd.read_csv(data_dir / "extrait_eval.csv").head(5)

@@ -5,14 +5,15 @@ import sys
 import io
 
 # Add the project root to the sys.path to allow importing modules from the project
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+# Go up 2 levels: scripts/dev -> scripts -> root
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 
 API_BASE_URL = "http://localhost:8001"
 
 
 def get_project_root():
-    """Returns the absolute path to the project root (one level up from scripts)."""
-    return os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    """Returns the absolute path to the project root (two levels up from scripts/dev)."""
+    return os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 
 
 def _load_local_csv_files():

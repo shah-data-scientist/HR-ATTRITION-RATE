@@ -9,6 +9,7 @@ from fastapi.middleware.gzip import GZipMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 import time
 import logging
+from typing import List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -63,7 +64,9 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
         return response
 
 
-def setup_security_middleware(app: FastAPI, allowed_origins: list = None):
+def setup_security_middleware(
+    app: FastAPI, allowed_origins: Optional[List[str]] = None
+):
     """
     Configure all security middleware for the FastAPI application
 

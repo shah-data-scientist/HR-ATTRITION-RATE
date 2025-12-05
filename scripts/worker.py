@@ -150,19 +150,19 @@ def process_job(db, job):
     from types import SimpleNamespace
 
     # Use the user_id from the job (who originally created the job request)
-    user_id = getattr(job, 'user_id', 'demo1')
+    user_id = getattr(job, "user_id", "demo1")
     mock_headers_dict = {"X-User-ID": user_id}
-    
+
     # SimpleNamespace to mimic request.headers with dict's .get() method
     class MockHeaders:
         def __init__(self, headers_dict):
             self._headers = headers_dict
+
         def get(self, key, default=None):
             return self._headers.get(key, default)
-    
+
     mock_request = SimpleNamespace(
-        headers=MockHeaders(mock_headers_dict),
-        client=SimpleNamespace(host="worker")
+        headers=MockHeaders(mock_headers_dict), client=SimpleNamespace(host="worker")
     )
 
     # Use DB session for traceability

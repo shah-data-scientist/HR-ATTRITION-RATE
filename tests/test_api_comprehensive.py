@@ -23,6 +23,7 @@ def client():
 
     # Import app after setting environment variable
     from api.app.main import app
+
     return TestClient(app)
 
 
@@ -144,7 +145,9 @@ class TestExcelGeneration:
             )
             assert len(response.content) > 0
 
-    def test_excel_with_multiple_predictions(self, client, auth_headers, full_employee_data):
+    def test_excel_with_multiple_predictions(
+        self, client, auth_headers, full_employee_data
+    ):
         """Test Excel with batch predictions"""
         employees = []
         for i in range(1, 6):
@@ -174,7 +177,9 @@ class TestShapImages:
             "sirh_data": [full_employee_data],
             "sondage_data": [full_employee_data],
         }
-        response = client.post("/predict_shap_images", json=payload, headers=auth_headers)
+        response = client.post(
+            "/predict_shap_images", json=payload, headers=auth_headers
+        )
 
         if response.status_code == 200:
             data = response.json()
@@ -231,7 +236,9 @@ class TestJobEndpoints:
             "sirh_data": [full_employee_data],
             "sondage_data": [full_employee_data],
         }
-        response = client.post("/jobs/submit_report", json=payload, headers=auth_headers)
+        response = client.post(
+            "/jobs/submit_report", json=payload, headers=auth_headers
+        )
         # May fail if DB disabled or method not allowed, but endpoint should exist
         assert response.status_code in [200, 201, 405, 500, 503]
 
@@ -311,7 +318,9 @@ class TestEdgeCases:
         # Should handle or return appropriate error
         assert response.status_code in [200, 422, 500, 413]
 
-    def test_special_characters_in_strings(self, client, auth_headers, full_employee_data):
+    def test_special_characters_in_strings(
+        self, client, auth_headers, full_employee_data
+    ):
         """Test with special characters"""
         data = full_employee_data.copy()
         data["departement"] = "IT & Développement"
@@ -338,7 +347,9 @@ class TestEdgeCases:
 class TestConcurrency:
     """Test concurrent request handling"""
 
-    def test_multiple_simultaneous_predictions(self, client, auth_headers, full_employee_data):
+    def test_multiple_simultaneous_predictions(
+        self, client, auth_headers, full_employee_data
+    ):
         """Test handling multiple requests"""
         payload = {
             "eval_data": [full_employee_data],
@@ -360,7 +371,9 @@ class TestConcurrency:
 class TestResponseFormat:
     """Test response format validation"""
 
-    def test_prediction_response_structure(self, client, auth_headers, full_employee_data):
+    def test_prediction_response_structure(
+        self, client, auth_headers, full_employee_data
+    ):
         """Test prediction response has correct structure"""
         payload = {
             "eval_data": [full_employee_data],

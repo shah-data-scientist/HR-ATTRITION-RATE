@@ -75,6 +75,7 @@ hr-attrition-rate/
 │   ├── dev/                   # Development and debug scripts
 │   │   ├── align_schema_with_data.py
 │   │   ├── call_predict_report.py
+│   │   ├── ci_auth_check.py
 │   │   ├── debug_api_call.py
 │   │   ├── debug_types.py
 │   │   ├── e2e_test.py
@@ -82,10 +83,13 @@ hr-attrition-rate/
 │   │   └── quick_ui_diagnostics.py
 │   ├── utils.py               # Shared utility functions
 │   ├── create_synthetic_data.py
+│   ├── create_tables.py       # Table creation utility
 │   ├── migrate_db.py
 │   ├── worker.py              # Background worker for async jobs
+│   ├── test-hf-local.ps1      # Local Hugging Face simulation script
 │   ├── start-api.sh           # Production server scripts
 │   ├── start-api.bat
+│   ├── start-api-nodb.bat     # Start API without DB connection
 │   ├── start-ui.sh
 │   ├── start-ui.bat
 │   └── README.md

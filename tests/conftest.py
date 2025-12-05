@@ -12,14 +12,25 @@ from sqlalchemy.orm import sessionmaker
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from database.database import Base
-from database.models import Employee, ModelInput, ModelOutput, PredictionTraceability
+# MOCK dotenv.load_dotenv BEFORE imports that might use it
+from unittest.mock import MagicMock
+import dotenv
 
-# Set test API key (must match CI/CD workflow)
-os.environ["API_KEY"] = "test_api_key"
+dotenv.load_dotenv = MagicMock()
+
+# Set test environment variables BEFORE importing application modules
+# This ensures that when database.database is imported, it picks up these values
+import os
+
+os.environ["TESTING"] = "1"  # Signal to main.py to skip loading .env.local
+os.environ["API_KEY"] = os.getenv("API_KEY", "test_api_key")
 os.environ["SECRET_KEY"] = "test_secret_key_at_least_32_chars_long_for_testing"
+# Force SQLite for ALL tests, overriding any .env files
 os.environ["DATABASE_URL"] = "sqlite:///:memory:"
 os.environ["DISABLE_DB"] = "0"  # Enable DB for tests
+
+from database.database import Base
+from database.models import Employee, ModelInput, ModelOutput, PredictionTraceability
 
 
 @pytest.fixture(scope="session")
@@ -95,7 +106,7 @@ def api_headers():
     """Headers for authenticated API requests."""
     return {
         "X-API-Key": os.getenv("API_KEY", "test_api_key"),
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
     }
 
 
@@ -103,6 +114,27 @@ def api_headers():
 def api_base_url():
     """Base URL for API requests."""
     return os.getenv("API_BASE_URL", "http://localhost:8001")
+
+
+@pytest.fixture(autouse=True)
+def init_sqlite_tables():
+    """Initialize tables if using SQLite in-memory database."""
+    from database.database import engine, Base
+
+    # Ensure models are imported so they are registered in Base.metadata
+    import database.models
+
+    # Check if using SQLite (in-memory or file)
+    if str(engine.url).startswith("sqlite"):
+        print(f"DEBUG: Creating tables on {engine.url}")
+        print(f"DEBUG: Tables in metadata: {list(Base.metadata.tables.keys())}")
+        # Create tables
+        Base.metadata.create_all(bind=engine)
+        yield
+        # Drop tables after test
+        Base.metadata.drop_all(bind=engine)
+    else:
+        yield
 
 
 @pytest.fixture(scope="function")

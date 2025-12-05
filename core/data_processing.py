@@ -6,49 +6,56 @@ logic from train.py to ensure consistency between training and inference.
 
 import numpy as np
 import pandas as pd
+import logging
+
+logger = logging.getLogger("uvicorn.error")
 
 
 def clean_raw_input(df: pd.DataFrame) -> pd.DataFrame:
-    """Clean raw input data (matching train.py cleaning logic).
-
-    Transformations:
-    1. Convert genre: "M"/"Homme" → 1, "F"/"Femme" → 0
-    2. Convert heures_supplementaires: "Oui" → 1, "Non" → 0
-    3. Extract id_employee from eval_number if present
-    4. Convert augmentation_salaire_precedente from "X%" to float
-
-    Args:
-        df: DataFrame with raw input features
-
-    Returns:
-        DataFrame with cleaned features
-    """
+    """Clean raw input data (matching train.py cleaning logic)."""
     df = df.copy()
 
     # 1. Clean genre: convert string to 0/1
     if "genre" in df.columns:
-        # First handle integers that are already 0 or 1
-        genre_series = df["genre"].copy()
-        # Convert to string and lowercase for string values
-        genre_str = genre_series.astype(str).str.lower()
-        # Replace string representations
-        genre_cleaned = genre_str.replace({
-            "m": "1", "f": "0",
-            "homme": "1", "femme": "0",
-            "male": "1", "female": "0"
-        })
-        # Convert to Int64, handling any values that are already "1" or "0"
-        df["genre"] = pd.to_numeric(genre_cleaned, errors='coerce').fillna(genre_series).astype("Int64")
+        try:
+            # First handle integers that are already 0 or 1
+            genre_series = df["genre"].copy()
+            # Convert to string and lowercase for string values
+            genre_str = genre_series.astype(str).str.lower()
+            # Replace string representations
+            genre_cleaned = genre_str.replace(
+                {
+                    "m": "1",
+                    "f": "0",
+                    "homme": "1",
+                    "femme": "0",
+                    "male": "1",
+                    "female": "0",
+                }
+            )
+            # Convert to Int64, handling any values that are already "1" or "0"
+            df["genre"] = (
+                pd.to_numeric(genre_cleaned, errors="coerce")
+                .fillna(genre_series)
+                .astype("Int64")
+            )
+        except Exception as e:
+            logger.error(f"Error cleaning genre: {e}")
+            raise
 
     # 2. Clean ayant_enfants: ensure it's string
     if "ayant_enfants" in df.columns:
-        df["ayant_enfants"] = (
-            df["ayant_enfants"]
-            .astype(str)
-            .str.lower()
-            .replace({"y": "oui", "n": "non"})  # Standardize to 'oui'/'non'
-            .astype(str)
-        )
+        try:
+            df["ayant_enfants"] = (
+                df["ayant_enfants"]
+                .astype(str)
+                .str.lower()
+                .replace({"y": "oui", "n": "non"})  # Standardize to 'oui'/'non'
+                .astype(str)
+            )
+        except Exception as e:
+            logger.error(f"Error cleaning ayant_enfants: {e}")
+            raise
 
     # 3. Clean heures_supplementaires: "Oui"/"Non" → 1/0
     # Handle multiple possible column names (train.py checks for variants)
@@ -58,34 +65,44 @@ def clean_raw_input(df: pd.DataFrame) -> pd.DataFrame:
         "heures_supplémentaires",
     ]:
         if col in df.columns:
-            df[col] = (
-                df[col]
-                .astype(str)
-                .str.lower()
-                .replace({"oui": 1, "non": 0, "yes": 1, "no": 0, "true": 1, "false": 0})
-                .infer_objects(copy=False)
-                .astype("Int64")
-            )
-            # Standardize column name
-            if col != "heures_supplementaires":
-                df.rename(columns={col: "heures_supplementaires"}, inplace=True)
+            try:
+                df[col] = (
+                    df[col]
+                    .astype(str)
+                    .str.lower()
+                    .replace(
+                        {"oui": 1, "non": 0, "yes": 1, "no": 0, "true": 1, "false": 0}
+                    )
+                    .infer_objects(copy=False)
+                    .astype("Int64")
+                )
+                # Standardize column name
+                if col != "heures_supplementaires":
+                    df.rename(columns={col: "heures_supplementaires"}, inplace=True)
+            except Exception as e:
+                logger.error(f"Error cleaning {col}: {e}. Type: {type(df[col])}")
+                raise
 
     # 3. Clean augmentation_salaire_precedente: handle "X%" format
     # Note: column has typo "augementation" in some places
     for col in ["augmentation_salaire_precedente", "augementation_salaire_precedente"]:
         if col in df.columns:
-            df[col] = (
-                df[col]
-                .astype(str)
-                .str.replace("%", "", regex=False)
-                .str.replace(",", ".", regex=False)
-                .str.strip()
-            )
-            # Standardize to the typo version (matches train.py output)
-            if col == "augmentation_salaire_precedente":
-                df.rename(
-                    columns={col: "augementation_salaire_precedente"}, inplace=True
+            try:
+                df[col] = (
+                    df[col]
+                    .astype(str)
+                    .str.replace("%", "", regex=False)
+                    .str.replace(",", ".", regex=False)
+                    .str.strip()
                 )
+                # Standardize to the typo version (matches train.py output)
+                if col == "augmentation_salaire_precedente":
+                    df.rename(
+                        columns={col: "augementation_salaire_precedente"}, inplace=True
+                    )
+            except Exception as e:
+                logger.error(f"Error cleaning {col}: {e}. Type: {type(df[col])}")
+                raise
 
     # 4. Extract id_employee from eval_number if needed
     if "eval_number" in df.columns and "id_employee" not in df.columns:
@@ -98,34 +115,38 @@ def clean_raw_input(df: pd.DataFrame) -> pd.DataFrame:
 
     # 5a. Transform frequence_deplacement: categorical → int (0=Rare, 1=Frequent, 2=Very Frequent)
     if "frequence_deplacement" in df.columns:
-        freq_mapping = {
-            "rarement": 0,
-            "rarely": 0,
-            "occasionnel": 0,
-            "occasional": 0,
-            "fréquemment": 1,
-            "frequemment": 1,
-            "frequently": 1,
-            "frequent": 1,
-            "très fréquemment": 2,
-            "tres frequemment": 2,
-            "very frequently": 2,
-            "non": 0,  # fallback
-            "oui": 1,  # fallback
-        }
-        df["frequence_deplacement"] = (
-            df["frequence_deplacement"]
-            .astype(str)
-            .str.lower()
-            .str.strip()
-            .replace(freq_mapping)
-            .infer_objects(copy=False)
-        )
-        df["frequence_deplacement"] = (
-            pd.to_numeric(df["frequence_deplacement"], errors="coerce")
-            .fillna(0)
-            .astype("int64")
-        )
+        try:
+            freq_mapping = {
+                "rarement": 0,
+                "rarely": 0,
+                "occasionnel": 0,
+                "occasional": 0,
+                "fréquemment": 1,
+                "frequemment": 1,
+                "frequently": 1,
+                "frequent": 1,
+                "très fréquemment": 2,
+                "tres frequemment": 2,
+                "very frequently": 2,
+                "non": 0,  # fallback
+                "oui": 1,  # fallback
+            }
+            df["frequence_deplacement"] = (
+                df["frequence_deplacement"]
+                .astype(str)
+                .str.lower()
+                .str.strip()
+                .replace(freq_mapping)
+                .infer_objects(copy=False)
+            )
+            df["frequence_deplacement"] = (
+                pd.to_numeric(df["frequence_deplacement"], errors="coerce")
+                .fillna(0)
+                .astype("int64")
+            )
+        except Exception as e:
+            logger.error(f"Error cleaning frequence_deplacement: {e}")
+            raise
 
     # 5b. Clamp nb_formations_suivies to [0, 3] to match model training
     if "nb_formations_suivies" in df.columns:

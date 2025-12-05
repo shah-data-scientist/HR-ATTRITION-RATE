@@ -196,4 +196,4 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    seed_database(drop_existing=args.drop)
+    seed_database(drop_existing=args.drop)  # type: ignore[misc]

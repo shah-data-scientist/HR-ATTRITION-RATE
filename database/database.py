@@ -3,6 +3,7 @@ import os
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
 
 # Database connection URL
 # Read from environment variable, or use a default for local development
@@ -10,7 +11,13 @@ DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///hr_attrition.db")
 DISABLE_DB = os.getenv("DISABLE_DB", "0") == "1"
 
 # Create the SQLAlchemy engine
-if DATABASE_URL.startswith("sqlite"):
+if DATABASE_URL == "sqlite:///:memory:":
+    engine = create_engine(
+        DATABASE_URL,
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+elif DATABASE_URL.startswith("sqlite"):
     engine = create_engine(
         DATABASE_URL,
         connect_args={"check_same_thread": False},

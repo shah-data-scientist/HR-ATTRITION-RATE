@@ -2,6 +2,7 @@
 Authenticated wrapper for the HR Attrition Risk Streamlit application.
 This module adds authentication layer before allowing access to the main app.
 """
+
 import streamlit as st
 import sys
 from pathlib import Path

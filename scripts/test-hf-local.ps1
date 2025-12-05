@@ -36,7 +36,7 @@ Write-Host "  ✓ Container built successfully" -ForegroundColor Green
 
 # Run the container with in-memory database
 Write-Host "[4/6] Starting container..." -ForegroundColor Yellow
-docker run -d -p 7860:7860 `
+docker run -d -p 7860:7860 -p 8001:8001 `
   -e DATABASE_URL="sqlite:///:memory:" `
   -e DISABLE_DB="0" `
   -e UI_ADMIN_USERNAME="admin" `

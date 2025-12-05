@@ -10,7 +10,7 @@ import os
 import httpx
 import base64
 import zipfile
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 import time
 from dotenv import load_dotenv
 
@@ -318,7 +318,9 @@ def apply_threshold(predictions_raw: list, threshold: float) -> pd.DataFrame:
     return report_data
 
 
-def load_test_set_confusion_matrix(threshold: float) -> tuple[np.ndarray, int, int]:
+def load_test_set_confusion_matrix(
+    threshold: float,
+) -> tuple[Optional[np.ndarray], int, int]:
     """Load test set and compute confusion matrix using saved test data."""
     try:
         project_root = get_project_root()
@@ -358,7 +360,7 @@ def load_test_set_confusion_matrix(threshold: float) -> tuple[np.ndarray, int, i
         return None, 0, 0
 
 
-def create_confusion_matrix(threshold: float) -> go.Figure:
+def create_confusion_matrix(threshold: float) -> Optional[go.Figure]:
     """Create a Plotly confusion matrix visualization with row percentages only."""
     cm, total_samples, total_attrition = load_test_set_confusion_matrix(threshold)
 
@@ -382,7 +384,9 @@ def create_confusion_matrix(threshold: float) -> go.Figure:
     cm_row_percentages = (cm / row_sums * 100).round(1)
 
     # Create text with only percentages (no absolute numbers)
-    text_display = [[f"{cm_row_percentages[i, j]:.1f}%" for j in range(2)] for i in range(2)]
+    text_display = [
+        [f"{cm_row_percentages[i, j]:.1f}%" for j in range(2)] for i in range(2)
+    ]
 
     # Create heatmap with row percentages for coloring
     fig = go.Figure(
@@ -435,7 +439,9 @@ def _handle_file_uploads_and_predict() -> None:
 
     # Show downloadable template files
     st.markdown("### Template Files")
-    st.markdown("Download these template files to see the required format (first 10 lines):")
+    st.markdown(
+        "Download these template files to see the required format (first 10 lines):"
+    )
 
     templates = _load_template_files()
     if templates:
@@ -534,14 +540,16 @@ def _handle_file_uploads_and_predict() -> None:
                         with st.spinner("Generating Excel report and SHAP analysis..."):
                             # Generate Excel report
                             excel_bytes = _call_predict_excel_api(
-                                st.session_state.last_payload, str(st.session_state.user_id)
+                                st.session_state.last_payload,
+                                str(st.session_state.user_id),
                             )
                             if excel_bytes:
                                 st.session_state.excel_report_bytes = excel_bytes
 
                             # Generate HTML SHAP report
                             html_bytes = _call_predict_shap_html_api(
-                                st.session_state.last_payload, str(st.session_state.user_id)
+                                st.session_state.last_payload,
+                                str(st.session_state.user_id),
                             )
                             if html_bytes:
                                 st.session_state.shap_html_bytes = html_bytes
@@ -624,7 +632,8 @@ def main() -> None:
         st.markdown("---")
         st.markdown("#### 💡 How to Choose Your Threshold")
         if st.session_state.threshold < 0.3:
-            st.info("""
+            st.info(
+                """
 **Low threshold (< 0.3)**: Maximizes detection of potential leavers.
 
 ✅ **Pros**: Catches almost all at-risk employees
@@ -632,9 +641,11 @@ def main() -> None:
 ⚠️ **Cons**: May flag many false positives (employees who will actually stay)
 
 🎯 **Best for**: Comprehensive retention programs with resources to engage more employees
-            """)
+            """
+            )
         elif st.session_state.threshold < 0.5:
-            st.info("""
+            st.info(
+                """
 **Moderate threshold (0.3 - 0.5)**: Balanced approach.
 
 ✅ **Pros**: Good balance between catching at-risk employees and precision
@@ -642,9 +653,11 @@ def main() -> None:
 ⚠️ **Cons**: May miss some lower-risk leavers
 
 🎯 **Best for**: Standard retention programs with moderate resources
-            """)
+            """
+            )
         else:
-            st.info("""
+            st.info(
+                """
 **High threshold (≥ 0.5)**: Focuses on highest-risk employees.
 
 ✅ **Pros**: High confidence in predicted leavers (fewer false alarms)
@@ -652,7 +665,8 @@ def main() -> None:
 ⚠️ **Cons**: May miss employees with moderate attrition risk
 
 🎯 **Best for**: Targeted retention programs focusing on critical talent
-            """)
+            """
+            )
 
     with col_right:
         # Confusion Matrix
@@ -664,7 +678,8 @@ def main() -> None:
         # Understanding the Confusion Matrix
         st.markdown("---")
         st.markdown("### 📊 Understanding the Confusion Matrix")
-        st.markdown("""
+        st.markdown(
+            """
         <div style='font-size: 1.05em; line-height: 1.7;'>
 
         The confusion matrix shows how well the model's predictions match actual outcomes:
@@ -676,7 +691,9 @@ def main() -> None:
         <li><strong style='color: #d63f3f;'>False Negatives (Predicted Stays / Actual Leaves)</strong>: Employees predicted to stay but actually left</li>
         </ul>
         </div>
-        """, unsafe_allow_html=True)
+        """,
+            unsafe_allow_html=True,
+        )
 
     # Upload and Prediction Section (Full Width)
     st.markdown("---")
@@ -684,7 +701,9 @@ def main() -> None:
 
     # Show downloadable template files
     st.markdown("### Template Files")
-    st.markdown("Download these template files to see the required format (first 10 lines):")
+    st.markdown(
+        "Download these template files to see the required format (first 10 lines):"
+    )
 
     templates = _load_template_files()
     if templates:
@@ -781,14 +800,16 @@ def main() -> None:
                         with st.spinner("Generating Excel report and SHAP analysis..."):
                             # Generate Excel report
                             excel_bytes = _call_predict_excel_api(
-                                st.session_state.last_payload, str(st.session_state.user_id)
+                                st.session_state.last_payload,
+                                str(st.session_state.user_id),
                             )
                             if excel_bytes:
                                 st.session_state.excel_report_bytes = excel_bytes
 
                             # Generate HTML SHAP report
                             html_bytes = _call_predict_shap_html_api(
-                                st.session_state.last_payload, str(st.session_state.user_id)
+                                st.session_state.last_payload,
+                                str(st.session_state.user_id),
                             )
                             if html_bytes:
                                 st.session_state.shap_html_bytes = html_bytes
@@ -859,14 +880,16 @@ def main() -> None:
 
                 st.markdown(
                     f'<a href="{html_data_url}" target="_blank" style="'
-                    'display: inline-block; padding: 0.5rem 1rem; '
-                    'background-color: #ff4b4b; color: white; '
-                    'text-decoration: none; border-radius: 0.25rem; '
-                    'font-weight: 500; text-align: center; width: 100%;'
+                    "display: inline-block; padding: 0.5rem 1rem; "
+                    "background-color: #ff4b4b; color: white; "
+                    "text-decoration: none; border-radius: 0.25rem; "
+                    "font-weight: 500; text-align: center; width: 100%;"
                     '">📈 Employee Risk Analysis in Detail</a>',
-                    unsafe_allow_html=True
+                    unsafe_allow_html=True,
                 )
-                st.info("💡 Tip: Copy the URL from the opened tab and paste it in a new browser tab to view the full report")
+                st.info(
+                    "💡 Tip: Copy the URL from the opened tab and paste it in a new browser tab to view the full report"
+                )
             else:
                 st.info("SHAP analysis is being generated...")
 

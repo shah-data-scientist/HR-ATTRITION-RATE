@@ -17,6 +17,7 @@ def client():
     os.environ["API_KEY"] = "test_api_key"
 
     from api.app.main import app
+
     return TestClient(app)
 
 
@@ -113,7 +114,9 @@ class TestMultipleScenarios:
             "sirh_data": employees,
             "sondage_data": employees,
         }
-        response = client.post("/predict_shap_images", headers=auth_headers, json=payload)
+        response = client.post(
+            "/predict_shap_images", headers=auth_headers, json=payload
+        )
         assert response.status_code in [200, 422, 500]
 
 
@@ -192,7 +195,9 @@ class TestSequentialCalls:
         assert response1.status_code in [200, 422, 500]
 
         # Then SHAP
-        response2 = client.post("/predict_shap_images", headers=auth_headers, json=payload)
+        response2 = client.post(
+            "/predict_shap_images", headers=auth_headers, json=payload
+        )
         assert response2.status_code in [200, 422, 500]
 
 

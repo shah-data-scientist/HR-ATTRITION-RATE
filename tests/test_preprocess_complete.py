@@ -11,10 +11,7 @@ class TestEnforceSchema:
         """Test that missing numeric columns are added with default value 0."""
         from core.preprocess import enforce_schema
 
-        df = pd.DataFrame({
-            "age": [30, 35],
-            "genre": [1, 0]
-        })
+        df = pd.DataFrame({"age": [30, 35], "genre": [1, 0]})
 
         result = enforce_schema(df)
 
@@ -26,10 +23,7 @@ class TestEnforceSchema:
         """Test that missing categorical columns are added with 'Unknown'."""
         from core.preprocess import enforce_schema
 
-        df = pd.DataFrame({
-            "age": [30, 35],
-            "revenu_mensuel": [5000, 6000]
-        })
+        df = pd.DataFrame({"age": [30, 35], "revenu_mensuel": [5000, 6000]})
 
         result = enforce_schema(df)
 
@@ -41,11 +35,7 @@ class TestEnforceSchema:
         """Test enforce_schema with custom feature order."""
         from core.preprocess import enforce_schema
 
-        df = pd.DataFrame({
-            "col1": [1, 2],
-            "col2": ["a", "b"],
-            "col3": [3.0, 4.0]
-        })
+        df = pd.DataFrame({"col1": [1, 2], "col2": ["a", "b"], "col3": [3.0, 4.0]})
 
         feature_order = ["col1", "col2", "col3"]
         result = enforce_schema(df, feature_order=feature_order)
@@ -63,9 +53,7 @@ class TestEnforceSchema:
         EXPECTED_DTYPES["test_col"] = "object"
 
         try:
-            df = pd.DataFrame({
-                "test_col": [1, 2, 3]
-            })
+            df = pd.DataFrame({"test_col": [1, 2, 3]})
 
             result = enforce_schema(df, feature_order=["test_col"])
 
@@ -85,9 +73,7 @@ class TestEnforceSchema:
         EXPECTED_DTYPES["test_col"] = "int64"
 
         try:
-            df = pd.DataFrame({
-                "test_col": ["10", "20", "30"]
-            })
+            df = pd.DataFrame({"test_col": ["10", "20", "30"]})
 
             result = enforce_schema(df, feature_order=["test_col"])
 
@@ -105,9 +91,7 @@ class TestEnforceSchema:
         EXPECTED_DTYPES["test_col"] = "Int64"
 
         try:
-            df = pd.DataFrame({
-                "test_col": ["10", "20", None]
-            })
+            df = pd.DataFrame({"test_col": ["10", "20", None]})
 
             result = enforce_schema(df, feature_order=["test_col"])
 
@@ -125,9 +109,7 @@ class TestEnforceSchema:
         EXPECTED_DTYPES["test_col"] = "float64"
 
         try:
-            df = pd.DataFrame({
-                "test_col": ["10.5", "20.3", "30.7"]
-            })
+            df = pd.DataFrame({"test_col": ["10.5", "20.3", "30.7"]})
 
             result = enforce_schema(df, feature_order=["test_col"])
 
@@ -145,9 +127,7 @@ class TestEnforceSchema:
         EXPECTED_DTYPES["test_col"] = None
 
         try:
-            df = pd.DataFrame({
-                "test_col": [1, 2, 3]
-            })
+            df = pd.DataFrame({"test_col": [1, 2, 3]})
 
             # Should not raise error, dtype with None value is skipped
             result = enforce_schema(df, feature_order=["test_col"])
@@ -160,11 +140,7 @@ class TestEnforceSchema:
         """Test that extra columns not in feature_order are removed."""
         from core.preprocess import enforce_schema
 
-        df = pd.DataFrame({
-            "col1": [1, 2],
-            "col2": [3, 4],
-            "extra_col": [5, 6]
-        })
+        df = pd.DataFrame({"col1": [1, 2], "col2": [3, 4], "extra_col": [5, 6]})
 
         result = enforce_schema(df, feature_order=["col1", "col2"])
 
@@ -183,9 +159,7 @@ class TestValidateInputRanges:
         # Use a column that exists in VALIDATION_RANGES
         if "age" in VALIDATION_RANGES:
             min_age, max_age = VALIDATION_RANGES["age"]
-            df = pd.DataFrame({
-                "age": [min_age, (min_age + max_age) // 2, max_age]
-            })
+            df = pd.DataFrame({"age": [min_age, (min_age + max_age) // 2, max_age]})
 
             warnings = validate_input_ranges(df)
 
@@ -198,9 +172,7 @@ class TestValidateInputRanges:
 
         if "age" in VALIDATION_RANGES:
             min_age, max_age = VALIDATION_RANGES["age"]
-            df = pd.DataFrame({
-                "age": [min_age - 10, min_age, max_age]
-            })
+            df = pd.DataFrame({"age": [min_age - 10, min_age, max_age]})
 
             warnings = validate_input_ranges(df)
 
@@ -214,9 +186,7 @@ class TestValidateInputRanges:
 
         if "age" in VALIDATION_RANGES:
             min_age, max_age = VALIDATION_RANGES["age"]
-            df = pd.DataFrame({
-                "age": [min_age, max_age, max_age + 10]
-            })
+            df = pd.DataFrame({"age": [min_age, max_age, max_age + 10]})
 
             warnings = validate_input_ranges(df)
 
@@ -233,9 +203,7 @@ class TestValidateInputRanges:
         VALIDATION_RANGES["test_col"] = (0, 100)
 
         try:
-            df = pd.DataFrame({
-                "test_col": ["a", "b", "c"]  # Non-numeric
-            })
+            df = pd.DataFrame({"test_col": ["a", "b", "c"]})  # Non-numeric
 
             warnings = validate_input_ranges(df)
 
@@ -249,9 +217,7 @@ class TestValidateInputRanges:
         """Test validation when column in VALIDATION_RANGES is not in dataframe."""
         from core.preprocess import validate_input_ranges
 
-        df = pd.DataFrame({
-            "some_other_column": [1, 2, 3]
-        })
+        df = pd.DataFrame({"some_other_column": [1, 2, 3]})
 
         # Should not raise error, just skip validation
         warnings = validate_input_ranges(df)

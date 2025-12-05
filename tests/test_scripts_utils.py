@@ -16,10 +16,12 @@ class TestCleanExtraitEval:
         """Test cleaning of augmentation_salaire_precedente column."""
         from scripts.utils import _clean_extrait_eval
 
-        df = pd.DataFrame({
-            "augmentation_salaire_precedente": ["5%", "10%", "15,5%"],
-            "id_employee": [1, 2, 3]
-        })
+        df = pd.DataFrame(
+            {
+                "augmentation_salaire_precedente": ["5%", "10%", "15,5%"],
+                "id_employee": [1, 2, 3],
+            }
+        )
 
         result = _clean_extrait_eval(df)
 
@@ -31,10 +33,12 @@ class TestCleanExtraitEval:
         """Test cleaning of heures_supplementaires with Oui/Non values."""
         from scripts.utils import _clean_extrait_eval
 
-        df = pd.DataFrame({
-            "heures_supplementaires": ["Oui", "Non", "oui", "non"],
-            "id_employee": [1, 2, 3, 4]
-        })
+        df = pd.DataFrame(
+            {
+                "heures_supplementaires": ["Oui", "Non", "oui", "non"],
+                "id_employee": [1, 2, 3, 4],
+            }
+        )
 
         result = _clean_extrait_eval(df)
 
@@ -47,10 +51,9 @@ class TestCleanExtraitEval:
         """Test cleaning of heures_supplementaires with boolean values."""
         from scripts.utils import _clean_extrait_eval
 
-        df = pd.DataFrame({
-            "heures_supplementaires": [True, False, True],
-            "id_employee": [1, 2, 3]
-        })
+        df = pd.DataFrame(
+            {"heures_supplementaires": [True, False, True], "id_employee": [1, 2, 3]}
+        )
 
         result = _clean_extrait_eval(df)
 
@@ -61,10 +64,9 @@ class TestCleanExtraitEval:
         """Test renaming of heure_supplementaires variant."""
         from scripts.utils import _clean_extrait_eval
 
-        df = pd.DataFrame({
-            "heure_supplementaires": ["Oui", "Non"],
-            "id_employee": [1, 2]
-        })
+        df = pd.DataFrame(
+            {"heure_supplementaires": ["Oui", "Non"], "id_employee": [1, 2]}
+        )
 
         result = _clean_extrait_eval(df)
 
@@ -75,9 +77,7 @@ class TestCleanExtraitEval:
         """Test conversion of eval_number to id_employee."""
         from scripts.utils import _clean_extrait_eval
 
-        df = pd.DataFrame({
-            "eval_number": ["E_100", "E_200", "E_300"]
-        })
+        df = pd.DataFrame({"eval_number": ["E_100", "E_200", "E_300"]})
 
         result = _clean_extrait_eval(df)
 
@@ -94,10 +94,7 @@ class TestCleanExtraitSirh:
         """Test cleaning of genre column with male values."""
         from scripts.utils import _clean_extrait_sirh
 
-        df = pd.DataFrame({
-            "genre": ["M", "m"],
-            "id_employee": [1, 2]
-        })
+        df = pd.DataFrame({"genre": ["M", "m"], "id_employee": [1, 2]})
 
         result = _clean_extrait_sirh(df)
 
@@ -108,10 +105,7 @@ class TestCleanExtraitSirh:
         """Test cleaning of genre column with female values."""
         from scripts.utils import _clean_extrait_sirh
 
-        df = pd.DataFrame({
-            "genre": ["F", "f"],
-            "id_employee": [1, 2]
-        })
+        df = pd.DataFrame({"genre": ["F", "f"], "id_employee": [1, 2]})
 
         result = _clean_extrait_sirh(df)
 
@@ -122,12 +116,14 @@ class TestCleanExtraitSirh:
         """Test dropping of unnecessary columns."""
         from scripts.utils import _clean_extrait_sirh
 
-        df = pd.DataFrame({
-            "genre": ["M", "F"],
-            "nombre_heures_travailless": [40, 35],
-            "...": ["test", "data"],
-            "id_employee": [1, 2]
-        })
+        df = pd.DataFrame(
+            {
+                "genre": ["M", "F"],
+                "nombre_heures_travailless": [40, 35],
+                "...": ["test", "data"],
+                "id_employee": [1, 2],
+            }
+        )
 
         result = _clean_extrait_sirh(df)
 
@@ -142,10 +138,7 @@ class TestCleanExtraitSondage:
         """Test renaming of code_sondage to id_employee."""
         from scripts.utils import _clean_extrait_sondage
 
-        df = pd.DataFrame({
-            "code_sondage": [100, 200, 300],
-            "satisfaction": [3, 4, 2]
-        })
+        df = pd.DataFrame({"code_sondage": [100, 200, 300], "satisfaction": [3, 4, 2]})
 
         result = _clean_extrait_sondage(df)
 
@@ -157,10 +150,9 @@ class TestCleanExtraitSondage:
         """Test conversion of id_employee to numeric."""
         from scripts.utils import _clean_extrait_sondage
 
-        df = pd.DataFrame({
-            "id_employee": ["100", "200", "300"],
-            "satisfaction": [3, 4, 2]
-        })
+        df = pd.DataFrame(
+            {"id_employee": ["100", "200", "300"], "satisfaction": [3, 4, 2]}
+        )
 
         result = _clean_extrait_sondage(df)
 
@@ -175,22 +167,19 @@ class TestLoadAndMergeData:
         """Test basic merging of three dataframes."""
         from scripts.utils import load_and_merge_data
 
-        eval_df = pd.DataFrame({
-            "eval_number": ["E_100", "E_200"],
-            "note_evaluation_actuelle": [3.5, 4.0],
-            "augmentation_salaire_precedente": ["5%", "10%"]
-        })
+        eval_df = pd.DataFrame(
+            {
+                "eval_number": ["E_100", "E_200"],
+                "note_evaluation_actuelle": [3.5, 4.0],
+                "augmentation_salaire_precedente": ["5%", "10%"],
+            }
+        )
 
-        sirh_df = pd.DataFrame({
-            "id_employee": [100, 200],
-            "genre": ["M", "F"],
-            "age": [30, 35]
-        })
+        sirh_df = pd.DataFrame(
+            {"id_employee": [100, 200], "genre": ["M", "F"], "age": [30, 35]}
+        )
 
-        sond_df = pd.DataFrame({
-            "code_sondage": [100, 200],
-            "satisfaction": [3, 4]
-        })
+        sond_df = pd.DataFrame({"code_sondage": [100, 200], "satisfaction": [3, 4]})
 
         result = load_and_merge_data(eval_df, sirh_df, sond_df)
 
@@ -203,20 +192,13 @@ class TestLoadAndMergeData:
         """Test merging with ayant_enfants column."""
         from scripts.utils import load_and_merge_data
 
-        eval_df = pd.DataFrame({
-            "id_employee": [100, 200],
-            "note_evaluation_actuelle": [3.5, 4.0]
-        })
+        eval_df = pd.DataFrame(
+            {"id_employee": [100, 200], "note_evaluation_actuelle": [3.5, 4.0]}
+        )
 
-        sirh_df = pd.DataFrame({
-            "id_employee": [100, 200],
-            "ayant_enfants": ["Y", "N"]
-        })
+        sirh_df = pd.DataFrame({"id_employee": [100, 200], "ayant_enfants": ["Y", "N"]})
 
-        sond_df = pd.DataFrame({
-            "id_employee": [100, 200],
-            "satisfaction": [3, 4]
-        })
+        sond_df = pd.DataFrame({"id_employee": [100, 200], "satisfaction": [3, 4]})
 
         result = load_and_merge_data(eval_df, sirh_df, sond_df)
 
@@ -227,20 +209,16 @@ class TestLoadAndMergeData:
         """Test handling of augementation_salaire_precedente (typo variant)."""
         from scripts.utils import load_and_merge_data
 
-        eval_df = pd.DataFrame({
-            "id_employee": [100, 200],
-            "augementation_salaire_precedente": ["5%", "10%"]
-        })
+        eval_df = pd.DataFrame(
+            {
+                "id_employee": [100, 200],
+                "augementation_salaire_precedente": ["5%", "10%"],
+            }
+        )
 
-        sirh_df = pd.DataFrame({
-            "id_employee": [100, 200],
-            "age": [30, 35]
-        })
+        sirh_df = pd.DataFrame({"id_employee": [100, 200], "age": [30, 35]})
 
-        sond_df = pd.DataFrame({
-            "id_employee": [100, 200],
-            "satisfaction": [3, 4]
-        })
+        sond_df = pd.DataFrame({"id_employee": [100, 200], "satisfaction": [3, 4]})
 
         result = load_and_merge_data(eval_df, sirh_df, sond_df)
 
@@ -251,20 +229,13 @@ class TestLoadAndMergeData:
         """Test that duplicates are dropped."""
         from scripts.utils import load_and_merge_data
 
-        eval_df = pd.DataFrame({
-            "id_employee": [100, 100],
-            "note_evaluation_actuelle": [3.5, 3.5]
-        })
+        eval_df = pd.DataFrame(
+            {"id_employee": [100, 100], "note_evaluation_actuelle": [3.5, 3.5]}
+        )
 
-        sirh_df = pd.DataFrame({
-            "id_employee": [100, 100],
-            "age": [30, 30]
-        })
+        sirh_df = pd.DataFrame({"id_employee": [100, 100], "age": [30, 30]})
 
-        sond_df = pd.DataFrame({
-            "id_employee": [100, 100],
-            "satisfaction": [3, 3]
-        })
+        sond_df = pd.DataFrame({"id_employee": [100, 100], "satisfaction": [3, 3]})
 
         result = load_and_merge_data(eval_df, sirh_df, sond_df)
 
@@ -279,11 +250,13 @@ class TestCleanAndEngineerFeatures:
         """Test calculation of improvement_evaluation feature."""
         from scripts.utils import clean_and_engineer_features
 
-        df = pd.DataFrame({
-            "id_employee": [100, 200],
-            "note_evaluation_actuelle": [4.0, 3.5],
-            "note_evaluation_precedente": [3.5, 4.0]
-        })
+        df = pd.DataFrame(
+            {
+                "id_employee": [100, 200],
+                "note_evaluation_actuelle": [4.0, 3.5],
+                "note_evaluation_precedente": [3.5, 4.0],
+            }
+        )
 
         result = clean_and_engineer_features(df)
 
@@ -295,12 +268,14 @@ class TestCleanAndEngineerFeatures:
         """Test calculation of total_satisfaction feature."""
         from scripts.utils import clean_and_engineer_features
 
-        df = pd.DataFrame({
-            "id_employee": [100, 200],
-            "satisfaction_employee_nature_travail": [3, 4],
-            "satisfaction_employee_equipe": [2, 3],
-            "satisfaction_employee_equilibre_pro_perso": [4, 2]
-        })
+        df = pd.DataFrame(
+            {
+                "id_employee": [100, 200],
+                "satisfaction_employee_nature_travail": [3, 4],
+                "satisfaction_employee_equipe": [2, 3],
+                "satisfaction_employee_equilibre_pro_perso": [4, 2],
+            }
+        )
 
         result = clean_and_engineer_features(df)
 
@@ -312,11 +287,13 @@ class TestCleanAndEngineerFeatures:
         """Test calculation of work_mobility feature."""
         from scripts.utils import clean_and_engineer_features
 
-        df = pd.DataFrame({
-            "id_employee": [100, 200, 300],
-            "annees_dans_le_poste_actuel": [2, 5, 0],
-            "annees_dans_l_entreprise": [4, 10, 0]
-        })
+        df = pd.DataFrame(
+            {
+                "id_employee": [100, 200, 300],
+                "annees_dans_le_poste_actuel": [2, 5, 0],
+                "annees_dans_l_entreprise": [4, 10, 0],
+            }
+        )
 
         result = clean_and_engineer_features(df)
 
@@ -329,10 +306,7 @@ class TestCleanAndEngineerFeatures:
         """Test when DataFrame doesn't have columns for feature engineering."""
         from scripts.utils import clean_and_engineer_features
 
-        df = pd.DataFrame({
-            "id_employee": [100, 200],
-            "age": [30, 35]
-        })
+        df = pd.DataFrame({"id_employee": [100, 200], "age": [30, 35]})
 
         result = clean_and_engineer_features(df)
 

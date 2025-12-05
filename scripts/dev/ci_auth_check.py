@@ -1,5 +1,6 @@
 import os
-os.environ['API_KEY'] = 'test_secure_api_key_for_testing'
+
+os.environ["API_KEY"] = "test_secure_api_key_for_testing"
 try:
     from api.auth import verify_password, get_password_hash, generate_api_key
 

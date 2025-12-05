@@ -475,23 +475,42 @@ git push hf main --force
 
 ## Local Testing
 
-Before deploying, test the Docker container locally to ensure everything works:
+### Automated Testing (Recommended)
+
+We provide a PowerShell script to automate the local testing process, including building the image, running the container with appropriate environment variables, and checking health endpoints.
+
+```powershell
+# Run the test script
+.\scripts\test-hf-local.ps1
+```
+
+This script will:
+1. Build the Docker image (`hr-attrition-hf:test`)
+2. Run the container with an in-memory SQLite database
+3. Expose the UI on port 7860 and API on port 8001
+4. Wait for services to start and verify health
+5. Show access URLs and credentials
+
+### Manual Testing
+
+If you prefer to run commands manually:
 
 ```powershell
 # Build the image (takes 3-5 minutes)
 docker build -f docker/Dockerfile.huggingface -t hr-attrition-hf:local .
 
 # Run the container
-docker run -d -p 7860:7860 --name test-hf hr-attrition-hf:local
+# Note: We expose port 8001 for API access from host
+docker run -d -p 7860:7860 -p 8001:8001 --name test-hf hr-attrition-hf:local
 
-# Wait for services to start (database init + service startup)
+# Wait for services to start (service startup)
 Start-Sleep -Seconds 40
 
 # Test the UI (should return HTML)
 curl http://localhost:7860
 
-# Test the API health endpoint (from inside container)
-docker exec test-hf curl http://localhost:8001/health
+# Test the API health endpoint (from host)
+curl http://localhost:8001/health
 
 # Check both services are running
 docker exec test-hf supervisorctl status

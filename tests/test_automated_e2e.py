@@ -9,19 +9,20 @@ from pathlib import Path
 
 import pandas as pd
 import pytest
-import httpx
+from fastapi.testclient import TestClient
+from api.app.main import app
 
 
 # Test configuration
-API_BASE_URL = os.environ.get("API_BASE_URL", "http://localhost:8001")
 DATA_DIR = Path(__file__).parent.parent / "data"
 TIMEOUT = 120.0
 
 
 @pytest.fixture(scope="module")
-def api_client():
-    """Create HTTP client for API testing."""
-    return httpx.Client(base_url=API_BASE_URL, timeout=TIMEOUT)
+def api_client(api_headers):
+    """Create TestClient for API testing with authentication headers."""
+    with TestClient(app, headers=api_headers) as test_client:
+        yield test_client
 
 
 @pytest.fixture(scope="module")
@@ -152,7 +153,7 @@ class TestDataUploadAndPrediction:
             "sondage_data": sondage_data,
         }
 
-        response = api_client.post("/predict", json=payload)
+        response = api_client.post("/predict_report", json=payload)
         result = response.json()
         prediction = result["predictions"][0]
 
@@ -291,26 +292,25 @@ class TestErrorHandling:
             assert "predictions" in result
             print("✓ API handles empty dataset gracefully")
 
+    def test_summary(api_client, test_data):
+        """Generate a comprehensive test summary."""
+        print("\n" + "=" * 70)
+        print("AUTOMATED TEST SUITE SUMMARY")
+        print("=" * 70)
 
-def test_summary(api_client, test_data):
-    """Generate a comprehensive test summary."""
-    print("\n" + "=" * 70)
-    print("AUTOMATED TEST SUITE SUMMARY")
-    print("=" * 70)
+        # Get data counts
+        eval_count = len(test_data["eval"])
+        sirh_count = len(test_data["sirh"])
+        sondage_count = len(test_data["sondage"])
 
-    # Get data counts
-    eval_count = len(test_data["eval"])
-    sirh_count = len(test_data["sirh"])
-    sondage_count = len(test_data["sondage"])
+        print(f"\nTest Data:")
+        print(f"  Eval records: {eval_count}")
+        print(f"  SIRH records: {sirh_count}")
+        print(f"  Sondage records: {sondage_count}")
 
-    print(f"\nTest Data:")
-    print(f"  Eval records: {eval_count}")
-    print(f"  SIRH records: {sirh_count}")
-    print(f"  Sondage records: {sondage_count}")
-
-    print(f"\nAPI Configuration:")
-    print(f"  Base URL: {API_BASE_URL}")
-    print(f"  Timeout: {TIMEOUT}s")
+        print(f"\nAPI Configuration:")
+        # Removed: print(f"  Base URL: {API_BASE_URL}")
+        print(f"  Timeout: {TIMEOUT}s")
 
     print(f"\nData Location:")
     print(f"  {DATA_DIR}")

@@ -6,7 +6,7 @@ Run without starting Streamlit to quickly validate:
  - Risk categorization function behavior
 
 Usage (PowerShell):
-  poetry run python scripts/quick_ui_diagnostics.py --threshold 0.2876
+  poetry run python scripts/dev/quick_ui_diagnostics.py --threshold 0.2876
 
 Will exit with non‑zero code if critical artifacts are missing.
 """
@@ -22,14 +22,17 @@ import numpy as np
 
 
 def project_root() -> str:
-    return os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    # Go up two levels: scripts/dev/ -> scripts/ -> root
+    return os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 
 
 def load_artifacts(root: str):
     model_path = os.path.join(root, "outputs", "employee_attrition_pipeline.pkl")
     x_test_path = os.path.join(root, "outputs", "X_test.parquet")
     y_test_path = os.path.join(root, "outputs", "y_test.parquet")
-    missing = [p for p in [model_path, x_test_path, y_test_path] if not os.path.exists(p)]
+    missing = [
+        p for p in [model_path, x_test_path, y_test_path] if not os.path.exists(p)
+    ]
     if missing:
         raise FileNotFoundError(f"Missing artifact(s): {', '.join(missing)}")
     model = joblib.load(model_path)
@@ -68,10 +71,26 @@ def compute_confusion(model, X_test, y_raw, tau: float):
         y_labels = y_labels.iloc[:min_len]
     probs = model.predict_proba(X_aligned)[:, 1]
     preds = np.where(probs >= tau, "Leave", "Stay")
-    TP = int(((y_labels == "Leave") & (pd.Series(preds, index=y_labels.index) == "Leave")).sum())
-    FP = int(((y_labels == "Stay") & (pd.Series(preds, index=y_labels.index) == "Leave")).sum())
-    TN = int(((y_labels == "Stay") & (pd.Series(preds, index=y_labels.index) == "Stay")).sum())
-    FN = int(((y_labels == "Leave") & (pd.Series(preds, index=y_labels.index) == "Stay")).sum())
+    TP = int(
+        (
+            (y_labels == "Leave") & (pd.Series(preds, index=y_labels.index) == "Leave")
+        ).sum()
+    )
+    FP = int(
+        (
+            (y_labels == "Stay") & (pd.Series(preds, index=y_labels.index) == "Leave")
+        ).sum()
+    )
+    TN = int(
+        (
+            (y_labels == "Stay") & (pd.Series(preds, index=y_labels.index) == "Stay")
+        ).sum()
+    )
+    FN = int(
+        (
+            (y_labels == "Leave") & (pd.Series(preds, index=y_labels.index) == "Stay")
+        ).sum()
+    )
     return TP, FP, TN, FN, probs
 
 
@@ -89,7 +108,9 @@ def risk_category_dyn(prob: float, threshold: float = 0.5) -> str:
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--threshold", "-t", type=float, default=0.2876, help="Decision threshold τ")
+    parser.add_argument(
+        "--threshold", "-t", type=float, default=0.2876, help="Decision threshold τ"
+    )
     args = parser.parse_args()
 
     root = project_root()

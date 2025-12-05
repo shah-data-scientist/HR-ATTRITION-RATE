@@ -242,7 +242,8 @@ poetry lock --no-update
   - `app.py`: Main UI application
 
 - **`tests/`**: Test suite
-- **`scripts/`**: Utility scripts
+- **`scripts/`**: Production utility scripts
+- **`scripts/dev/`**: Development and debugging scripts
 - **`data/`**: Sample data files
 - **`outputs/`**: Model artifacts
 

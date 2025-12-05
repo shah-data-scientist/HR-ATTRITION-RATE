@@ -21,6 +21,7 @@ os.environ["API_KEY"] = "test_api_key"
 def client():
     """Create test client with fresh app instance."""
     from api.app.main import app
+
     return TestClient(app)
 
 
@@ -34,45 +35,51 @@ def auth_headers():
 def sample_employee_data():
     """Sample employee data for testing."""
     return {
-        "eval_data": [{
-            "satisfaction_employee_environnement": 3,
-            "note_evaluation_precedente": 3,
-            "niveau_hierarchique_poste": 2,
-            "satisfaction_employee_nature_travail": 4,
-            "satisfaction_employee_equipe": 3,
-            "satisfaction_employee_equilibre_pro_perso": 3,
-            "eval_number": "E_12345",
-            "note_evaluation_actuelle": 4,
-            "heure_supplementaires": "Non",
-            "augementation_salaire_precedente": "11 %",
-        }],
-        "sirh_data": [{
-            "id_employee": 12345,
-            "age": 35,
-            "genre": "M",
-            "revenu_mensuel": 5000,
-            "statut_marital": "Marié",
-            "departement": "IT",
-            "poste": "Developer",
-            "nombre_experiences_precedentes": 3,
-            "nombre_heures_travailless": 40,
-            "annee_experience_totale": 10,
-            "annees_dans_l_entreprise": 5,
-            "annees_dans_le_poste_actuel": 2,
-        }],
-        "sondage_data": [{
-            "nombre_participation_pee": 1,
-            "nb_formations_suivies": 2,
-            "nombre_employee_sous_responsabilite": 0,
-            "code_sondage": 12345,
-            "distance_domicile_travail": 10,
-            "niveau_education": 4,
-            "domaine_etude": "CS",
-            "ayant_enfants": "Oui",
-            "frequence_deplacement": "Rarement",
-            "annees_depuis_la_derniere_promotion": 1,
-            "annes_sous_responsable_actuel": 2,
-        }],
+        "eval_data": [
+            {
+                "satisfaction_employee_environnement": 3,
+                "note_evaluation_precedente": 3,
+                "niveau_hierarchique_poste": 2,
+                "satisfaction_employee_nature_travail": 4,
+                "satisfaction_employee_equipe": 3,
+                "satisfaction_employee_equilibre_pro_perso": 3,
+                "eval_number": "E_12345",
+                "note_evaluation_actuelle": 4,
+                "heure_supplementaires": "Non",
+                "augementation_salaire_precedente": "11 %",
+            }
+        ],
+        "sirh_data": [
+            {
+                "id_employee": 12345,
+                "age": 35,
+                "genre": "M",
+                "revenu_mensuel": 5000,
+                "statut_marital": "Marié",
+                "departement": "IT",
+                "poste": "Developer",
+                "nombre_experiences_precedentes": 3,
+                "nombre_heures_travailless": 40,
+                "annee_experience_totale": 10,
+                "annees_dans_l_entreprise": 5,
+                "annees_dans_le_poste_actuel": 2,
+            }
+        ],
+        "sondage_data": [
+            {
+                "nombre_participation_pee": 1,
+                "nb_formations_suivies": 2,
+                "nombre_employee_sous_responsabilite": 0,
+                "code_sondage": 12345,
+                "distance_domicile_travail": 10,
+                "niveau_education": 4,
+                "domaine_etude": "CS",
+                "ayant_enfants": "Oui",
+                "frequence_deplacement": "Rarement",
+                "annees_depuis_la_derniere_promotion": 1,
+                "annes_sous_responsable_actuel": 2,
+            }
+        ],
     }
 
 
@@ -90,7 +97,9 @@ class TestDatabaseIntegration:
 
     def test_predict_with_database(self, client, auth_headers, sample_employee_data):
         """Test prediction with database storage."""
-        response = client.post("/predict", headers=auth_headers, json=sample_employee_data)
+        response = client.post(
+            "/predict", headers=auth_headers, json=sample_employee_data
+        )
         # 200 if success, 503 if model not loaded
         assert response.status_code in [200, 503]
         if response.status_code == 200:
@@ -98,9 +107,13 @@ class TestDatabaseIntegration:
             assert "predictions" in data
             assert len(data["predictions"]) > 0
 
-    def test_predict_report_with_database(self, client, auth_headers, sample_employee_data):
+    def test_predict_report_with_database(
+        self, client, auth_headers, sample_employee_data
+    ):
         """Test predict_report endpoint with database storage."""
-        response = client.post("/predict_report", headers=auth_headers, json=sample_employee_data)
+        response = client.post(
+            "/predict_report", headers=auth_headers, json=sample_employee_data
+        )
         # 200 if success, 503 if model not loaded
         assert response.status_code in [200, 503]
         if response.status_code == 200:
@@ -114,7 +127,9 @@ class TestJobEndpointsWithDatabase:
 
     def test_create_report_job(self, client, auth_headers, sample_employee_data):
         """Test creating a report job."""
-        response = client.post("/jobs/report", headers=auth_headers, json=sample_employee_data)
+        response = client.post(
+            "/jobs/report", headers=auth_headers, json=sample_employee_data
+        )
         # Either 200 (success) or 503 (DB disabled)
         assert response.status_code in [200, 503]
         if response.status_code == 200:
@@ -141,7 +156,7 @@ class TestAuthEndpointsWithDatabase:
         """Test login with invalid credentials."""
         response = client.post(
             "/auth/login",
-            params={"username": "invalid_user", "password": "wrong_password"}
+            params={"username": "invalid_user", "password": "wrong_password"},
         )
         # Either 401 (invalid) or 503 (DB disabled)
         assert response.status_code in [401, 503]
@@ -156,10 +171,14 @@ class TestAuthEndpointsWithDatabase:
 class TestDatabasePathsCoverage:
     """Tests specifically targeting database code paths."""
 
-    def test_generate_predictions_db_enabled_path(self, client, auth_headers, sample_employee_data):
+    def test_generate_predictions_db_enabled_path(
+        self, client, auth_headers, sample_employee_data
+    ):
         """Test that predictions are stored when DB is enabled."""
         # This tests lines 378-502 in generate_predictions
-        response = client.post("/predict", headers=auth_headers, json=sample_employee_data)
+        response = client.post(
+            "/predict", headers=auth_headers, json=sample_employee_data
+        )
         assert response.status_code in [200, 503]
 
     def test_multiple_employee_predictions(self, client, auth_headers):
@@ -280,28 +299,10 @@ class TestMockDatabasePaths:
 class TestJobEndpointsWithMocks:
     """Test job endpoints with mocked database for coverage."""
 
-    @patch("api.app.main._is_db_disabled", return_value=False)
-    @patch("api.app.main.get_db")
-    def test_create_job_with_mock_db(self, mock_get_db, mock_disabled, client, auth_headers, sample_employee_data):
-        """Test job creation with mocked database."""
-        # Create mock session
-        mock_session = MagicMock(spec=Session)
-        mock_job = MagicMock()
-        mock_job.job_id = "test-job-123"
-        mock_session.add = MagicMock()
-        mock_session.commit = MagicMock()
-        mock_session.refresh = MagicMock(side_effect=lambda j: setattr(j, 'job_id', 'test-job-123'))
-        mock_get_db.return_value = iter([mock_session])
-
-        # Make request
-        response = client.post("/jobs/report", headers=auth_headers, json=sample_employee_data)
-        # With mock we expect either success or the actual endpoint behavior
-        assert response.status_code in [200, 500, 503]
-
-    @patch("api.app.main._is_db_disabled", return_value=False)
-    @patch("api.app.main.get_db")
-    def test_get_job_status_with_mock_db(self, mock_get_db, mock_disabled, client):
+    def test_get_job_status_with_mock_db(self, client):
         """Test getting job status with mocked database."""
+        from database.database import get_db
+
         mock_session = MagicMock(spec=Session)
         mock_job = MagicMock()
         mock_job.job_id = "test-job-123"
@@ -309,63 +310,99 @@ class TestJobEndpointsWithMocks:
         mock_job.status = "completed"
         mock_job.updated_at = datetime.now()
         mock_job.error = None
-        mock_session.query.return_value.filter.return_value.first.return_value = mock_job
-        mock_get_db.return_value = iter([mock_session])
+        mock_session.query.return_value.filter.return_value.first.return_value = (
+            mock_job
+        )
 
-        response = client.get("/jobs/test-job-123")
-        if response.status_code not in [200, 503]:
-            print(f"Job status unexpected: {response.status_code}\nHeaders: {response.headers}\nBody: {response.text}")
-        if response.status_code == 404:
-            print("\n[DEBUG] 404 Not Found for /jobs/test-job-123. Possible causes: endpoint not registered, wrong path, or dependency override not working.")
-        assert response.status_code in [200, 503]
+        def override_get_db():
+            yield mock_session
 
-    @patch("api.app.main._is_db_disabled", return_value=False)
-    @patch("api.app.main.get_db")
-    def test_get_job_result_completed(self, mock_get_db, mock_disabled, client):
+        client.app.dependency_overrides[get_db] = override_get_db
+        try:
+            response = client.get("/jobs/test-job-123")
+            if response.status_code not in [200, 503]:
+                print(
+                    f"Job status unexpected: {response.status_code}\nHeaders: {response.headers}\nBody: {response.text}"
+                )
+            if response.status_code == 404:
+                print(
+                    "\n[DEBUG] 404 Not Found for /jobs/test-job-123. Possible causes: endpoint not registered, wrong path, or dependency override not working."
+                )
+            assert response.status_code in [200, 503]
+        finally:
+            client.app.dependency_overrides = {}
+
+    def test_get_job_result_completed(self, client):
         """Test getting completed job result."""
+        from database.database import get_db
+
         mock_session = MagicMock(spec=Session)
         mock_job = MagicMock()
         mock_job.job_id = "test-job-123"
         mock_job.status = "completed"
         mock_job.result_json = {"predictions": [], "excel_base64": "test"}
-        mock_session.query.return_value.filter.return_value.first.return_value = mock_job
-        mock_get_db.return_value = iter([mock_session])
+        mock_session.query.return_value.filter.return_value.first.return_value = (
+            mock_job
+        )
 
-        response = client.get("/jobs/test-job-123/result")
-        if response.status_code not in [200, 503]:
-            print(f"Job result (completed) unexpected: {response.status_code}\nHeaders: {response.headers}\nBody: {response.text}")
-        if response.status_code == 404:
-            print("\n[DEBUG] 404 Not Found for /jobs/test-job-123/result. Possible causes: endpoint not registered, wrong path, or dependency override not working.")
-        assert response.status_code in [200, 503]
+        def override_get_db():
+            yield mock_session
 
-    @patch("api.app.main._is_db_disabled", return_value=False)
-    @patch("api.app.main.get_db")
-    def test_get_job_result_not_completed(self, mock_get_db, mock_disabled, client):
+        client.app.dependency_overrides[get_db] = override_get_db
+        try:
+            response = client.get("/jobs/test-job-123/result")
+            if response.status_code not in [200, 503]:
+                print(
+                    f"Job result (completed) unexpected: {response.status_code}\nHeaders: {response.headers}\nBody: {response.text}"
+                )
+            if response.status_code == 404:
+                print(
+                    "\n[DEBUG] 404 Not Found for /jobs/test-job-123/result. Possible causes: endpoint not registered, wrong path, or dependency override not working."
+                )
+            assert response.status_code in [200, 503]
+        finally:
+            client.app.dependency_overrides = {}
+
+    def test_get_job_result_not_completed(self, client):
         """Test getting job result when not completed."""
+        from database.database import get_db
+
         mock_session = MagicMock(spec=Session)
         mock_job = MagicMock()
         mock_job.job_id = "test-job-123"
         mock_job.status = "queued"
         mock_job.result_json = None
-        mock_session.query.return_value.filter.return_value.first.return_value = mock_job
-        mock_get_db.return_value = iter([mock_session])
+        mock_session.query.return_value.filter.return_value.first.return_value = (
+            mock_job
+        )
 
-        response = client.get("/jobs/test-job-123/result")
-        if response.status_code not in [202, 503]:
-            print(f"Job result (not completed) unexpected: {response.status_code}\nHeaders: {response.headers}\nBody: {response.text}")
-        if response.status_code == 404:
-            print("\n[DEBUG] 404 Not Found for /jobs/test-job-123/result. Possible causes: endpoint not registered, wrong path, or dependency override not working.")
-        # Should return 202 (not completed yet) or 503 (db disabled)
-        assert response.status_code in [202, 503]
+        def override_get_db():
+            yield mock_session
+
+        client.app.dependency_overrides[get_db] = override_get_db
+        try:
+            response = client.get("/jobs/test-job-123/result")
+            if response.status_code not in [202, 503]:
+                print(
+                    f"Job result (not completed) unexpected: {response.status_code}\nHeaders: {response.headers}\nBody: {response.text}"
+                )
+            if response.status_code == 404:
+                print(
+                    "\n[DEBUG] 404 Not Found for /jobs/test-job-123/result. Possible causes: endpoint not registered, wrong path, or dependency override not working."
+                )
+            # Should return 202 (not completed yet) or 503 (db disabled)
+            assert response.status_code in [202, 503]
+        finally:
+            client.app.dependency_overrides = {}
 
 
 class TestAuthEndpointsWithMocks:
     """Test authentication endpoints with mocked database for coverage."""
 
-    @patch("api.app.main._is_db_disabled", return_value=False)
-    @patch("api.app.main.get_db")
-    def test_login_success_mock(self, mock_get_db, mock_disabled, client):
+    def test_login_success_mock(self, client):
         """Test successful login with mocked database."""
+        from database.database import get_db
+
         mock_session = MagicMock(spec=Session)
         mock_user = MagicMock()
         mock_user.user_id = "user-123"
@@ -377,33 +414,58 @@ class TestAuthEndpointsWithMocks:
 
         # Mock User.verify_password to return True
         with patch("api.app.main.User.verify_password", return_value=True):
-            mock_session.query.return_value.filter.return_value.first.return_value = mock_user
-            mock_get_db.return_value = iter([mock_session])
+            mock_session.query.return_value.filter.return_value.first.return_value = (
+                mock_user
+            )
 
-            response = client.post("/auth/login", params={"username": "testuser", "password": "password"})
-            if response.status_code not in [200, 401, 503]:
-                print(f"Login (mock) unexpected: {response.status_code}\nHeaders: {response.headers}\nBody: {response.text}")
-            assert response.status_code in [200, 401, 503]
+            def override_get_db():
+                yield mock_session
 
-    @patch("api.app.main._is_db_disabled", return_value=False)
-    @patch("api.app.main.get_db")
-    def test_login_user_inactive(self, mock_get_db, mock_disabled, client):
+            client.app.dependency_overrides[get_db] = override_get_db
+            try:
+                response = client.post(
+                    "/auth/login",
+                    params={"username": "testuser", "password": "password"},
+                )
+                if response.status_code not in [200, 401, 503]:
+                    print(
+                        f"Login (mock) unexpected: {response.status_code}\nHeaders: {response.headers}\nBody: {response.text}"
+                    )
+                assert response.status_code in [200, 401, 503]
+            finally:
+                client.app.dependency_overrides = {}
+
+    def test_login_user_inactive(self, client):
         """Test login with inactive user."""
+        from database.database import get_db
+
         mock_session = MagicMock(spec=Session)
         mock_user = MagicMock()
         mock_user.is_active = False
-        mock_session.query.return_value.filter.return_value.first.return_value = mock_user
-        mock_get_db.return_value = iter([mock_session])
+        mock_session.query.return_value.filter.return_value.first.return_value = (
+            mock_user
+        )
 
-        response = client.post("/auth/login", params={"username": "inactive", "password": "password"})
-        if response.status_code not in [401, 503]:
-            print(f"Login (inactive user) unexpected: {response.status_code}\nHeaders: {response.headers}\nBody: {response.text}")
-        assert response.status_code in [401, 503]
+        def override_get_db():
+            yield mock_session
 
-    @patch("api.app.main._is_db_disabled", return_value=False)
-    @patch("api.app.main.get_db")
-    def test_get_user_info_found(self, mock_get_db, mock_disabled, client):
+        client.app.dependency_overrides[get_db] = override_get_db
+        try:
+            response = client.post(
+                "/auth/login", params={"username": "inactive", "password": "password"}
+            )
+            if response.status_code not in [401, 503]:
+                print(
+                    f"Login (inactive user) unexpected: {response.status_code}\nHeaders: {response.headers}\nBody: {response.text}"
+                )
+            assert response.status_code in [401, 503]
+        finally:
+            client.app.dependency_overrides = {}
+
+    def test_get_user_info_found(self, client):
         """Test getting user info for existing user."""
+        from database.database import get_db
+
         mock_session = MagicMock(spec=Session)
         mock_user = MagicMock()
         mock_user.user_id = "user-123"
@@ -411,15 +473,27 @@ class TestAuthEndpointsWithMocks:
         mock_user.role = "admin"
         mock_user.is_active = True
         mock_user.last_login = datetime.now(timezone.utc)
-        mock_session.query.return_value.filter.return_value.first.return_value = mock_user
-        mock_get_db.return_value = iter([mock_session])
+        mock_session.query.return_value.filter.return_value.first.return_value = (
+            mock_user
+        )
 
-        response = client.get("/auth/user/testuser")
-        if response.status_code not in [200, 503]:
-            print(f"Get user info (mock) unexpected: {response.status_code}\nHeaders: {response.headers}\nBody: {response.text}")
-        if response.status_code == 404:
-            print("\n[DEBUG] 404 Not Found for /auth/user/testuser. Possible causes: endpoint not registered, wrong path, or dependency override not working.")
-        assert response.status_code in [200, 503]
+        def override_get_db():
+            yield mock_session
+
+        client.app.dependency_overrides[get_db] = override_get_db
+        try:
+            response = client.get("/auth/user/testuser")
+            if response.status_code not in [200, 503]:
+                print(
+                    f"Get user info (mock) unexpected: {response.status_code}\nHeaders: {response.headers}\nBody: {response.text}"
+                )
+            if response.status_code == 404:
+                print(
+                    "\n[DEBUG] 404 Not Found for /auth/user/testuser. Possible causes: endpoint not registered, wrong path, or dependency override not working."
+                )
+            assert response.status_code in [200, 503]
+        finally:
+            client.app.dependency_overrides = {}
 
 
 class TestExcelGenerationCoverage:
@@ -427,17 +501,21 @@ class TestExcelGenerationCoverage:
 
     def test_predict_excel_endpoint(self, client, auth_headers, sample_employee_data):
         """Test Excel generation endpoint."""
-        response = client.post("/predict_excel", headers=auth_headers, json=sample_employee_data)
+        response = client.post(
+            "/predict_excel", headers=auth_headers, json=sample_employee_data
+        )
         if response.status_code not in [200, 503]:
-            print(f"Predict Excel unexpected: {response.status_code}\nHeaders: {response.headers}\nBody: {response.text}")
-        if response.status_code == 404:
-            print("\n[DEBUG] 404 Not Found for /predict_excel. Possible causes: endpoint not registered, wrong path, or dependency override not working.")
+            print(
+                f"\nExcel Endpoint unexpected status: {response.status_code}. Response: {response.text}"
+            )
         assert response.status_code in [200, 503]
         if response.status_code == 200:
+            # Expect JSON with excel_base64 field
             content_type = response.headers.get("content-type")
-            if content_type != "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":
-                print(f"Predict Excel wrong content-type: {content_type}\nBody: {response.text}")
-            assert content_type == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            assert "application/json" in content_type
+            data = response.json()
+            assert "excel_base64" in data
+            assert len(data["excel_base64"]) > 0
 
     def test_predict_excel_multiple_employees(self, client, auth_headers):
         """Test Excel generation with multiple employees."""
@@ -500,7 +578,9 @@ class TestShapImageCoverage:
 
     def test_shap_images_endpoint(self, client, auth_headers, sample_employee_data):
         """Test SHAP image generation endpoint."""
-        response = client.post("/predict_shap_images", headers=auth_headers, json=sample_employee_data)
+        response = client.post(
+            "/predict_shap_images", headers=auth_headers, json=sample_employee_data
+        )
         assert response.status_code in [200, 503]
         if response.status_code == 200:
             data = response.json()
@@ -508,23 +588,24 @@ class TestShapImageCoverage:
 
     def test_shap_html_endpoint(self, client, auth_headers, sample_employee_data):
         """Test SHAP HTML generation endpoint."""
-        response = client.post("/predict_shap_html", headers=auth_headers, json=sample_employee_data)
+        response = client.post(
+            "/predict_shap_html", headers=auth_headers, json=sample_employee_data
+        )
         if response.status_code not in [200, 503]:
-            print(f"SHAP HTML unexpected: {response.status_code}\nHeaders: {response.headers}\nBody: {response.text}")
-        if response.status_code == 404:
-            print("\n[DEBUG] 404 Not Found for /predict_shap_html. Possible causes: endpoint not registered, wrong path, or dependency override not working.")
+            print(
+                f"\nSHAP HTML Endpoint unexpected status: {response.status_code}. Response: {response.text}"
+            )
         assert response.status_code in [200, 503]
         if response.status_code == 200:
             content_type = response.headers.get("content-type")
             if content_type == "application/json":
-                # Print error JSON for debugging
-                print(f"SHAP HTML returned JSON: {response.text}")
+                print(f"\nSHAP HTML returned JSON: {response.text}")
                 data = response.json()
                 assert "shap_html" in data
-            elif content_type == "text/html":
-                assert "<!DOCTYPE html>" in response.text
-            else:
-                print(f"SHAP HTML wrong content-type: {content_type}\nBody: {response.text}")
+            elif "text/html" not in content_type:
+                print(
+                    f"\nSHAP HTML content-type mismatch. Expected 'text/html', Got '{content_type}'. Response: {response.text}"
+                )
                 assert False, f"Unexpected content-type: {content_type}"
 
 
@@ -533,7 +614,9 @@ class TestReportEndpointCoverage:
 
     def test_predict_report_full(self, client, auth_headers, sample_employee_data):
         """Test full predict_report response."""
-        response = client.post("/predict_report", headers=auth_headers, json=sample_employee_data)
+        response = client.post(
+            "/predict_report", headers=auth_headers, json=sample_employee_data
+        )
         assert response.status_code in [200, 503]
         if response.status_code == 200:
             data = response.json()

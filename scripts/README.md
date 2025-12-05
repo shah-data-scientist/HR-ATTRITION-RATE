@@ -28,7 +28,43 @@ Starts the Streamlit UI on port 8501.
 scripts\start-ui.bat
 ```
 
-## Utility Scripts
+### `start-api-nodb.bat`
+Starts the API without a database connection (useful for lightweight testing or huggingface-like environments).
+
+**Usage:**
+```cmd
+scripts\start-api-nodb.bat
+```
+
+## Service Scripts
+
+### `worker.py`
+The background worker process that handles asynchronous tasks like report generation.
+
+**Usage:**
+```bash
+poetry run python scripts/worker.py
+```
+
+## Database Scripts
+
+### `create_tables.py`
+Creates necessary database tables based on the SQLAlchemy models.
+
+**Usage:**
+```bash
+poetry run python scripts/create_tables.py
+```
+
+### `migrate_db.py`
+Handles database schema migrations, such as adding new columns or tables.
+
+**Usage:**
+```bash
+poetry run python scripts/migrate_db.py
+```
+
+## Data & Testing Scripts
 
 ### `utils.py`
 Common utility functions for data loading and merging. Used by `database/init_db.py` and other scripts.
@@ -44,6 +80,18 @@ Generates synthetic employee data for testing purposes.
 ```bash
 poetry run python scripts/create_synthetic_data.py
 ```
+
+### `test-hf-local.ps1`
+PowerShell script to simulate Hugging Face deployment locally.
+
+**Usage:**
+```powershell
+.\scripts\test-hf-local.ps1
+```
+
+## Development Scripts
+
+The `scripts/dev/` directory contains scripts used primarily for debugging, diagnostics, and ad-hoc testing. See [scripts/dev/README.md](dev/README.md) for details.
 
 ## Notes
 
