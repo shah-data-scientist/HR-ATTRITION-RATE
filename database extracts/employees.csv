@@ -1,0 +1,101 @@
+id_employee,age,genre,revenu_mensuel,statut_marital,departement,poste,nombre_experiences_precedentes,annee_experience_totale,annees_dans_l_entreprise,annees_dans_le_poste_actuel,nombre_participation_pee,nb_formations_suivies,nombre_employee_sous_responsabilite,distance_domicile_travail,niveau_education,domaine_etude,ayant_enfants,frequence_deplacement,annees_depuis_la_derniere_promotion,annes_sous_responsable_actuel,satisfaction_employee_environnement,note_evaluation_precedente,niveau_hierarchique_poste,satisfaction_employee_nature_travail,satisfaction_employee_equipe,satisfaction_employee_equilibre_pro_perso,note_evaluation_actuelle,heures_supplementaires,augmentation_salaire_precedente,augementation_salaire_precedente,nombre_heures_travailless,improvement_evaluation,total_satisfaction,work_mobility,user_id,date_ingestion
+99999,35,M,6000.0,Marié,R&D,Développeur,2,10,5.0,3.0,1,2,0,15,3,Informatique,Oui,Rarement,2,2,3.0,3.0,2.0,4.0,3.0,3.0,4.0,,,7 %,150.0,,,,demo1,2025-12-05 18:46:37.432181+00:00
+99004,35,M,6000.0,Marié,R&D,Développeur,2,10,5.0,3.0,1,2,0,15,3,Informatique,Oui,Rarement,2,2,3.0,3.0,2.0,4.0,3.0,3.0,4.0,,,7 %,150.0,,,,demo1,2025-12-05 18:46:34.326639+00:00
+99003,35,M,6000.0,Marié,R&D,Développeur,2,10,5.0,3.0,1,2,0,15,3,Informatique,Oui,Rarement,2,2,3.0,3.0,2.0,4.0,3.0,3.0,4.0,,,7 %,150.0,,,,demo1,2025-12-05 18:46:35.928093+00:00
+99002,35,M,6000.0,Marié,R&D,Développeur,2,10,5.0,3.0,1,2,0,15,3,Informatique,Oui,Rarement,2,2,3.0,3.0,2.0,4.0,3.0,3.0,4.0,,,7 %,150.0,,,,demo1,2025-12-05 18:46:35.904890+00:00
+99001,35,M,6000.0,Marié,R&D,Développeur,2,10,5.0,3.0,1,2,0,15,3,Informatique,Oui,Rarement,2,2,3.0,3.0,2.0,4.0,3.0,3.0,4.0,,,7 %,150.0,,,,demo1,2025-12-05 18:46:37.612449+00:00
+21348,33,F,2909.0,Marié(e),Consulting,Assistant de Direction,1,8,8.0,7.0,0,3,1,3,4,Infra & Cloud,Y,Frequent,3,0,4.0,3.0,1.0,3.0,3.0,3.0,3.0,,,11%,80.0,,,,1,2025-12-10 20:24:06.167960+00:00
+21347,37,M,2090.0,Célibataire,Consulting,Consultant,6,7,0.0,0.0,0,3,1,2,2,Autre,Y,Occasionnel,0,0,4.0,2.0,1.0,3.0,2.0,3.0,3.0,,,15%,80.0,,,,1,2025-12-10 20:24:06.131246+00:00
+21346,49,M,5130.0,Marié(e),Consulting,Assistant de Direction,1,10,10.0,7.0,1,3,1,8,1,Infra & Cloud,Y,Frequent,1,7,3.0,2.0,2.0,2.0,4.0,3.0,4.0,,,23%,80.0,,,,1,2025-12-10 20:24:06.097352+00:00
+21345,41,F,5993.0,Célibataire,Commercial,Cadre Commercial,8,8,6.0,4.0,0,0,1,1,2,Infra & Cloud,Y,Occasionnel,0,5,2.0,3.0,2.0,4.0,1.0,1.0,3.0,,,11%,80.0,,,,1,2025-12-10 20:24:06.036643+00:00
+2068,34,M,4404.0,Marié(e),Consulting,Consultant,2,6,4.0,3.0,0,3,1,8,3,Transformation Digitale,Y,Occasionnel,1,2,2.0,4.0,2.0,3.0,1.0,4.0,3.0,0,,12 %,80.0,,,,1,2025-12-05 18:29:37.824575+00:00
+2065,49,M,5390.0,Marié(e),Commercial,Cadre Commercial,2,17,9.0,6.0,0,3,1,2,3,Transformation Digitale,Y,Frequent,0,8,4.0,2.0,2.0,2.0,4.0,2.0,3.0,0,,14 %,80.0,,,,1,2025-12-05 18:29:37.807485+00:00
+2064,27,M,6142.0,Marié(e),Consulting,Tech Lead,1,6,6.0,2.0,1,0,1,4,3,Infra & Cloud,Y,Occasionnel,0,3,2.0,4.0,2.0,2.0,2.0,3.0,4.0,1,,20 %,80.0,,,,1,2025-12-05 18:29:37.791599+00:00
+2062,39,M,9991.0,Marié(e),Consulting,Manager,4,9,7.0,7.0,1,5,1,6,1,Transformation Digitale,Y,Occasionnel,1,7,4.0,2.0,3.0,1.0,1.0,3.0,3.0,0,,15 %,80.0,,,,1,2025-12-05 18:29:37.775142+00:00
+2061,36,M,2571.0,Marié(e),Consulting,Consultant,4,17,5.0,2.0,1,3,1,23,2,Transformation Digitale,Y,Frequent,0,3,3.0,4.0,2.0,4.0,3.0,3.0,3.0,0,,17 %,80.0,,,,1,2025-12-05 18:29:37.759996+00:00
+2060,26,F,2966.0,Célibataire,Commercial,Représentant Commercial,0,5,4.0,2.0,0,2,1,5,3,Autre,Y,Occasionnel,0,0,4.0,2.0,1.0,3.0,4.0,3.0,3.0,0,,18 %,80.0,,,,1,2025-12-05 18:29:37.740716+00:00
+2057,31,M,9936.0,Célibataire,Consulting,Tech Lead,0,10,9.0,4.0,0,2,1,5,3,Transformation Digitale,Y,Aucun,1,7,2.0,3.0,2.0,1.0,2.0,3.0,3.0,0,,19 %,80.0,,,,1,2025-12-05 18:29:37.722632+00:00
+2056,39,F,12031.0,Marié(e),Commercial,Cadre Commercial,0,21,20.0,9.0,1,2,1,24,1,Marketing,Y,Occasionnel,9,6,2.0,2.0,4.0,4.0,1.0,2.0,3.0,0,,11 %,80.0,,,,1,2025-12-05 18:29:37.707127+00:00
+2055,50,M,10854.0,Divorcé(e),Commercial,Cadre Commercial,4,20,3.0,2.0,1,3,1,28,3,Marketing,Y,Occasionnel,2,0,4.0,2.0,3.0,1.0,2.0,3.0,3.0,1,,13 %,80.0,,,,1,2025-12-05 18:29:37.690151+00:00
+2054,29,F,3785.0,Célibataire,Consulting,Assistant de Direction,1,5,5.0,4.0,0,3,1,28,4,Transformation Digitale,Y,Occasionnel,0,4,4.0,2.0,1.0,1.0,2.0,1.0,3.0,0,,14 %,80.0,,,,1,2025-12-05 18:29:37.675008+00:00
+2053,29,M,4025.0,Marié(e),Consulting,Consultant,4,10,4.0,3.0,1,2,1,13,2,Autre,Y,Occasionnel,0,3,4.0,2.0,2.0,2.0,1.0,3.0,3.0,1,,13 %,80.0,,,,1,2025-12-05 18:29:37.661286+00:00
+2052,35,F,2977.0,Marié(e),Consulting,Assistant de Direction,1,4,4.0,3.0,1,5,1,1,4,Infra & Cloud,Y,Occasionnel,1,1,3.0,1.0,1.0,4.0,4.0,3.0,3.0,0,,12 %,80.0,,,,1,2025-12-05 18:29:37.643351+00:00
+2051,40,F,2001.0,Marié(e),Consulting,Assistant de Direction,2,20,5.0,3.0,3,2,1,2,4,Transformation Digitale,Y,Occasionnel,0,2,3.0,3.0,1.0,3.0,2.0,3.0,3.0,0,,14 %,80.0,,,,1,2025-12-05 18:29:37.628438+00:00
+2049,35,M,5689.0,Marié(e),Consulting,Manager,1,10,10.0,2.0,2,2,1,18,4,Infra & Cloud,Y,Frequent,0,2,3.0,3.0,2.0,3.0,4.0,4.0,3.0,1,,14 %,80.0,,,,1,2025-12-05 18:29:37.612690+00:00
+2048,40,M,2809.0,Célibataire,Consulting,Assistant de Direction,2,8,2.0,2.0,0,2,1,2,4,Infra & Cloud,Y,Occasionnel,2,2,3.0,2.0,1.0,3.0,4.0,3.0,3.0,0,,14 %,80.0,,,,1,2025-12-05 18:29:37.600757+00:00
+2046,45,F,4850.0,Célibataire,Commercial,Cadre Commercial,8,8,5.0,3.0,0,3,1,20,3,Infra & Cloud,Y,Occasionnel,0,1,4.0,3.0,2.0,3.0,3.0,3.0,3.0,0,,15 %,80.0,,,,1,2025-12-05 18:29:37.586441+00:00
+2045,36,F,6652.0,Marié(e),Commercial,Cadre Commercial,4,8,6.0,3.0,1,2,1,11,4,Marketing,Y,Occasionnel,0,0,2.0,2.0,2.0,4.0,1.0,2.0,3.0,0,,13 %,80.0,,,,1,2025-12-05 18:29:37.573200+00:00
+2044,50,M,6728.0,Divorcé(e),Commercial,Cadre Commercial,7,12,6.0,3.0,2,3,1,1,4,Infra & Cloud,Y,Frequent,0,1,2.0,3.0,2.0,3.0,4.0,3.0,3.0,0,,12 %,80.0,,,,1,2025-12-05 18:29:37.560199+00:00
+2041,38,F,5343.0,Marié(e),Commercial,Cadre Commercial,1,10,10.0,7.0,1,1,1,10,2,Infra & Cloud,Y,Occasionnel,1,9,1.0,3.0,2.0,4.0,3.0,3.0,3.0,0,,11 %,80.0,,,,1,2025-12-05 18:29:37.545659+00:00
+2040,35,F,8837.0,Célibataire,Ressources Humaines,Ressources Humaines,1,9,9.0,0.0,0,2,1,26,4,Infra & Cloud,Y,Occasionnel,1,7,3.0,3.0,3.0,4.0,3.0,3.0,3.0,1,,16 %,80.0,,,,1,2025-12-05 18:29:37.531031+00:00
+2038,32,M,2439.0,Célibataire,Consulting,Assistant de Direction,1,4,4.0,2.0,0,4,1,2,3,Entrepreunariat,Y,Occasionnel,1,2,4.0,3.0,1.0,1.0,4.0,3.0,3.0,0,,14 %,80.0,,,,1,2025-12-05 18:29:37.516678+00:00
+2037,41,M,8938.0,Divorcé(e),Commercial,Cadre Commercial,2,14,5.0,4.0,1,5,1,3,3,Infra & Cloud,Y,Occasionnel,0,4,3.0,2.0,2.0,2.0,3.0,3.0,3.0,0,,11 %,80.0,,,,1,2025-12-05 18:29:37.504641+00:00
+2036,36,M,5406.0,Divorcé(e),Commercial,Cadre Commercial,1,15,15.0,12.0,1,4,1,15,4,Marketing,Y,Aucun,11,11,4.0,1.0,2.0,4.0,1.0,2.0,4.0,0,,24 %,80.0,,,,1,2025-12-05 18:29:37.493489+00:00
+2035,34,F,6712.0,Marié(e),Commercial,Cadre Commercial,1,8,8.0,7.0,2,2,1,28,3,Marketing,Y,Occasionnel,1,7,4.0,2.0,2.0,3.0,4.0,3.0,4.0,0,,21 %,80.0,,,,1,2025-12-05 18:29:37.481543+00:00
+2034,41,F,13570.0,Marié(e),Consulting,Tech Lead,0,21,20.0,7.0,1,3,1,28,4,Infra & Cloud,Y,Occasionnel,0,10,1.0,2.0,4.0,2.0,3.0,3.0,4.0,0,,23 %,80.0,,,,1,2025-12-05 18:29:37.466737+00:00
+2032,56,M,2339.0,Marié(e),Consulting,Consultant,8,14,10.0,9.0,1,4,1,7,2,Entrepreunariat,Y,Occasionnel,9,8,4.0,3.0,1.0,3.0,4.0,1.0,3.0,0,,11 %,80.0,,,,1,2025-12-05 18:29:37.454201+00:00
+2031,42,M,18880.0,Marié(e),Consulting,Senior Manager,5,24,22.0,6.0,0,2,1,2,3,Infra & Cloud,Y,Occasionnel,4,14,1.0,3.0,5.0,3.0,1.0,2.0,3.0,0,,11 %,80.0,,,,1,2025-12-05 18:29:37.440774+00:00
+2027,29,M,4787.0,Marié(e),Consulting,Assistant de Direction,9,4,2.0,2.0,3,3,1,1,4,Transformation Digitale,Y,Occasionnel,2,2,1.0,3.0,1.0,4.0,2.0,4.0,3.0,1,,14 %,80.0,,,,1,2025-12-05 18:29:37.429517+00:00
+2026,56,M,6306.0,Divorcé(e),Consulting,Manager,1,13,13.0,12.0,1,2,1,1,4,Infra & Cloud,Y,Aucun,1,9,3.0,3.0,2.0,3.0,1.0,2.0,4.0,0,,21 %,80.0,,,,1,2025-12-05 18:29:37.417487+00:00
+2025,36,F,5131.0,Divorcé(e),Consulting,Tech Lead,7,18,4.0,2.0,3,3,1,4,2,Infra & Cloud,Y,Frequent,0,2,4.0,3.0,2.0,2.0,2.0,3.0,3.0,0,,13 %,80.0,,,,1,2025-12-05 18:29:37.405472+00:00
+2024,36,F,7644.0,Marié(e),Commercial,Cadre Commercial,0,10,9.0,7.0,2,2,1,3,3,Transformation Digitale,Y,Occasionnel,3,4,1.0,2.0,3.0,4.0,3.0,3.0,3.0,0,,19 %,80.0,,,,1,2025-12-05 18:29:37.393916+00:00
+2023,23,M,1790.0,Marié(e),Commercial,Représentant Commercial,1,1,1.0,0.0,1,3,1,9,3,Marketing,Y,Frequent,1,0,4.0,3.0,1.0,1.0,1.0,2.0,3.0,0,,19 %,80.0,,,,1,2025-12-05 18:29:37.382488+00:00
+2022,39,M,19431.0,Célibataire,Consulting,Senior Manager,2,21,6.0,0.0,0,3,1,9,3,Infra & Cloud,Y,Aucun,1,3,4.0,3.0,5.0,4.0,3.0,2.0,3.0,0,,13 %,80.0,,,,1,2025-12-05 18:29:37.370510+00:00
+2021,21,M,2380.0,Célibataire,Commercial,Représentant Commercial,1,2,2.0,2.0,0,6,1,5,1,Transformation Digitale,Y,Occasionnel,1,2,3.0,3.0,1.0,1.0,4.0,3.0,3.0,1,,11 %,80.0,,,,1,2025-12-05 18:29:37.356157+00:00
+2020,44,M,2436.0,Célibataire,Consulting,Assistant de Direction,6,6,4.0,3.0,0,2,1,1,3,Transformation Digitale,Y,Occasionnel,1,2,2.0,3.0,1.0,4.0,3.0,3.0,3.0,1,,12 %,80.0,,,,1,2025-12-05 18:29:37.341312+00:00
+2019,52,M,3482.0,Divorcé(e),Commercial,Représentant Commercial,2,16,9.0,8.0,2,3,1,29,4,Infra & Cloud,Y,Aucun,0,0,1.0,3.0,1.0,4.0,2.0,2.0,3.0,0,,15 %,80.0,,,,1,2025-12-05 18:29:37.329447+00:00
+2018,25,F,4907.0,Divorcé(e),Commercial,Cadre Commercial,0,6,5.0,3.0,1,3,1,8,2,Autre,Y,Occasionnel,0,4,1.0,3.0,2.0,3.0,2.0,2.0,4.0,1,,22 %,80.0,,,,1,2025-12-05 18:29:37.315928+00:00
+2017,37,F,13744.0,Marié(e),Consulting,Directeur Technique,1,16,16.0,11.0,1,2,1,10,3,Infra & Cloud,Y,Occasionnel,6,8,3.0,4.0,3.0,4.0,1.0,3.0,4.0,1,,25 %,80.0,,,,1,2025-12-05 18:29:37.296936+00:00
+2016,32,F,10422.0,Marié(e),Commercial,Cadre Commercial,1,14,14.0,10.0,2,3,1,1,4,Marketing,Y,Occasionnel,5,7,3.0,3.0,3.0,4.0,3.0,3.0,3.0,0,,19 %,80.0,,,,1,2025-12-05 18:29:37.276573+00:00
+2015,38,F,13206.0,Marié(e),Consulting,Directeur Technique,3,20,18.0,16.0,1,3,1,10,3,Transformation Digitale,Y,Occasionnel,1,11,2.0,1.0,3.0,3.0,1.0,3.0,3.0,0,,12 %,80.0,,,,1,2025-12-05 18:29:37.260168+00:00
+2014,39,M,4108.0,Célibataire,Consulting,Assistant de Direction,7,18,7.0,7.0,0,2,1,24,1,Infra & Cloud,Y,Occasionnel,1,7,1.0,3.0,2.0,4.0,1.0,3.0,3.0,0,,13 %,80.0,,,,1,2025-12-05 18:29:37.239079+00:00
+2013,32,M,2269.0,Marié(e),Commercial,Représentant Commercial,0,3,2.0,2.0,1,2,1,1,4,Transformation Digitale,Y,Occasionnel,2,2,2.0,2.0,1.0,2.0,2.0,3.0,3.0,0,,14 %,80.0,,,,1,2025-12-05 18:29:37.218494+00:00
+2012,40,M,2406.0,Marié(e),Consulting,Consultant,8,8,1.0,0.0,2,3,1,1,4,Infra & Cloud,Y,Occasionnel,0,0,1.0,3.0,1.0,4.0,3.0,2.0,3.0,0,,19 %,80.0,,,,1,2025-12-05 18:29:37.199579+00:00
+2010,32,F,2837.0,Célibataire,Consulting,Consultant,1,6,6.0,2.0,0,3,1,29,4,Infra & Cloud,Y,Occasionnel,4,1,3.0,2.0,1.0,2.0,3.0,3.0,3.0,0,,13 %,80.0,,,,1,2025-12-05 18:29:37.177555+00:00
+2009,33,F,4878.0,Marié(e),Consulting,Manager,0,10,9.0,7.0,1,6,1,15,2,Transformation Digitale,Y,Occasionnel,8,1,2.0,3.0,2.0,4.0,1.0,3.0,3.0,1,,13 %,80.0,,,,1,2025-12-05 18:29:37.157436+00:00
+2008,35,M,5098.0,Célibataire,Consulting,Assistant de Direction,1,10,10.0,7.0,0,5,1,9,4,Transformation Digitale,Y,Occasionnel,0,8,2.0,3.0,2.0,3.0,2.0,3.0,3.0,0,,19 %,80.0,,,,1,2025-12-05 18:29:37.140589+00:00
+2007,22,M,3375.0,Célibataire,Consulting,Assistant de Direction,0,4,3.0,2.0,0,2,1,1,2,Infra & Cloud,Y,Occasionnel,1,2,4.0,3.0,1.0,3.0,4.0,4.0,3.0,0,,12 %,80.0,,,,1,2025-12-05 18:29:37.125674+00:00
+2003,35,M,2660.0,Marié(e),Consulting,Consultant,7,5,2.0,2.0,1,3,1,11,4,Transformation Digitale,Y,Occasionnel,2,2,4.0,3.0,1.0,3.0,3.0,3.0,3.0,1,,11 %,80.0,,,,1,2025-12-05 18:29:37.107957+00:00
+2000,47,F,11957.0,Marié(e),Consulting,Directeur Technique,0,14,13.0,8.0,2,3,1,1,1,Transformation Digitale,Y,Aucun,5,12,3.0,3.0,3.0,2.0,1.0,1.0,3.0,0,,18 %,80.0,,,,1,2025-12-05 18:29:37.092301+00:00
+1999,41,M,2782.0,Marié(e),Consulting,Assistant de Direction,3,12,5.0,3.0,1,3,1,1,3,Infra & Cloud,Y,Occasionnel,1,0,4.0,3.0,1.0,4.0,1.0,3.0,4.0,0,,22 %,80.0,,,,1,2025-12-05 18:29:37.078175+00:00
+1998,42,M,5410.0,Divorcé(e),Consulting,Assistant de Direction,6,9,4.0,3.0,1,3,1,18,4,Infra & Cloud,Y,Occasionnel,1,2,4.0,3.0,2.0,1.0,3.0,2.0,3.0,1,,17 %,80.0,,,,1,2025-12-05 18:29:37.064536+00:00
+1997,38,M,5321.0,Marié(e),Consulting,Tech Lead,2,10,8.0,3.0,1,1,1,6,4,Infra & Cloud,Y,Frequent,7,7,1.0,2.0,2.0,3.0,4.0,3.0,3.0,0,,11 %,80.0,,,,1,2025-12-05 18:29:37.050374+00:00
+1996,31,M,3067.0,Marié(e),Commercial,Représentant Commercial,0,3,2.0,2.0,1,1,1,2,2,Infra & Cloud,Y,Occasionnel,1,2,1.0,3.0,1.0,3.0,3.0,3.0,3.0,0,,19 %,80.0,,,,1,2025-12-05 18:29:37.034397+00:00
+1995,38,M,4440.0,Marié(e),Commercial,Cadre Commercial,0,16,15.0,13.0,2,3,1,1,4,Infra & Cloud,Y,Occasionnel,5,8,4.0,3.0,2.0,2.0,1.0,3.0,3.0,0,,15 %,80.0,,,,1,2025-12-05 18:29:37.019549+00:00
+1994,33,M,2008.0,Divorcé(e),Consulting,Consultant,1,1,1.0,1.0,3,2,1,1,2,Transformation Digitale,Y,Aucun,0,0,2.0,2.0,1.0,3.0,3.0,2.0,3.0,0,,12 %,80.0,,,,1,2025-12-05 18:29:37.003137+00:00
+1993,47,M,8633.0,Célibataire,Consulting,Manager,2,25,17.0,14.0,0,3,1,25,3,Transformation Digitale,Y,Occasionnel,12,11,1.0,3.0,3.0,3.0,2.0,3.0,4.0,0,,23 %,80.0,,,,1,2025-12-05 18:29:36.986922+00:00
+1992,25,M,3977.0,Divorcé(e),Consulting,Consultant,6,7,2.0,2.0,1,2,1,2,1,Autre,Y,Occasionnel,0,2,4.0,3.0,1.0,3.0,3.0,2.0,3.0,1,,19 %,80.0,,,,1,2025-12-05 18:29:36.972116+00:00
+1989,30,M,3748.0,Marié(e),Consulting,Consultant,1,12,12.0,8.0,0,6,1,1,2,Transformation Digitale,Y,Occasionnel,1,7,4.0,3.0,1.0,2.0,3.0,2.0,3.0,0,,13 %,80.0,,,,1,2025-12-05 18:29:36.957119+00:00
+1987,25,F,2187.0,Marié(e),Ressources Humaines,Ressources Humaines,4,6,2.0,0.0,0,3,1,2,3,Ressources Humaines,Y,Occasionnel,1,2,3.0,3.0,1.0,2.0,3.0,3.0,3.0,0,,14 %,80.0,,,,1,2025-12-05 18:29:36.940770+00:00
+1986,40,F,5677.0,Marié(e),Commercial,Cadre Commercial,3,15,11.0,8.0,1,4,1,2,2,Marketing,Y,Occasionnel,5,10,2.0,3.0,2.0,2.0,3.0,3.0,3.0,0,,14 %,80.0,,,,1,2025-12-05 18:29:36.925405+00:00
+1985,40,F,6323.0,Marié(e),Consulting,Consultant,1,10,10.0,9.0,1,2,1,11,3,Entrepreunariat,Y,Frequent,9,4,4.0,3.0,2.0,3.0,1.0,4.0,3.0,0,,11 %,80.0,,,,1,2025-12-05 18:29:36.909697+00:00
+1982,23,M,2647.0,Célibataire,Consulting,Consultant,1,5,5.0,2.0,0,6,1,12,2,Autre,Y,Occasionnel,1,4,4.0,3.0,1.0,4.0,3.0,4.0,3.0,0,,13 %,80.0,,,,1,2025-12-05 18:29:36.894678+00:00
+1981,24,M,4617.0,Célibataire,Consulting,Manager,1,4,4.0,3.0,0,2,1,1,2,Infra & Cloud,Y,Occasionnel,1,2,2.0,2.0,2.0,3.0,2.0,2.0,3.0,0,,12 %,80.0,,,,1,2025-12-05 18:29:36.877391+00:00
+1980,54,F,4440.0,Célibataire,Consulting,Tech Lead,6,9,5.0,2.0,0,3,1,10,3,Transformation Digitale,Y,Occasionnel,1,4,3.0,3.0,2.0,1.0,4.0,3.0,3.0,1,,19 %,80.0,,,,1,2025-12-05 18:29:36.862752+00:00
+1979,31,F,11031.0,Marié(e),Consulting,Directeur Technique,4,13,11.0,7.0,1,2,1,10,3,Transformation Digitale,Y,Aucun,4,8,3.0,3.0,3.0,3.0,3.0,4.0,4.0,0,,20 %,80.0,,,,1,2025-12-05 18:29:36.848321+00:00
+1976,42,M,4332.0,Célibataire,Consulting,Assistant de Direction,1,20,20.0,9.0,0,2,1,23,2,Infra & Cloud,Y,Aucun,3,7,4.0,2.0,2.0,3.0,4.0,3.0,3.0,0,,12 %,80.0,,,,1,2025-12-05 18:29:36.834460+00:00
+1975,39,M,13341.0,Célibataire,Commercial,Cadre Commercial,0,21,20.0,8.0,0,3,1,15,4,Marketing,Y,Occasionnel,11,10,2.0,3.0,4.0,1.0,1.0,3.0,3.0,0,,12 %,80.0,,,,1,2025-12-05 18:29:36.814944+00:00
+1974,31,F,1129.0,Divorcé(e),Consulting,Consultant,1,1,1.0,0.0,3,4,1,2,1,Transformation Digitale,Y,Occasionnel,0,0,4.0,1.0,1.0,4.0,3.0,3.0,3.0,1,,11 %,80.0,,,,1,2025-12-05 18:29:36.800522+00:00
+1973,55,M,19636.0,Marié(e),Ressources Humaines,Senior Manager,4,35,10.0,9.0,1,0,1,26,4,Ressources Humaines,Y,Occasionnel,1,4,3.0,4.0,5.0,2.0,1.0,3.0,3.0,1,,18 %,80.0,,,,1,2025-12-05 18:29:36.785669+00:00
+1972,38,M,2991.0,Marié(e),Ressources Humaines,Ressources Humaines,0,7,6.0,2.0,1,2,1,1,4,Autre,Y,Frequent,1,2,4.0,3.0,1.0,2.0,2.0,3.0,3.0,1,,11 %,80.0,,,,1,2025-12-05 18:29:36.770328+00:00
+1971,43,M,7510.0,Marié(e),Consulting,Manager,1,10,10.0,9.0,1,1,1,11,3,Infra & Cloud,Y,Occasionnel,0,9,1.0,3.0,3.0,3.0,2.0,3.0,3.0,0,,17 %,80.0,,,,1,2025-12-05 18:29:36.754861+00:00
+1970,33,M,5968.0,Divorcé(e),Consulting,Manager,1,9,9.0,7.0,3,2,1,7,2,Infra & Cloud,Y,Frequent,2,8,4.0,3.0,2.0,3.0,3.0,3.0,4.0,0,,20 %,80.0,,,,1,2025-12-05 18:29:36.738347+00:00
+1969,54,F,2897.0,Marié(e),Consulting,Assistant de Direction,3,9,4.0,3.0,2,6,1,9,2,Infra & Cloud,Y,Occasionnel,2,3,1.0,3.0,2.0,3.0,3.0,2.0,3.0,0,,11 %,80.0,,,,1,2025-12-05 18:29:36.725402+00:00
+1968,53,M,10448.0,Célibataire,Commercial,Cadre Commercial,6,15,2.0,2.0,0,2,1,24,4,Infra & Cloud,Y,Occasionnel,2,2,1.0,3.0,3.0,1.0,2.0,2.0,3.0,1,,13 %,80.0,,,,1,2025-12-05 18:29:36.711947+00:00
+1967,31,M,5617.0,Marié(e),Commercial,Cadre Commercial,1,10,10.0,7.0,0,4,1,26,4,Marketing,Y,Frequent,0,8,1.0,3.0,2.0,4.0,3.0,3.0,3.0,1,,11 %,80.0,,,,1,2025-12-05 18:29:36.695678+00:00
+1966,32,M,9679.0,Célibataire,Consulting,Tech Lead,8,8,1.0,0.0,0,1,1,5,4,Infra & Cloud,Y,Occasionnel,0,0,4.0,2.0,2.0,4.0,2.0,3.0,4.0,0,,24 %,80.0,,,,1,2025-12-05 18:29:36.681894+00:00
+1965,27,M,4105.0,Célibataire,Commercial,Cadre Commercial,1,7,7.0,7.0,0,5,1,9,3,Marketing,Y,Occasionnel,0,7,4.0,3.0,2.0,4.0,1.0,3.0,3.0,0,,14 %,80.0,,,,1,2025-12-05 18:29:36.666323+00:00
+1962,35,F,5204.0,Marié(e),Commercial,Cadre Commercial,1,10,10.0,8.0,0,2,1,7,4,Infra & Cloud,Y,Occasionnel,0,9,3.0,3.0,2.0,4.0,4.0,3.0,3.0,1,,11 %,80.0,,,,1,2025-12-05 18:29:36.652092+00:00
+1961,38,M,2858.0,Célibataire,Commercial,Représentant Commercial,4,20,1.0,0.0,0,3,1,1,3,Infra & Cloud,Y,Occasionnel,0,0,1.0,2.0,1.0,1.0,1.0,2.0,3.0,0,,14 %,80.0,,,,1,2025-12-05 18:29:36.638031+00:00
+1960,28,M,2367.0,Divorcé(e),Consulting,Consultant,5,6,4.0,1.0,1,2,1,17,3,Entrepreunariat,Y,Occasionnel,0,3,3.0,2.0,1.0,4.0,1.0,2.0,3.0,0,,12 %,80.0,,,,1,2025-12-05 18:29:36.627244+00:00
+1956,31,M,5003.0,Marié(e),Consulting,Assistant de Direction,1,10,10.0,8.0,0,6,1,1,3,Infra & Cloud,Y,Frequent,8,7,4.0,1.0,2.0,1.0,2.0,3.0,4.0,0,,21 %,80.0,,,,1,2025-12-05 18:29:36.616459+00:00
+1955,32,F,6667.0,Divorcé(e),Consulting,Manager,5,9,5.0,1.0,1,6,1,15,4,Transformation Digitale,Y,Aucun,1,2,3.0,3.0,2.0,4.0,2.0,3.0,3.0,0,,18 %,80.0,,,,1,2025-12-05 18:29:36.604222+00:00
+1954,29,M,5373.0,Marié(e),Consulting,Manager,0,6,5.0,3.0,1,5,1,1,3,Infra & Cloud,Y,Occasionnel,0,2,1.0,3.0,2.0,1.0,1.0,2.0,3.0,0,,12 %,80.0,,,,1,2025-12-05 18:29:36.590016+00:00
+1952,26,M,2867.0,Célibataire,Consulting,Consultant,0,8,7.0,7.0,0,6,1,1,3,Transformation Digitale,Y,Occasionnel,7,6,3.0,3.0,1.0,1.0,4.0,2.0,3.0,0,,13 %,80.0,,,,1,2025-12-05 18:29:36.575002+00:00
+1951,34,M,8628.0,Divorcé(e),Commercial,Cadre Commercial,1,9,8.0,7.0,1,2,1,13,4,Transformation Digitale,Y,Occasionnel,1,1,4.0,3.0,3.0,3.0,3.0,2.0,3.0,0,,18 %,80.0,,,,1,2025-12-05 18:29:36.554286+00:00
+1950,34,M,9888.0,Célibataire,Commercial,Cadre Commercial,1,14,14.0,8.0,0,3,1,1,3,Marketing,Y,Occasionnel,2,1,1.0,3.0,3.0,4.0,1.0,2.0,4.0,0,,21 %,80.0,,,,1,2025-12-05 18:29:36.531416+00:00
+1949,36,M,2810.0,Marié(e),Consulting,Consultant,1,5,5.0,4.0,0,3,1,9,4,Infra & Cloud,Y,Aucun,0,2,1.0,4.0,1.0,2.0,2.0,3.0,4.0,0,,22 %,80.0,,,,1,2025-12-05 18:29:36.504887+00:00
+1948,31,M,3065.0,Divorcé(e),Consulting,Assistant de Direction,1,4,4.0,2.0,1,3,1,3,2,Transformation Digitale,Y,Aucun,2,3,3.0,3.0,1.0,1.0,4.0,4.0,3.0,1,,13 %,80.0,,,,1,2025-12-05 18:29:36.479581+00:00
+1947,28,M,2144.0,Célibataire,Consulting,Assistant de Direction,1,5,5.0,3.0,0,3,1,16,3,Transformation Digitale,Y,Aucun,1,4,3.0,3.0,1.0,3.0,3.0,2.0,3.0,0,,14 %,80.0,,,,1,2025-12-05 18:29:36.454352+00:00
+1945,35,M,5561.0,Marié(e),Commercial,Cadre Commercial,0,6,5.0,3.0,1,2,1,18,4,Transformation Digitale,Y,Occasionnel,0,4,2.0,3.0,2.0,1.0,4.0,1.0,3.0,0,,16 %,80.0,,,,1,2025-12-05 18:29:36.429181+00:00
+1944,27,F,2863.0,Marié(e),Ressources Humaines,Ressources Humaines,1,1,1.0,0.0,0,2,1,22,3,Ressources Humaines,Y,Frequent,0,0,1.0,2.0,1.0,2.0,1.0,3.0,3.0,0,,12 %,80.0,,,,1,2025-12-05 18:29:36.401636+00:00

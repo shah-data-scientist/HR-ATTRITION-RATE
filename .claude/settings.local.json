@@ -31,7 +31,10 @@
       "Bash(Select-Object -Last 50)",
       "Bash(poetry run coverage:*)",
       "Bash(timeout /t 30 /nobreak)",
-      "Bash(timeout /t 180 /nobreak)"
+      "Bash(timeout /t 180 /nobreak)",
+      "Bash(ls:*)",
+      "Bash(find:*)",
+      "Bash(sqlite3:*)"
     ],
     "deny": [],
     "ask": []

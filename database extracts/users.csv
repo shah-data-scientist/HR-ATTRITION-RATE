@@ -1,0 +1,3 @@
+user_id,username,password_hash,role,is_active,created_at,last_login
+2,analyst,$2b$12$0rGFSR0g8qbSgdw/uXaFQuodtwqlyhN2t4WmCIf904eNfpYoDfsW6,user,1,2025-12-04 08:52:52.190986+00:00,2025-12-04 08:57:41.407986+00:00
+1,admin,$2b$12$.uyc07NYULSEyhWedMvLBu.zTRQlzH3F0xqDiSXVW2Gy6bNEQ/7VK,admin,1,2025-12-04 08:52:52.190986+00:00,2025-12-10 20:23:28.403433+00:00
