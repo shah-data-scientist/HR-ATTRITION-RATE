@@ -39,13 +39,13 @@ The API has been tested and is **working correctly**. The 422 error you experien
 
 **Terminal 1 - Start the API:**
 ```bash
-cd "c:\Users\shahu\OPEN CLASSROOMS\PROJET 5\HR Attrition Rate"
+cd "c:\Users\shahu\Documents\OneDrive\OPEN CLASSROOMS\PROJET 5\HR Attrition Rate"
 poetry run uvicorn api.app.main:app --host 0.0.0.0 --port 8001 --reload
 ```
 
 **Terminal 2 - Start the Streamlit App:**
 ```bash
-cd "c:\Users\shahu\OPEN CLASSROOMS\PROJET 5\HR Attrition Rate"
+cd "c:\Users\shahu\Documents\OneDrive\OPEN CLASSROOMS\PROJET 5\HR Attrition Rate"
 poetry run streamlit run ui/app.py
 ```
 

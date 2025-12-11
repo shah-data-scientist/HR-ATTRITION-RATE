@@ -34,7 +34,13 @@
       "Bash(timeout /t 180 /nobreak)",
       "Bash(ls:*)",
       "Bash(find:*)",
-      "Bash(sqlite3:*)"
+      "Bash(sqlite3:*)",
+      "Bash(grep:*)",
+      "Bash(git config:*)",
+      "Bash(cat:*)",
+      "Bash(poetry env info:*)",
+      "Bash(poetry --version:*)",
+      "Bash(tee:*)"
     ],
     "deny": [],
     "ask": []
