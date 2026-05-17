@@ -166,7 +166,6 @@ HR-ATTRITION-RATE/
 │   ├── extrait_eval.csv        # Employee evaluations
 │   ├── extrait_sirh.csv        # HR system data
 │   └── extrait_sondage.csv     # Employee survey responses
-├── database_extracts/          # Database exports (schema diagram, CSV exports)
 ├── scripts/                    # Operational scripts
 │   ├── worker.py               # Background job processor
 │   ├── utils.py                # Shared data utilities
@@ -182,6 +181,10 @@ HR-ATTRITION-RATE/
 │   ├── test_ui_*.py            # UI authentication and function tests
 │   ├── manual/                 # Manual test scripts (not auto-run)
 │   └── archive/                # Archived test files
+├── archive/
+│   ├── Testing Data Application UI/  # Sample employee records usable as UI test data
+│   ├── database_extracts/            # Database schema diagram and CSV exports
+│   └── workbook/                     # Analysis notebooks
 ├── docker/
 │   ├── Dockerfile.api          # FastAPI container (Python 3.13-slim, multi-stage)
 │   ├── Dockerfile.streamlit    # Streamlit container (Python 3.13-slim, multi-stage)
@@ -235,6 +238,57 @@ poetry run pytest tests/test_core.py -v
 ```
 
 Current coverage: ~74% (core modules 85–98%, API 52%)
+
+---
+
+## HuggingFace Spaces Deployment
+
+The live demo runs at **[huggingface.co/spaces/shah-data-scientist/HRApp](https://huggingface.co/spaces/shah-data-scientist/HRApp)**.
+
+### Architecture difference
+
+| This repo (source) | HuggingFace Space |
+|--------------------|-------------------|
+| 3 containers: API + UI + Database (Docker Compose) | 1 container (HF constraint) |
+| PostgreSQL | SQLite (persisted at `/app/db_data/hr_attrition.db`) |
+| `pyproject.toml` / Poetry | `requirements.txt` (pinned flat deps) |
+
+### Repository relationship
+
+The HuggingFace Space is maintained in a separate repo at `../hr-attrition-hf-space/` (sibling directory). **All application source files originate here** — the HF space repo contains only the deployment-specific wrapper (`Dockerfile`, `requirements.txt`, `README.md` with YAML front-matter, `.gitattributes`).
+
+### How to sync changes to HuggingFace
+
+When you update application code in this repo, copy the changed files to the HF space and push:
+
+```bash
+HF="../hr-attrition-hf-space/hr-attrition-hf-space"
+
+# Sync source files
+cp -r api/          $HF/api/
+cp -r core/         $HF/core/
+cp -r database/     $HF/database/
+cp -r ui/           $HF/ui/
+cp -r data/         $HF/data/
+cp -r models/       $HF/models/
+cp scripts/utils.py $HF/scripts/utils.py
+cp .streamlit/config.toml $HF/.streamlit/config.toml
+
+# Commit and push to HuggingFace
+cd $HF
+git add -A
+git commit -m "Sync from HR-ATTRITION-RATE $(date +%Y-%m-%d)"
+git push origin main   # pushes to HuggingFace Spaces
+```
+
+> **Do not edit source files directly in the HF space repo.** Make changes here, then sync.
+
+### HF space demo credentials
+
+| Role | Username | Password |
+|------|----------|----------|
+| Admin | `admin` | `Admin@2025!Secure` |
+| Analyst | `analyst` | `Analyst@2025!View` |
 
 ---
 
