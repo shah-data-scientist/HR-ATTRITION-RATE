@@ -257,6 +257,16 @@ The live demo runs at **[huggingface.co/spaces/shah-data-scientist/HRApp](https:
 
 The HuggingFace Space is maintained in a separate repo at `../hr-attrition-hf-space/` (sibling directory). **All application source files originate here** — the HF space repo contains only the deployment-specific wrapper (`Dockerfile`, `requirements.txt`, `README.md` with YAML front-matter, `.gitattributes`).
 
+### HF deployment files (live in this repo)
+
+The HF-specific deployment files are kept in [`docker/`](docker/) alongside the other Dockerfiles:
+
+| File in this repo | Synced to HF space as | Purpose |
+|-------------------|-----------------------|---------|
+| `docker/Dockerfile.huggingface` | `Dockerfile` | Single-container build (API + UI + SQLite) |
+| `docker/requirements.huggingface.txt` | `requirements.txt` | Pinned pip dependencies |
+| `docker/start.huggingface.sh` | `start.sh` | Startup script (runs both services) |
+
 ### How to sync changes to HuggingFace
 
 When you update application code in this repo, copy the changed files to the HF space and push:
@@ -274,14 +284,20 @@ cp -r models/       $HF/models/
 cp scripts/utils.py $HF/scripts/utils.py
 cp .streamlit/config.toml $HF/.streamlit/config.toml
 
+# Sync deployment files
+cp docker/Dockerfile.huggingface      $HF/Dockerfile
+cp docker/requirements.huggingface.txt $HF/requirements.txt
+cp docker/start.huggingface.sh         $HF/start.sh
+
 # Commit and push to HuggingFace
 cd $HF
 git add -A
 git commit -m "Sync from HR-ATTRITION-RATE $(date +%Y-%m-%d)"
 git push origin main   # pushes to HuggingFace Spaces
+git push github main   # mirrors to GitHub
 ```
 
-> **Do not edit source files directly in the HF space repo.** Make changes here, then sync.
+> **Never edit files directly in the HF space repo.** Make all changes here, then sync.
 
 ### HF space demo credentials
 

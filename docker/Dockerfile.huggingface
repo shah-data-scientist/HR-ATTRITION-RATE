@@ -1,0 +1,57 @@
+# Dockerfile for HuggingFace Spaces deployment
+#
+# Architecture: single container running both FastAPI (port 8001) and
+# Streamlit (port 7860, the only port exposed by HuggingFace Spaces).
+# Uses SQLite instead of PostgreSQL (no external DB on HF Spaces).
+#
+# Source of truth: docker/Dockerfile.huggingface in HR-ATTRITION-RATE repo.
+# Synced to the HF space repo as Dockerfile — do not edit it there directly.
+
+FROM python:3.11-slim
+
+# Build dependencies for scientific packages (numba, shap, etc.)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Install Python dependencies first (layer-cached until requirements change)
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy application source
+COPY api/      ./api/
+COPY core/     ./core/
+COPY database/ ./database/
+COPY models/   ./models/
+COPY data/     ./data/
+COPY scripts/  ./scripts/
+COPY ui/       ./ui/
+COPY .streamlit/ ./.streamlit/
+
+# Startup script (manages both FastAPI and Streamlit processes)
+COPY start.sh /app/start.sh
+RUN chmod +x /app/start.sh
+
+# Writable directories for temp files and SQLite DB
+RUN mkdir -p /app/temp /app/shap_images /app/db_data
+
+# Runtime environment
+# DATABASE_URL points to the persistent SQLite file inside db_data/
+ENV DATABASE_URL=sqlite:////app/db_data/hr_attrition.db \
+    DISABLE_DB=false \
+    API_BASE_URL=http://localhost:8001 \
+    API_KEY=demo_huggingface_api_key \
+    SECRET_KEY=demo_secret_key_for_huggingface_deployment_min_32_chars \
+    UI_ADMIN_USERNAME=admin \
+    UI_ADMIN_PASSWORD=Admin@2025!Secure \
+    UI_USER_USERNAME=analyst \
+    UI_USER_PASSWORD=Analyst@2025!View \
+    PYTHONPATH=/app
+
+# HuggingFace Spaces only exposes port 7860
+EXPOSE 7860
+
+CMD ["/bin/bash", "/app/start.sh"]
