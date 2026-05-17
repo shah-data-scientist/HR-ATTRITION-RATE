@@ -18,13 +18,11 @@ print("SHAP ANALYSIS DETAILS - EMPLOYEE 11111 (Trace ID 38)")
 print("=" * 80)
 
 # Get SHAP data for trace_id 38
-cur.execute(
-    """
+cur.execute("""
     SELECT trace_id, shap_values, base_value, feature_names, created_at
     FROM shap_analysis
     WHERE trace_id = 38
-"""
-)
+""")
 
 row = cur.fetchone()
 if row:
@@ -97,8 +95,7 @@ print("\n" + "=" * 80)
 print("SHAP RECORDS FOR ALL 4 EMPLOYEES")
 print("=" * 80)
 
-cur.execute(
-    """
+cur.execute("""
     SELECT 
         s.trace_id,
         t.input_id as employee_id,
@@ -108,8 +105,7 @@ cur.execute(
     JOIN predictions_traceability t ON s.trace_id = t.trace_id
     WHERE s.trace_id BETWEEN 38 AND 41
     ORDER BY s.trace_id
-"""
-)
+""")
 
 print(f"{'Trace ID':<10} {'Employee ID':<13} {'Num Features':<15} {'Base Value':<15}")
 print("-" * 80)

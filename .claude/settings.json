@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//c/Users/shahu/AppData/Local/Temp/claude/c--Users-shahu-Documents-OneDrive-OPEN-CLASSROOMS-PROJET-5/HR-Attrition-Rate/bb0e589a-60ef-4658-8ed5-b85c9decf866/tasks/**)"
+    ]
+  }
+}

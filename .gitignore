@@ -125,11 +125,11 @@ cython_debug/
 # VSCode
 .vscode/
 
-# SQLite
+# SQLite — local dev fallback database
+local/
 *.db
 *.sqlite
 *.sqlite3
-hr_attrition.db
 
 # Temporary debug files
 temp_*.json
@@ -144,6 +144,7 @@ test_downloads.py
 
 # Test screenshots
 test_screenshots/
+ui_test_screenshots/
 
 # Temporary startup scripts
 start_api_fixed.bat
@@ -151,8 +152,10 @@ start_api_with_restart.bat
 start_ui_with_restart.bat
 start_worker_with_restart.bat
 
-# Workbook/notebooks
-workbook/
+# Archived non-essential folders (tracked content in archive/database_extracts is kept)
+archive/workbook/
+archive/Testing Data Application UI/
+archive/ui_test_screenshots/
 
 # IDE
 .idea/
@@ -174,3 +177,15 @@ act.exe
 # Local test outputs (fixtures are tracked)
 tests/fixtures/*.json
 tests/fixtures/*.txt
+
+# Untracked junk / generated files
+_ul
+pytest_output.txt
+
+# Local env overrides (may contain secrets)
+.env.local
+
+# Model artifacts — generated reports and training snapshots
+models/snapshots/
+models/report_*.xlsx
+models/*.xlsx

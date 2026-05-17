@@ -9,7 +9,6 @@ import requests
 import pandas as pd
 from io import BytesIO
 
-
 # Get API configuration
 API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8081")
 API_KEY = os.getenv("API_KEY", "test_api_key")

@@ -183,7 +183,7 @@ def init_model_for_cli():
         os.path.dirname(__file__),
         "..",
         "..",
-        "outputs",
+        "models",
         "employee_attrition_pipeline.pkl",
     )
     if not os.path.exists(model_path):
@@ -194,7 +194,7 @@ def init_model_for_cli():
     expected_model_columns = get_expected_columns_from_pipeline(model)
 
     x_train_path = os.path.join(
-        os.path.dirname(__file__), "..", "..", "outputs", "X_train.parquet"
+        os.path.dirname(__file__), "..", "..", "models", "X_train.parquet"
     )
     if not os.path.exists(x_train_path):
         raise RuntimeError(
@@ -220,7 +220,7 @@ async def lifespan(app: FastAPI):
         os.path.dirname(__file__),
         "..",
         "..",
-        "outputs",
+        "models",
         "employee_attrition_pipeline.pkl",
     )
     if not os.path.exists(model_path):
@@ -247,7 +247,7 @@ async def lifespan(app: FastAPI):
 
     # Load X_train for SHAP explainer
     x_train_path = os.path.join(
-        os.path.dirname(__file__), "..", "..", "outputs", "X_train.parquet"
+        os.path.dirname(__file__), "..", "..", "models", "X_train.parquet"
     )
     if not os.path.exists(x_train_path):
         logger.error(

@@ -632,8 +632,7 @@ def main() -> None:
         st.markdown("---")
         st.markdown("#### 💡 How to Choose Your Threshold")
         if st.session_state.threshold < 0.3:
-            st.info(
-                """
+            st.info("""
 **Low threshold (< 0.3)**: Maximizes detection of potential leavers.
 
 ✅ **Pros**: Catches almost all at-risk employees
@@ -641,11 +640,9 @@ def main() -> None:
 ⚠️ **Cons**: May flag many false positives (employees who will actually stay)
 
 🎯 **Best for**: Comprehensive retention programs with resources to engage more employees
-            """
-            )
+            """)
         elif st.session_state.threshold < 0.5:
-            st.info(
-                """
+            st.info("""
 **Moderate threshold (0.3 - 0.5)**: Balanced approach.
 
 ✅ **Pros**: Good balance between catching at-risk employees and precision
@@ -653,11 +650,9 @@ def main() -> None:
 ⚠️ **Cons**: May miss some lower-risk leavers
 
 🎯 **Best for**: Standard retention programs with moderate resources
-            """
-            )
+            """)
         else:
-            st.info(
-                """
+            st.info("""
 **High threshold (≥ 0.5)**: Focuses on highest-risk employees.
 
 ✅ **Pros**: High confidence in predicted leavers (fewer false alarms)
@@ -665,8 +660,7 @@ def main() -> None:
 ⚠️ **Cons**: May miss employees with moderate attrition risk
 
 🎯 **Best for**: Targeted retention programs focusing on critical talent
-            """
-            )
+            """)
 
     with col_right:
         # Confusion Matrix

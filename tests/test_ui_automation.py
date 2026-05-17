@@ -13,7 +13,6 @@ from pathlib import Path
 import pytest
 import requests
 
-
 # Check if playwright is available
 try:
     from playwright.sync_api import sync_playwright, expect

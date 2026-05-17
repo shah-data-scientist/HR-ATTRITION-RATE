@@ -50,7 +50,7 @@ COPY --from=builder /app/.venv /app/.venv
 COPY api ./api
 COPY core ./core
 COPY database ./database
-COPY outputs ./outputs
+COPY models ./models
 COPY scripts ./scripts
 
 # Create non-root user

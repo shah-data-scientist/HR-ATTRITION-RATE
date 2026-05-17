@@ -3,6 +3,7 @@
 Simple Test Runner - Tests API with data from data/ folder
 No pytest required - can be run directly: python tests/run_automated_test.py
 """
+
 import json
 import os
 import sys
@@ -10,7 +11,6 @@ from pathlib import Path
 
 import httpx
 import pandas as pd
-
 
 # Configuration
 API_BASE_URL = os.environ.get("API_BASE_URL", "http://localhost:8001")

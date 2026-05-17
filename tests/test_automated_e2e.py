@@ -12,7 +12,6 @@ import pytest
 from fastapi.testclient import TestClient
 from api.app.main import app
 
-
 # Test configuration
 DATA_DIR = Path(__file__).parent.parent / "data"
 TIMEOUT = 120.0

@@ -6,9 +6,9 @@ authors = [
     {name = "Shahul SHAIK",email = "shah.data.scientist@gmail.com"}
 ]
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.11"
 dependencies = [
-    "streamlit",
+    "streamlit (>=1.54.0)",
     "scikit-learn",
     "imbalanced-learn",
     "shap",
@@ -25,9 +25,16 @@ dependencies = [
     "numpy (>=2.3.4,<3.0.0)",
     "scipy (>=1.16.3,<2.0.0)",
     "seaborn (>=0.13.2,<0.14.0)",
-    "python-dotenv (>=1.2.1,<2.0.0)",
+    "python-dotenv (>=1.2.2,<2.0.0)",
     "psycopg2-binary (>=2.9.11,<3.0.0)",
     "bcrypt (>=4.0.0,<5.0.0)",
+    # Explicit floor versions to address transitive CVEs
+    "urllib3 (>=2.7.0)",
+    "pillow (>=12.2.0)",
+    "tornado (>=6.5.5)",
+    "requests (>=2.33.0)",
+    "pygments (>=2.20.0)",
+    "fonttools (>=4.60.2)",
 ]
 
 [tool.poetry]
@@ -37,28 +44,30 @@ package-mode = false
 requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
 [tool.poetry.group.dev.dependencies]
-pytest = ">=8.2,<9.0"
+pytest = ">=9.0.3,<10.0"
 pytest-cov = ">=7.0.0,<8.0.0"
 pytest-asyncio = ">=1.2.0,<2.0.0"
 ruff = "^0.14.4"
 mypy = "^1.18.2"
-black = "^25.11.0"
+black = ">=26.3.1,<27.0"
 selenium = "^4.38.0"
 playwright = "^1.56.0"
 pytest-playwright = "^0.7.2"
 types-requests = "^2.32.4.20250913"
+gitpython = ">=3.1.50"
+protobuf = ">=6.33.5"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 # Exclude manual tests from automatic collection
-norecursedirs = ["tests/manual", "tests/fixtures", ".git", ".venv", "__pycache__"]
+norecursedirs = ["tests/manual", "tests/fixtures", "tests/archive", ".git", ".venv", "__pycache__"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
 
 [tool.ruff]
 line-length = 88
-target-version = "py312"
+target-version = "py311"
 
 [tool.ruff.lint]
 select = [
@@ -94,13 +103,17 @@ ignore = [
 "tests/test_streamlit_app.py" = ["ANN401", "RET503"] # Allow dynamically typed expressions in test mocks and ignore false positive RET503
 "utils.py" = ["ANN401"] # Allow dynamically typed expressions in utility functions
 
+[tool.black]
+target-version = ["py311"]
+line-length = 88
+
 [tool.mypy]
-python_version = "3.12"
+python_version = "3.11"
 strict = false # Changed from true to false
 ignore_missing_imports = true
 namespace_packages = true
 explicit_package_bases = true
-exclude = ["venv/", ".venv/", "tests/", "htmlcov/", "__pycache__/", "outputs/", "data/", "Project Inputs/", "api/app/", "database/seed_data.py"]
+exclude = ["venv/", ".venv/", "tests/", "htmlcov/", "__pycache__/", "models/", "data/", "Project Inputs/", "api/app/", "database/seed_data.py"]
 
 [[tool.mypy.overrides]]
 module = "database.models"

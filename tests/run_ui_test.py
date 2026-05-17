@@ -3,6 +3,7 @@
 Standalone UI Test Script with Playwright
 Tests Streamlit UI and captures screenshots without pytest dependency.
 """
+
 import os
 import sys
 import time

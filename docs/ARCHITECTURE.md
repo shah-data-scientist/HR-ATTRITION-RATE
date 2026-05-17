@@ -1,96 +1,252 @@
-# Architecture and Data Flow
+# Architecture
 
-This document provides an overview of the project's architecture, database schema, and data flow.
+## System Overview
 
-## System Architecture
+```
+┌──────────────────────────────────────────────────────┐
+│                   User Browser                        │
+└────────────────────┬─────────────────────────────────┘
+                     │ HTTPS
+                     ▼
+┌──────────────────────────────────────────────────────┐
+│   Streamlit UI  (ui/app_authenticated.py)             │
+│                                                       │
+│   • Login page (bcrypt auth via API)                  │
+│   • CSV upload (3 files)                              │
+│   • Prediction results dashboard                      │
+│   • SHAP waterfall / force charts                     │
+│   • Excel report download                             │
+│   • Async job polling                                 │
+└────────────────────┬─────────────────────────────────┘
+                     │ HTTP  X-API-Key header
+                     ▼
+┌──────────────────────────────────────────────────────┐
+│   FastAPI  (api/app/main.py)                          │
+│                                                       │
+│   Endpoints                                           │
+│   ├── POST /predict            → JSON predictions     │
+│   ├── POST /predict_report     → JSON + Excel         │
+│   ├── POST /predict_excel      → Excel upload         │
+│   ├── POST /predict_shap_images → ZIP of PNGs        │
+│   ├── POST /predict_shap_html  → HTML force plot      │
+│   ├── POST /jobs/report        → async job            │
+│   ├── GET  /jobs/{id}          → job status           │
+│   ├── GET  /jobs/{id}/result   → job output           │
+│   ├── POST /auth/login         → session token        │
+│   └── GET  /auth/user/{name}   → user info            │
+│                                                       │
+│   Security                                            │
+│   ├── API key authentication (api/auth.py)            │
+│   ├── Security headers: XSS, CSRF, CSP, HSTS         │
+│   ├── CORS configuration                              │
+│   └── GZip compression                               │
+└────────┬──────────────────────┬──────────────────────┘
+         │                      │
+         ▼                      ▼
+┌────────────────┐    ┌──────────────────────────────┐
+│  PostgreSQL    │    │   ML Pipeline                 │
+│  (6 tables)    │    │   models/                     │
+│                │    │                               │
+│  employees     │    │  employee_attrition_pipeline  │
+│  model_inputs  │    │  .pkl (sklearn Pipeline)      │
+│  model_outputs │    │                               │
+│  predictions_  │    │  Steps:                       │
+│  traceability  │    │  1. preprocessor              │
+│  shap_analysis │    │     (ColumnTransformer)       │
+│  jobs          │    │  2. model (Linear classifier) │
+│  users         │    │                               │
+└────────────────┘    │  SHAP: LinearExplainer        │
+                      │  trained on X_train.parquet   │
+                      └──────────────────────────────┘
+         ▲
+         │ polls jobs table
+┌────────────────┐
+│ Background     │
+│ Worker         │
+│ scripts/       │
+│ worker.py      │
+└────────────────┘
+```
 
-The system is composed of three main components:
+---
 
-1.  **Streamlit UI (`app.py`):** A web-based user interface for interactive analysis. It allows users to upload employee data, adjust prediction thresholds, and visualize model predictions and feature importance (SHAP).
-    *   **Port:** Typically runs on `8501` (configurable).
-2.  **FastAPI Backend (`api/app/main.py`):** A RESTful API that serves the machine learning model. It receives employee data, runs predictions, and logs all interactions in the database.
-    *   **Port:** Runs on `8001` (configurable via `API_PORT` environment variable).
-3.  **PostgreSQL Database:** A relational database that stores employee data, model predictions, and traceability information.
-    *   **Port:** Typically runs on `5432` (configurable).
+## Data Flow — Prediction Request
 
-## Environment Separation
+```
+1. User uploads 3 CSVs in the UI
+   extrait_eval.csv   → evaluation scores, overtime, salary data
+   extrait_sirh.csv   → demographics, tenure, salary
+   extrait_sondage.csv→ survey: training, travel, education
 
-The project uses environment variables for sensitive configurations and to manage different deployment environments (e.g., development, production).
+2. UI sends RawBatchPredictionInput JSON to POST /predict
 
-*   **`.env` files:** For local development, a `.env` file (not committed to Git) is used to store environment-specific variables (e.g., `DATABASE_URL`, `API_TOKEN`). A `.env.example` file is provided as a template.
-*   **Docker:** When deployed via Docker, environment variables are typically passed during container creation or defined in `docker-compose.yml` to override defaults or `.env` file values.
-*   **Poetry:** Poetry manages project dependencies and virtual environments, ensuring consistent development setups.
+3. API merges the 3 sources on id_employee / eval_number / code_sondage
+
+4. core/data_processing.py — clean_and_engineer_features()
+   - Normalise genre codes (M/H/Homme → 0, F/Femme → 1)
+   - Parse overtime string ("Oui"/"Non" → 1/0)
+   - Extract salary increase percentage from string ("11 %" → 11.0)
+   - Engineer 3 composite features:
+       improvement_evaluation = note_actuelle - note_precedente
+       total_satisfaction     = mean(4 satisfaction scores)
+       work_mobility          = annees_dans_poste / annees_dans_entreprise
+
+5. core/preprocess.py — enforce_schema()
+   - Reorder columns to match training feature order
+   - Fill missing columns with 0
+   - Coerce dtypes to match model expectations
+   - Validate numeric ranges
+
+6. ML Pipeline inference
+   - preprocessor.transform(X) → scaled/encoded features
+   - model.predict_proba(X) → attrition probability [0, 1]
+   - Risk category: Low (<0.3), Medium (0.3–0.7), High (≥0.7)
+   - Optimal decision threshold: 0.2876
+
+7. SHAP explanation (per employee)
+   - LinearExplainer(model, X_train) → shap_values[]
+   - base_value (expected prediction)
+   - feature_names[]
+
+8. PostgreSQL storage (when DISABLE_DB=false)
+   - employees table ← cleaned input features
+   - model_inputs  ← features JSON
+   - model_outputs ← probability, risk_category, label, log_odds
+   - predictions_traceability ← links input + output + metadata
+   - shap_analysis ← shap_values JSON, base_value, feature_names
+
+9. Response: list[PredictionOutput]
+   - id_employee, prediction (Stay/Leave), probability, risk_category
+   - shap_values, base_value, feature_names (optional)
+   - trace_id (for audit)
+```
+
+---
 
 ## Database Schema
 
-The database schema is defined using SQLAlchemy ORM in `database/models.py`. It consists of four main tables designed to store employee information and track model predictions.
+### `employees`
+Stores cleaned, engineered employee features from each prediction request.
 
-### Schema Diagram (Text-based)
+| Column | Type | Notes |
+|--------|------|-------|
+| id_employee | Integer PK | Unique employee identifier |
+| age, genre, revenu_mensuel | Mixed | Demographics |
+| departement, poste, statut_marital | String | Organisation |
+| annees_dans_l_entreprise, annee_experience_totale | Float | Tenure |
+| satisfaction_employee_* (4 cols) | Float | Survey scores 1–4 |
+| note_evaluation_precedente, note_evaluation_actuelle | Float | Annual reviews |
+| improvement_evaluation | Float | Engineered: current – previous |
+| total_satisfaction | Float | Engineered: mean of 4 scores |
+| work_mobility | Float | Engineered: role tenure / company tenure |
+| user_id | String | Who submitted the prediction |
+| date_ingestion | DateTime | Ingestion timestamp |
 
-```
-+----------------+      +------------------+      +--------------------------+
-|   employees    |      |   model_inputs   |      | predictions_traceability |
-|----------------|      |------------------|      |--------------------------|
-| id_employee (PK)|--+--<| id_employee (FK) |      | trace_id (PK)            |
-| age            |      | input_id (PK)    |----+-<| input_id (FK)            |
-| genre          |      | features (JSON)  |      | output_id (FK)           |
-| revenu_mensuel |      | ...              |      | model_version            |
-| ...            |      +------------------+      | ...                      |
-+----------------+                                +--------------------------+
-                                                          |
-                                                          |      +----------------+
-                                                          +----->|  model_outputs |
-                                                                 |----------------|
-                                                                 | output_id (PK) |
-                                                                 | prediction_proba|
-                                                                 | risk_category  |
-                                                                 | ...            |
-                                                                 +----------------+
-```
+### `model_inputs`
+One row per prediction per employee. Stores raw feature JSON sent to the model.
 
-### Table Descriptions
+| Column | Type | Notes |
+|--------|------|-------|
+| input_id | Integer PK | |
+| id_employee | FK → employees | |
+| features | JSON | Full feature vector |
+| prediction_timestamp | DateTime | |
 
-*   **`employees`**
-    *   **Purpose:** Stores the raw and engineered features for each employee. This table serves as the main source of truth for employee data.
-    *   **Primary Key:** `id_employee`
+### `model_outputs`
+One row per prediction. Stores model output.
 
-*   **`model_inputs`**
-    *   **Purpose:** Records the exact set of features sent to the model for a prediction. This is crucial for reproducibility.
-    *   **Primary Key:** `input_id`
-    *   **Foreign Key:** `id_employee` -> `employees.id_employee`
+| Column | Type | Notes |
+|--------|------|-------|
+| output_id | Integer PK | |
+| prediction_proba | Float | Attrition probability 0–1 |
+| risk_category | String | Low / Medium / High |
+| prediction_label | String | Stay / Leave |
+| log_odds | Float | Raw model output |
+| threshold | Float | Decision threshold used |
 
-*   **`model_outputs`**
-    *   **Purpose:** Stores the results of a model prediction, including the probability, risk category, and final label.
-    *   **Primary Key:** `output_id`
+### `predictions_traceability`
+Links each input to its output, with request metadata.
 
-*   **`predictions_traceability`**
-    *   **Purpose:** Acts as a central log, linking inputs to outputs. It stores metadata about the prediction, such as the model version used, the source of the request (e.g., 'API', 'Streamlit'), and other request-specific details.
-    *   **Primary Key:** `trace_id`
-    *   **Foreign Keys:**
-        *   `input_id` -> `model_inputs.input_id`
-        *   `output_id` -> `model_outputs.output_id`
+| Column | Type | Notes |
+|--------|------|-------|
+| trace_id | Integer PK | |
+| input_id | FK → model_inputs | |
+| output_id | FK → model_outputs | |
+| model_version | String | |
+| prediction_source | String | api / ui / batch |
+| request_metadata | JSON | Headers, client info |
 
-## Data Flow
+### `shap_analysis`
+One row per trace (one per prediction). Stores full SHAP output.
 
-1.  **Initial Data Load:**
-    *   The `database/init_db.py` script is run.
-    *   It reads raw data from CSV files located in the `data/` directory.
-    *   The data is cleaned, merged, and has features engineered.
-    *   The processed employee data is loaded into the `employees` table.
+| Column | Type | Notes |
+|--------|------|-------|
+| shap_id | Integer PK | |
+| trace_id | FK → predictions_traceability (unique) | |
+| shap_values | JSON | Array of float per feature |
+| base_value | Float | SHAP expected value |
+| feature_names | JSON | Array of feature name strings |
 
-2.  **Prediction via API:**
-    *   A client sends a POST request with employee data to a prediction endpoint (e.g., `/predict`).
-    *   The FastAPI application receives the data.
-    *   The application creates a new record in the `model_inputs` table with the features from the request.
-    *   The model is loaded and makes a prediction.
-    *   The prediction result is stored in a new record in the `model_outputs` table.
-    *   A `predictions_traceability` record is created, linking the `input_id` and `output_id`, and storing metadata like the model version.
-    *   The prediction result is returned to the client.
+### `jobs`
+Async job queue for background report generation.
 
-3.  **Prediction via Streamlit UI:**
-    *   A user uploads CSV files through the web interface.
-    *   The Streamlit application sends the data to the FastAPI backend via HTTP POST to `/predict`.
-    *   The API processes the data, makes predictions, stores everything in the database, and returns results with SHAP values.
-    *   The UI displays the results (predictions, SHAP plots) received from the API.
-    
-**Note:** The UI and API are fully decoupled. The UI has no direct access to the model or database—all operations go through the API.
+| Column | Type | Notes |
+|--------|------|-------|
+| job_id | String PK (UUID) | |
+| job_type | String | e.g. "report" |
+| status | String | queued / processing / completed / failed |
+| payload_json | JSON | Input data |
+| result_json | JSON | Output when completed |
+| error | String | Error message if failed |
+| user_id | String | Who created the job |
+
+### `users`
+Application users for Streamlit login.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| user_id | Integer PK | |
+| username | String (unique) | Login name |
+| password_hash | String | bcrypt hash |
+| role | String | admin / user |
+| is_active | Integer | 1=active, 0=inactive |
+| last_login | DateTime | |
+
+---
+
+## ML Model
+
+- **Type:** scikit-learn `Pipeline` with two named steps:
+  - `preprocessor`: `ColumnTransformer` (scaling + encoding)
+  - `model`: Linear classifier (logistic regression family)
+- **Explainability:** `shap.LinearExplainer` initialised from `X_train.parquet`
+- **Decision threshold:** 0.2876 (optimised during training, lower = more sensitive)
+- **Risk thresholds:** Low < 0.3, Medium 0.3–0.7, High ≥ 0.7
+
+---
+
+## Authentication
+
+### API (service-to-service)
+- `X-API-Key` header required on all prediction and job endpoints
+- Key verified against `API_KEY` environment variable using constant-time comparison
+- No expiry — rotate by changing `API_KEY` in `.env`
+
+### UI (user-facing)
+- Username + password login form in Streamlit
+- Password hashed with bcrypt (stored in `users` table)
+- Session stored in `st.session_state` (browser tab scope)
+- Roles: `admin` and `user` (role checked on protected actions)
+
+---
+
+## Background Worker
+
+`scripts/worker.py` polls the `jobs` table every `WORKER_POLL_SEC` seconds. When it finds a job with status `queued`, it:
+
+1. Sets status → `processing`
+2. Loads the payload, runs `generate_predictions()` + Excel generation
+3. Sets status → `completed`, stores result in `result_json`
+4. On error: sets status → `failed`, stores error message
+
+The worker runs in the production Docker profile as a separate container sharing the API image.
