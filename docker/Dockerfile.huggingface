@@ -4,7 +4,7 @@
 # Streamlit (port 7860, the only port exposed by HuggingFace Spaces).
 # Uses SQLite instead of PostgreSQL (no external DB on HF Spaces).
 #
-# Source of truth: docker/Dockerfile.huggingface in HR-ATTRITION-RATE repo.
+# Source of truth: docker/Dockerfile.huggingface in employee-attrition-prediction repo.
 # Synced to the HF space repo as Dockerfile — do not edit it there directly.
 
 # Stage 1: Builder — installs packages (needs build-essential for some wheels)

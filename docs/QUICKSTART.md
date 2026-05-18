@@ -1,4 +1,4 @@
-# Quickstart — HR Attrition Rate
+# Quickstart — Employee Attrition Prediction Rate
 
 Get the system running in under 10 minutes.
 
@@ -14,8 +14,8 @@ Everything else runs inside containers.
 ## 1. Clone
 
 ```bash
-git clone https://github.com/shah-data-scientist/HR-ATTRITION-RATE.git
-cd HR-ATTRITION-RATE
+git clone https://github.com/shah-data-scientist/employee-attrition-prediction.git
+cd employee-attrition-prediction
 ```
 
 ## 2. Configure environment

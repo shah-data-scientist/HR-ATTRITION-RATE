@@ -1,5 +1,5 @@
 """
-Authenticated wrapper for the HR Attrition Risk Streamlit application.
+Authenticated wrapper for the Employee Attrition Prediction Streamlit application.
 This module adds authentication layer before allowing access to the main app.
 """
 

@@ -29,9 +29,9 @@ RUN poetry install --no-root --without dev,ui && rm -rf $POETRY_CACHE_DIR
 FROM python:3.13-slim
 
 # Metadata
-LABEL maintainer="HR Attrition Team"
+LABEL maintainer="Employee Attrition Prediction Team"
 LABEL version="1.0.0"
-LABEL description="FastAPI HR Attrition Prediction Service"
+LABEL description="FastAPI Employee Attrition Prediction Service"
 
 WORKDIR /app
 

@@ -31,9 +31,9 @@ RUN poetry install --no-root --without dev,api && rm -rf $POETRY_CACHE_DIR
 FROM python:3.13-slim
 
 # Metadata
-LABEL maintainer="HR Attrition Team"
+LABEL maintainer="Employee Attrition Prediction Team"
 LABEL version="1.0.0"
-LABEL description="Streamlit HR Attrition UI"
+LABEL description="Streamlit Employee Attrition Prediction UI"
 
 WORKDIR /app
 

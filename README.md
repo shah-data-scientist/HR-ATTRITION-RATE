@@ -1,4 +1,4 @@
-# HR Attrition Rate — Employee Turnover Prediction
+# Employee Attrition Prediction
 
 A production-ready machine learning system that predicts employee attrition risk. Built with FastAPI, Streamlit, PostgreSQL, and scikit-learn, it combines batch predictions, SHAP explainability, and full audit traceability.
 
@@ -37,8 +37,8 @@ A production-ready machine learning system that predicts employee attrition risk
 ### Run with Docker (recommended)
 
 ```bash
-git clone https://github.com/shah-data-scientist/HR-ATTRITION-RATE.git
-cd HR-ATTRITION-RATE
+git clone https://github.com/shah-data-scientist/employee-attrition-prediction.git
+cd employee-attrition-prediction
 
 # Activate the pre-push hook (syncs to HuggingFace on every push)
 git config core.hooksPath .githooks
@@ -137,7 +137,7 @@ See the API schema at `/docs` for full field definitions and validation rules.
 ## Project Structure
 
 ```
-HR-ATTRITION-RATE/
+employee-attrition-prediction/
 ├── api/                        # FastAPI backend
 │   ├── app/
 │   │   ├── main.py             # All endpoints, model loading, prediction logic
@@ -246,11 +246,11 @@ Current coverage: ~74% (core modules 85–98%, API 52%)
 
 ## HuggingFace Spaces Deployment
 
-**Live demo:** [huggingface.co/spaces/shah-data-scientist/HRApp](https://huggingface.co/spaces/shah-data-scientist/HRApp)
+**Live demo:** [huggingface.co/spaces/shah-data-scientist/employee-attrition-prediction](https://huggingface.co/spaces/shah-data-scientist/employee-attrition-prediction)
 
 ### Purpose of the HuggingFace repository
 
-The HF Space is a **read-only deployment mirror** of this repository. It exists for one reason: HuggingFace Spaces requires its own git repository to build and serve the application. The HF space repo (`hr-attrition-hf-space`) contains no original code — every file in it was generated from this repository and pushed there automatically.
+The HF Space is a **read-only deployment mirror** of this repository. It exists for one reason: HuggingFace Spaces requires its own git repository to build and serve the application. The HF space repo (`employee-attrition-prediction-space`) contains no original code — every file in it was generated from this repository and pushed there automatically.
 
 **This repo is the single source of truth. All development happens here.**
 

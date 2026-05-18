@@ -1,7 +1,7 @@
 # Project Structure
 
 ```
-HR-ATTRITION-RATE/
+employee-attrition-prediction/
 │
 ├── README.md                       # Project overview, quick start, API reference
 │

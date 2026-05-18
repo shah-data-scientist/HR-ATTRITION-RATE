@@ -120,14 +120,14 @@ def require_authentication():
 def show_login_page():
     """Display the login page."""
     st.set_page_config(
-        page_title="HR Attrition Risk - Login", page_icon="🔐", layout="centered"
+        page_title="Employee Attrition Prediction - Login", page_icon="🔐", layout="centered"
     )
 
     # Center the login form
     col1, col2, col3 = st.columns([1, 2, 1])
 
     with col2:
-        st.title("🔐 HR Attrition Risk")
+        st.title("🔐 Employee Attrition Prediction")
         st.markdown("### Employee Attrition Risk Prediction System")
         st.markdown("---")
 

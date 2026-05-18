@@ -1,5 +1,5 @@
 """
-Authentication and Security Module for HR Attrition API
+Authentication and Security Module for Employee Attrition Prediction API
 Provides API key authentication and security utilities
 """
 

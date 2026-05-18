@@ -583,7 +583,7 @@ def main() -> None:
     """Run the Streamlit application."""
     # --- Streamlit App Layout ---
     st.set_page_config(
-        page_title="HR Attrition Risk", layout="wide", initial_sidebar_state="collapsed"
+        page_title="Employee Attrition Prediction", layout="wide", initial_sidebar_state="collapsed"
     )
     st.title("Employee Attrition Risk Prediction")
 

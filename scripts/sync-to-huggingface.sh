@@ -2,7 +2,7 @@
 # sync-to-huggingface.sh
 #
 # Syncs all application source files and HF deployment files from this repo
-# (HR-ATTRITION-RATE) into the sibling HF space repo, then commits and pushes
+# (employee-attrition-prediction) into the sibling HF space repo, then commits and pushes
 # to both HuggingFace Spaces and the GitHub mirror.
 #
 # Usage:  ./scripts/sync-to-huggingface.sh
@@ -110,7 +110,7 @@ fi
 
 DATE=$(date +%Y-%m-%d)
 # SYNC_FROM_MAIN=1 signals the pre-commit hook that this is an authorised sync
-SYNC_FROM_MAIN=1 git commit -m "Sync from HR-ATTRITION-RATE $DATE"
+SYNC_FROM_MAIN=1 git commit -m "Sync from employee-attrition-prediction $DATE"
 
 echo ""
 echo "--- Pushing to HuggingFace Spaces ---"
@@ -121,4 +121,4 @@ git push github main
 
 echo ""
 echo "Done. HuggingFace will rebuild the Space shortly."
-echo "Live demo: https://huggingface.co/spaces/shah-data-scientist/HRApp"
+echo "Live demo: https://huggingface.co/spaces/shah-data-scientist/employee-attrition-prediction"
