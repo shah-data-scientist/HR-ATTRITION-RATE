@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+# pre-push hook — HR-ATTRITION-RATE
+#
+# Automatically syncs all application source and deployment files to the
+# HuggingFace Space repo every time you push from this repository.
+# Installed via: git config core.hooksPath .githooks
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+SYNC_SCRIPT="$REPO_ROOT/scripts/sync-to-huggingface.sh"
+
+echo ""
+echo "┌─────────────────────────────────────────────────────┐"
+echo "│  pre-push: syncing to HuggingFace Spaces...         │"
+echo "└─────────────────────────────────────────────────────┘"
+
+bash "$SYNC_SCRIPT"
+
+echo ""
+echo "HuggingFace sync complete — continuing push to origin."
+echo ""
