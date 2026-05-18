@@ -60,11 +60,15 @@ def main():
             print(f"  Reason: {reason}")
 
             # Check current type
-            result = conn.execute(text(f"""
+            result = conn.execute(
+                text(
+                    f"""
                 SELECT data_type 
                 FROM information_schema.columns 
                 WHERE table_name='employees' AND column_name='{col}'
-            """)).fetchone()
+            """
+                )
+            ).fetchone()
 
             if result:
                 current_type = result[0]
@@ -72,11 +76,15 @@ def main():
 
                 if current_type.lower() not in ["character varying", "text", "varchar"]:
                     print(f"  Converting to {target_type}...")
-                    conn.execute(text(f"""
+                    conn.execute(
+                        text(
+                            f"""
                         ALTER TABLE employees 
                         ALTER COLUMN {col} TYPE {target_type} 
                         USING {col}::VARCHAR
-                    """))
+                    """
+                        )
+                    )
                     print(f"  ✓ {col} converted to {target_type}")
                 else:
                     print(f"  ✓ {col} already VARCHAR")

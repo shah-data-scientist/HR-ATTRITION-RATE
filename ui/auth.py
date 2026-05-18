@@ -120,7 +120,9 @@ def require_authentication():
 def show_login_page():
     """Display the login page."""
     st.set_page_config(
-        page_title="Employee Attrition Prediction - Login", page_icon="🔐", layout="centered"
+        page_title="Employee Attrition Prediction - Login",
+        page_icon="🔐",
+        layout="centered",
     )
 
     # Center the login form
@@ -161,7 +163,8 @@ def show_login_page():
 
         # Information box
         st.markdown("---")
-        st.info("""
+        st.info(
+            """
         **Default Accounts:**
 
         **Admin Account:**
@@ -173,7 +176,8 @@ def show_login_page():
         - Access: View-only access
 
         *Note: For security, passwords are set in the environment configuration.*
-        """)
+        """
+        )
 
 
 def show_user_info():
@@ -181,13 +185,15 @@ def show_user_info():
     if st.session_state.authenticated:
         st.sidebar.markdown("---")
         st.sidebar.markdown("### 👤 User Information")
-        st.sidebar.info(f"""
+        st.sidebar.info(
+            f"""
         **Username:** {st.session_state.username}
 
         **Role:** {st.session_state.user_role.title()}
 
         **User ID:** {st.session_state.user_id}
-        """)
+        """
+        )
 
         if st.sidebar.button("🚪 Logout", use_container_width=True):
             logout()

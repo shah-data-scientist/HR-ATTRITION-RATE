@@ -20,23 +20,27 @@ def get_engine() -> Optional[object]:
 
 
 def get_column_type(engine, table: str, column: str) -> Optional[str]:
-    sql = text("""
+    sql = text(
+        """
         SELECT data_type
         FROM information_schema.columns
         WHERE table_name = :table AND column_name = :column
-        """)
+        """
+    )
     with engine.connect() as conn:
         res = conn.execute(sql, {"table": table, "column": column}).fetchone()
         return res[0] if res else None
 
 
 def column_exists(engine, table: str, column: str) -> bool:
-    sql = text("""
+    sql = text(
+        """
         SELECT 1
         FROM information_schema.columns
         WHERE table_name = :table AND column_name = :column
         LIMIT 1
-        """)
+        """
+    )
     with engine.connect() as conn:
         res = conn.execute(sql, {"table": table, "column": column}).fetchone()
         return res is not None
