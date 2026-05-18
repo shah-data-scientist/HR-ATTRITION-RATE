@@ -40,6 +40,9 @@ A production-ready machine learning system that predicts employee attrition risk
 git clone https://github.com/shah-data-scientist/HR-ATTRITION-RATE.git
 cd HR-ATTRITION-RATE
 
+# Activate the pre-push hook (syncs to HuggingFace on every push)
+git config core.hooksPath .githooks
+
 cp .env.example .env
 # Edit .env: set API_KEY and SECRET_KEY to strong random strings
 
