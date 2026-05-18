@@ -48,6 +48,7 @@ psycopg2-binary = ">=2.9.11,<3.0.0"
 streamlit = ">=1.54.0"
 plotly = "*"
 scikit-learn = "*"
+imbalanced-learn = "*"
 joblib = ">=1.5.2,<2.0.0"
 
 [tool.poetry.group.dev.dependencies]

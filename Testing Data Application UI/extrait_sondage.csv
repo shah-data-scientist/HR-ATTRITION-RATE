@@ -1,0 +1,5 @@
+nombre_participation_pee,nb_formations_suivies,nombre_employee_sous_responsabilite,code_sondage,distance_domicile_travail,niveau_education,domaine_etude,ayant_enfants,frequence_deplacement,annees_depuis_la_derniere_promotion,annes_sous_responsable_actuel
+0,0,1,21345,1,2,Infra & Cloud,Y,Occasionnel,0,5
+1,3,1,21346,8,1,Infra & Cloud,Y,Frequent,1,7
+0,3,1,21347,2,2,Autre,Y,Occasionnel,0,0
+0,3,1,21348,3,4,Infra & Cloud,Y,Frequent,3,0

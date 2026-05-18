@@ -1,7 +1,12 @@
 {
   "permissions": {
     "allow": [
-      "Read(//c/Users/shahu/AppData/Local/Temp/claude/c--Users-shahu-Documents-OneDrive-OPEN-CLASSROOMS-PROJET-5/HR-Attrition-Rate/bb0e589a-60ef-4658-8ed5-b85c9decf866/tasks/**)"
+      "Read(//c/Users/shahu/AppData/Local/Temp/claude/c--Users-shahu-Documents-OneDrive-OPEN-CLASSROOMS-PROJET-5/HR-Attrition-Rate/bb0e589a-60ef-4658-8ed5-b85c9decf866/tasks/**)",
+      "Read(//c/Users/shahu/Documents/OneDrive/OPEN CLASSROOMS/PROJET 5/hr-attrition-hf-space/hr-attrition-hf-space/**)",
+      "Write(c:\\Users\\shahu\\Documents\\OneDrive\\OPEN CLASSROOMS\\PROJET 5\\HR Attrition Rate\\.git\\hooks\\*)",
+      "Bash(chmod +x *)",
+      "Skill(update-config)",
+      "Skill(update-config:*)"
     ]
   }
 }

@@ -1063,7 +1063,7 @@ version = "0.14.0"
 description = "Toolbox for imbalanced dataset in machine learning"
 optional = false
 python-versions = ">=3.10"
-groups = ["api"]
+groups = ["api", "ui"]
 files = [
     {file = "imbalanced_learn-0.14.0-py3-none-any.whl", hash = "sha256:8a8700c02ca185e113064815513f990fbf84eb4e7701f1d4e944ce67fb259a60"},
     {file = "imbalanced_learn-0.14.0.tar.gz", hash = "sha256:22b9ba6dbd681a9ec613cd6e08c21d39639fb5ccbf2a3c991f9c36415b70522c"},
@@ -3716,4 +3716,4 @@ h11 = ">=0.16.0,<1"
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.11"
-content-hash = "df038100acc01ec453e2fb509c500bf6da95282b796394b02578b794b78ef7f4"
+content-hash = "3505ec5f767c6b34a6b7963f0db761f4e3616981901965a6d81037d72de76e82"

@@ -1,0 +1,5 @@
+id_employee,age,genre,revenu_mensuel,statut_marital,departement,poste,nombre_experiences_precedentes,nombre_heures_travailless,annee_experience_totale,annees_dans_l_entreprise,annees_dans_le_poste_actuel
+21345,41,F,5993,Célibataire,Commercial,Cadre Commercial,8,80,8,6,4
+21346,49,M,5130,Marié(e),Consulting,Assistant de Direction,1,80,10,10,7
+21347,37,M,2090,Célibataire,Consulting,Consultant,6,80,7,0,0
+21348,33,F,2909,Marié(e),Consulting,Assistant de Direction,1,80,8,8,7
