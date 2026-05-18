@@ -6,9 +6,8 @@ FROM python:3.13-slim AS builder
 
 WORKDIR /app
 
-# Install build dependencies
+# Install build dependencies (curl only — all packages have pre-built wheels)
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    gcc \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
@@ -26,7 +25,7 @@ ENV POETRY_NO_INTERACTION=1 \
 COPY pyproject.toml poetry.lock ./
 
 # Install dependencies (no dev)
-RUN poetry install --no-root --without dev && rm -rf $POETRY_CACHE_DIR
+RUN poetry install --no-root --without dev,api && rm -rf $POETRY_CACHE_DIR
 
 # Stage 2: Runtime
 FROM python:3.13-slim
@@ -44,20 +43,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean
 
-# Copy virtual environment from builder
-COPY --from=builder /app/.venv /app/.venv
-
-# Copy application code
-COPY ui ./ui
-COPY core ./core
-COPY data ./data
-COPY outputs ./outputs
-
-# Create non-root user
+# Create non-root user before copying files so --chown works
 RUN groupadd -r appuser && useradd -r -g appuser -u 1001 appuser
 
-# Set ownership
-RUN chown -R appuser:appuser /app
+# Copy virtual environment and application code with correct ownership at copy time
+COPY --chown=appuser:appuser --from=builder /app/.venv /app/.venv
+COPY --chown=appuser:appuser ui ./ui
+COPY --chown=appuser:appuser core ./core
+COPY --chown=appuser:appuser data ./data
+COPY --chown=appuser:appuser models ./models
 
 # Switch to non-root user
 USER appuser
@@ -75,4 +69,3 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
 
 # Run Streamlit with authentication
 CMD ["streamlit", "run", "ui/app_authenticated.py", "--server.port=8501", "--server.address=0.0.0.0", "--server.headless=true", "--browser.gatherUsageStats=false"]
-

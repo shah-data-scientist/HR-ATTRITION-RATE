@@ -168,7 +168,6 @@ archive/ui_test_screenshots/
 Thumbs.db
 
 # Docker
-.dockerignore
 nul
 
 # Local development executables

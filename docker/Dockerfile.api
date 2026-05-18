@@ -9,7 +9,6 @@ WORKDIR /app
 # Install system dependencies
 RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
 
-
 # Install Poetry
 RUN curl -sSL https://install.python-poetry.org | python3 - \
     && ln -s /root/.local/bin/poetry /usr/local/bin/poetry
@@ -24,7 +23,7 @@ ENV POETRY_NO_INTERACTION=1 \
 COPY pyproject.toml poetry.lock ./
 
 # Install dependencies (no dev)
-RUN poetry install --no-root --without dev && rm -rf $POETRY_CACHE_DIR
+RUN poetry install --no-root --without dev,ui && rm -rf $POETRY_CACHE_DIR
 
 # Stage 2: Runtime
 FROM python:3.13-slim
@@ -43,22 +42,19 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean
 
-# Copy virtual environment from builder
-COPY --from=builder /app/.venv /app/.venv
-
-# Copy application code
-COPY api ./api
-COPY core ./core
-COPY database ./database
-COPY models ./models
-COPY scripts ./scripts
-
-# Create non-root user
+# Create non-root user before copying files so --chown works
 RUN groupadd -r appuser && useradd -r -g appuser -u 1000 appuser
 
-# Create necessary directories with correct permissions
-RUN mkdir -p /app/temp /app/shap_images \
-    && chown -R appuser:appuser /app
+# Create necessary directories with correct ownership
+RUN mkdir -p /app/temp /app/shap_images && chown appuser:appuser /app/temp /app/shap_images
+
+# Copy virtual environment and application code with correct ownership at copy time
+COPY --chown=appuser:appuser --from=builder /app/.venv /app/.venv
+COPY --chown=appuser:appuser api ./api
+COPY --chown=appuser:appuser core ./core
+COPY --chown=appuser:appuser database ./database
+COPY --chown=appuser:appuser models ./models
+COPY --chown=appuser:appuser scripts ./scripts
 
 # Switch to non-root user
 USER appuser
@@ -76,4 +72,3 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
 
 # Run the API server
 CMD ["uvicorn", "api.app.main:app", "--host", "0.0.0.0", "--port", "8001", "--workers", "4"]
-
