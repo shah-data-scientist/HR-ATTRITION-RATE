@@ -7,9 +7,9 @@
 # Source of truth: docker/Dockerfile.huggingface in HR-ATTRITION-RATE repo.
 # Synced to the HF space repo as Dockerfile — do not edit it there directly.
 
-FROM python:3.11-slim
+# Stage 1: Builder — installs packages (needs build-essential for some wheels)
+FROM python:3.11-slim AS builder
 
-# Build dependencies for scientific packages (numba, shap, etc.)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     curl \
@@ -17,9 +17,24 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
-# Install Python dependencies first (layer-cached until requirements change)
+# Install into an isolated venv so it can be cleanly copied to runtime stage
+RUN python -m venv /app/.venv
+ENV PATH="/app/.venv/bin:$PATH"
+
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
+
+# Stage 2: Runtime — clean image without build toolchain (~300 MB smaller)
+FROM python:3.11-slim
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Copy pre-built venv from builder (no compiler needed at runtime)
+COPY --from=builder /app/.venv /app/.venv
 
 # Copy application source
 COPY api/      ./api/
@@ -49,6 +64,7 @@ ENV DATABASE_URL=sqlite:////app/db_data/hr_attrition.db \
     UI_ADMIN_PASSWORD=Admin@2025!Secure \
     UI_USER_USERNAME=analyst \
     UI_USER_PASSWORD=Analyst@2025!View \
+    PATH="/app/.venv/bin:$PATH" \
     PYTHONPATH=/app
 
 # HuggingFace Spaces only exposes port 7860
