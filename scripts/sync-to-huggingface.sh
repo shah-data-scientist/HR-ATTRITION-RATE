@@ -14,7 +14,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SRC="$(cd "$SCRIPT_DIR/.." && pwd)"
-HF="$(cd "$SRC/../hr-attrition-hf-space/hr-attrition-hf-space" && pwd)"
+HF="$(cd "$SRC/../employee-attrition-prediction-space/employee-attrition-prediction-space" && pwd)"
 
 DRY_RUN=false
 if [[ "${1:-}" == "--dry-run" ]]; then
