@@ -324,10 +324,10 @@ def load_test_set_confusion_matrix(
     """Load test set and compute confusion matrix using saved test data."""
     try:
         project_root = get_project_root()
-        x_test_path = os.path.join(project_root, "outputs", "X_test.parquet")
-        y_test_path = os.path.join(project_root, "outputs", "y_test.parquet")
+        x_test_path = os.path.join(project_root, "models", "X_test.parquet")
+        y_test_path = os.path.join(project_root, "models", "y_test.parquet")
         model_path = os.path.join(
-            project_root, "outputs", "employee_attrition_pipeline.pkl"
+            project_root, "models", "employee_attrition_pipeline.pkl"
         )
 
         # Check if files exist
