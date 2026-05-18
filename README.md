@@ -246,63 +246,55 @@ Current coverage: ~74% (core modules 85–98%, API 52%)
 
 ## HuggingFace Spaces Deployment
 
-The live demo runs at **[huggingface.co/spaces/shah-data-scientist/HRApp](https://huggingface.co/spaces/shah-data-scientist/HRApp)**.
+**Live demo:** [huggingface.co/spaces/shah-data-scientist/HRApp](https://huggingface.co/spaces/shah-data-scientist/HRApp)
+
+### Purpose of the HuggingFace repository
+
+The HF Space is a **read-only deployment mirror** of this repository. It exists for one reason: HuggingFace Spaces requires its own git repository to build and serve the application. The HF space repo (`hr-attrition-hf-space`) contains no original code — every file in it was generated from this repository and pushed there automatically.
+
+**This repo is the single source of truth. All development happens here.**
 
 ### Architecture difference
 
-| This repo (source) | HuggingFace Space |
-|--------------------|-------------------|
-| 3 containers: API + UI + Database (Docker Compose) | 1 container (HF constraint) |
-| PostgreSQL | SQLite (persisted at `/app/db_data/hr_attrition.db`) |
-| `pyproject.toml` / Poetry | `requirements.txt` (pinned flat deps) |
+HuggingFace Spaces imposes a single-container constraint, which requires a different runtime setup from the local multi-container environment:
 
-### Repository relationship
+| Aspect | This repo (source) | HuggingFace Space |
+|--------|--------------------|-------------------|
+| Containers | 3 (API + UI + Database) via Docker Compose | 1 unified container |
+| Database | PostgreSQL | SQLite (at `/app/db_data/hr_attrition.db`) |
+| Dependencies | `pyproject.toml` / Poetry | `requirements.txt` (pinned flat list) |
+| Ports | API :8001, UI :8501 (separate) | UI only on :7860 (HF default) |
+| Startup | `docker compose up` | `start.sh` launches both services internally |
 
-The HuggingFace Space is maintained in a separate repo at `../hr-attrition-hf-space/` (sibling directory). **All application source files originate here** — the HF space repo contains only the deployment-specific wrapper (`Dockerfile`, `requirements.txt`, `README.md` with YAML front-matter, `.gitattributes`).
+### Deployment files (managed in this repo)
 
-### HF deployment files (live in this repo)
-
-The HF-specific deployment files are kept in [`docker/`](docker/) alongside the other Dockerfiles:
+All HF-specific deployment files live in [`docker/`](docker/) alongside the other Dockerfiles, so there is one place to look for all container configuration:
 
 | File in this repo | Synced to HF space as | Purpose |
 |-------------------|-----------------------|---------|
-| `docker/Dockerfile.huggingface` | `Dockerfile` | Single-container build (API + UI + SQLite) |
-| `docker/requirements.huggingface.txt` | `requirements.txt` | Pinned pip dependencies |
-| `docker/start.huggingface.sh` | `start.sh` | Startup script (runs both services) |
+| [`docker/Dockerfile.huggingface`](docker/Dockerfile.huggingface) | `Dockerfile` | Single-container build (FastAPI + Streamlit + SQLite) |
+| [`docker/requirements.huggingface.txt`](docker/requirements.huggingface.txt) | `requirements.txt` | Pinned pip dependencies for the HF environment |
+| [`docker/start.huggingface.sh`](docker/start.huggingface.sh) | `start.sh` | Startup script: initialises DB, starts API in background, then Streamlit |
 
-### How to sync changes to HuggingFace
+### Automated sync — how it works
 
-When you update application code in this repo, copy the changed files to the HF space and push:
+A **pre-push git hook** ([`.githooks/pre-push`](.githooks/pre-push)) runs [`scripts/sync-to-huggingface.sh`](scripts/sync-to-huggingface.sh) automatically every time you push from this repo. The sync script:
 
-```bash
-HF="../hr-attrition-hf-space/hr-attrition-hf-space"
+1. Copies all source directories (`api/`, `core/`, `database/`, `ui/`, `data/`, `models/`) to the HF space repo
+2. Copies the three deployment files above
+3. Commits the changes in the HF space repo
+4. Pushes to HuggingFace Spaces (triggers a container rebuild)
+5. Pushes to the GitHub mirror of the HF space repo
 
-# Sync source files
-cp -r api/          $HF/api/
-cp -r core/         $HF/core/
-cp -r database/     $HF/database/
-cp -r ui/           $HF/ui/
-cp -r data/         $HF/data/
-cp -r models/       $HF/models/
-cp scripts/utils.py $HF/scripts/utils.py
-cp .streamlit/config.toml $HF/.streamlit/config.toml
+This means **a normal `git push` here automatically deploys to HuggingFace** — no manual steps needed.
 
-# Sync deployment files
-cp docker/Dockerfile.huggingface      $HF/Dockerfile
-cp docker/requirements.huggingface.txt $HF/requirements.txt
-cp docker/start.huggingface.sh         $HF/start.sh
+> The hook is stored in `.githooks/` (tracked in this repo) and activated locally with `git config core.hooksPath .githooks`. Anyone cloning this repo must run that command once — it is included in the Quick Start above.
 
-# Commit and push to HuggingFace
-cd $HF
-git add -A
-git commit -m "Sync from HR-ATTRITION-RATE $(date +%Y-%m-%d)"
-git push origin main   # pushes to HuggingFace Spaces
-git push github main   # mirrors to GitHub
-```
+### What is protected in the HF space repo
 
-> **Never edit files directly in the HF space repo.** Make all changes here, then sync.
+A pre-commit hook in the HF space repo blocks any direct commits to source files. The `CLAUDE.md` in the HF space repo also instructs Claude Code not to edit source files there. Changes flow in one direction only: **this repo → HF space**.
 
-### HF space demo credentials
+### Demo credentials
 
 | Role | Username | Password |
 |------|----------|----------|
